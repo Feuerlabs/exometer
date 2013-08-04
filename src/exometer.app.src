@@ -1,0 +1,12 @@
+{application, exometer,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { exometer_app, []}},
+  {env, []}
+ ]}.
