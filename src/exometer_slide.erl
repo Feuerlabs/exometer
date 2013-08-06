@@ -9,13 +9,12 @@
 	 add_element/2,
 	 add_element/3,
 	 to_list/1,
-	 fold/3,
-	 timestamp/0,
-	 timestamp_to_datetime/1]).
+	 fold/3]).
 
 -compile(export_all).
 
 -import(lists, [reverse/1, sublist/3]).
+-import(exometer, [timestamp/0]).
 
 %% Fixed size event buffer
 -record(slide, {size = 0 :: integer(),  % ms window
@@ -70,22 +69,6 @@ take_since(_, _, Acc) ->
     %% Don't reverse; already the wanted order.
     Acc.
 
-timestamp() ->
-    %% Invented epoc is {1258,0,0}, or 2009-11-12, 4:26:40
-    %% Millisecond resolution
-    {MS,S,US} = os:timestamp(),
-    (MS-1258)*1000000000 + S*1000 + US div 1000.
-
-timestamp_to_datetime(TS) ->
-    %% Our internal timestamps are relative to Now = {1258,0,0}
-    %% It doesn't really matter much how we construct a now()-like tuple,
-    %% as long as the weighted sum of the three numbers is correct.
-    S = TS div 1000,
-    MS = TS rem 1000,
-    %% return {Datetime, Milliseconds}
-    {calendar:now_to_datetime({1258,S,0}), MS}.
-
-
 test() ->
     S = new(1000),
     S1 = lists:foldl(
@@ -102,23 +85,40 @@ test() ->
 %%    dict:to_list(fold(fun({_T,{K,_V}}, Acc) ->
 %% 			     dict:update_counter(K, 1, Acc)
 %% 		     end, dict:new(), S)).
+%% build_histogram(S) ->
+%%     E = ets:new(h, [ordered_set]),
+%%     try
+%% 	_ = fold(fun({_T,{K,_V}}, Acc) ->
+%% 			 eupc(E, K), Acc
+%% 		 end, ok, S),
+%% 	e2l(E)
+%%     after
+%% 	ets:delete(E)
+%%     end.
+
+%% e2l(E) ->
+%%     ets:tab2list(E).
+
+%% eupc(E, K) ->
+%%     try ets:update_counter(E, K, 1)
+%%     catch
+%% 	error:_ ->
+%% 	    ets:insert(E, {K,1})
+%%     end.
 build_histogram(S) ->
-    E = ets:new(h, [ordered_set]),
     try
-	_ = fold(fun({_T,{K,_V}}, Acc) ->
-			 eupc(E, K), Acc
-		 end, ok, S),
-	e2l(E)
+	fold(fun({_T, {K, _V}}, Acc) ->
+		     pdupc(K), Acc
+	     end, ok, S),
+	get()
     after
-	ets:delete(E)
+	erase()
     end.
 
-e2l(E) ->
-    ets:tab2list(E).
-
-eupc(E, K) ->
-    try ets:update_counter(E, K, 1)
-    catch
-	error:_ ->
-	    ets:insert(E, {K,1})
+pdupc(K) ->
+    case get(K) of
+	undefined ->
+	    put(K, 1);
+	N ->
+	    put(K, N+1)
     end.
