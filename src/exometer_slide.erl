@@ -60,8 +60,8 @@ fold(_Fun, _Acc, #slide{size = Sz}) when Sz == 0 ->
     [];
 fold(Fun, Acc, #slide{size = Sz, buf1 = Buf1, buf2 = Buf2}) ->
     Start = timestamp() - Sz,
-    lists:foldl(Fun, lists:foldl(Fun, Acc, take_since(Buf2, Start, [])),
-				 reverse(Buf1)).
+    lists:foldr(
+      Fun, lists:foldl(Fun, Acc, take_since(Buf2, Start, [])), Buf1).
 
 take_since([{TS,_} = H|T], Start, Acc) when TS >= Start ->
     take_since(T, Start, [H|Acc]);
@@ -81,41 +81,17 @@ test() ->
 			 V <- [b,c]]),
     timer:tc(?MODULE, build_histogram, [S1]).
 
-%% build_histogram(S) ->
-%%    dict:to_list(fold(fun({_T,{K,_V}}, Acc) ->
-%% 			     dict:update_counter(K, 1, Acc)
-%% 		     end, dict:new(), S)).
-%% build_histogram(S) ->
-%%     E = ets:new(h, [ordered_set]),
-%%     try
-%% 	_ = fold(fun({_T,{K,_V}}, Acc) ->
-%% 			 eupc(E, K), Acc
-%% 		 end, ok, S),
-%% 	e2l(E)
-%%     after
-%% 	ets:delete(E)
-%%     end.
-
-%% e2l(E) ->
-%%     ets:tab2list(E).
-
-%% eupc(E, K) ->
-%%     try ets:update_counter(E, K, 1)
-%%     catch
-%% 	error:_ ->
-%% 	    ets:insert(E, {K,1})
-%%     end.
 build_histogram(S) ->
     try
 	fold(fun({_T, {K, _V}}, Acc) ->
-		     pdupc(K), Acc
+		     pd_incr(K), Acc
 	     end, ok, S),
 	get()
     after
 	erase()
     end.
 
-pdupc(K) ->
+pd_incr(K) ->
     case get(K) of
 	undefined ->
 	    put(K, 1);
