@@ -82,13 +82,20 @@ test() ->
     timer:tc(?MODULE, build_histogram, [S1]).
 
 build_histogram(S) ->
-    try
-	fold(fun({_T, {K, _V}}, Acc) ->
-		     pd_incr(K), Acc
-	     end, ok, S),
-	get()
+    on_pdict(
+      fun() ->
+	      fold(fun({_T, {K, _V}}, Acc) ->
+			   pd_incr(K), Acc
+		   end, ok, S),
+	      get()
+      end).
+
+on_pdict(F) when is_function(F, 0) ->
+    Prev = erase(),
+    try F()
     after
-	erase()
+	erase(),
+	[put(K,V) || {K,V} <- Prev]
     end.
 
 pd_incr(K) ->
