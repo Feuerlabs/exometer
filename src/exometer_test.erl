@@ -26,13 +26,14 @@ my_slide(W, Int) ->
 
 
 update_hist(N, Name, Sleep, ReadInt, ReadInt0, Acc) when N > 0 ->
-    {T,true} = timer:tc(folsom_metrics_histogram,update,[Name, 1]),
+    {T,ok} = timer:tc(folsom_metrics, notify,[Name, 1]),
     Acc1 = [T|Acc],
     {R2, ReadInt1, Acc2} =
 	if ReadInt =< 0 ->
 		Hist = bear:get_statistics(Acc1),
-		{[Hist,
-		  timer:tc(folsom_metrics,get_histogram_statistics, [Name])],
+		{[trim_(Hist),
+		  trim(timer:tc(
+			 folsom_metrics,get_histogram_statistics, [Name]))],
 		 ReadInt0, []};
 	   true ->
 		{[], ReadInt - 1, Acc1}
@@ -40,8 +41,8 @@ update_hist(N, Name, Sleep, ReadInt, ReadInt0, Acc) when N > 0 ->
     timer:sleep(Sleep),
     R2 ++ update_hist(N-1, Name, Sleep, ReadInt1, ReadInt0, Acc2);
 update_hist(_, Name, _, _, _, Acc) ->
-    [bear:get_statistics(Acc),
-     timer:tc(folsom_metrics, get_histogram_statistics, [Name])].
+    [trim_(bear:get_statistics(Acc)),
+     trim(timer:tc(folsom_metrics, get_histogram_statistics, [Name]))].
 
 
 new_h(Name, W) ->
@@ -65,8 +66,8 @@ update_h(N, Name, Sleep, ReadInt, ReadInt0, Acc) when N > 0 ->
     Acc1 = [T|Acc],
     {R, ReadInt1, Acc2} =
 	if ReadInt =< 0 ->
-		{[bear:get_statistics(Acc1),
-		  timer:tc(?MODULE,get_histogram_statistics, [Name])],
+		{[trim_(bear:get_statistics(Acc1)),
+		  trim(timer:tc(?MODULE,get_histogram_statistics, [Name]))],
 		 ReadInt0, []};
 	   true ->
 		{[], ReadInt - 1, Acc1}
@@ -74,10 +75,15 @@ update_h(N, Name, Sleep, ReadInt, ReadInt0, Acc) when N > 0 ->
     timer:sleep(Sleep),
     R ++ update_h(N-1, Name, Sleep, ReadInt1, ReadInt0, Acc2);
 update_h(_, Name, _, _, _, Acc) ->
-    [bear:get_statistics(Acc),
-     timer:tc(?MODULE, get_histogram_statistics, [Name])].
+    [trim_(bear:get_statistics(Acc)),
+     trim(timer:tc(?MODULE, get_histogram_statistics, [Name]))].
 
+trim({T,H}) ->
+    {T, trim_(H)}.
 
+trim_(Hist) ->
+    [{K,V} || {K,V} <- Hist,
+	      lists:member(K, [min,max,median])].
 
 update(N, Value, true) ->
     call(N, {update, Value});
