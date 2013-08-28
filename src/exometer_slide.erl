@@ -9,7 +9,11 @@
 	 add_element/2,
 	 add_element/3,
 	 to_list/1,
-	 fold/3]).
+	 fold/3,
+	fold/4]).
+
+
+-export([test/0]).
 
 -compile(export_all).
 
@@ -56,12 +60,15 @@ to_list(#slide{size = Sz, buf1 = Buf1, buf2 = Buf2}) ->
     Start = timestamp() - Sz,
     take_since(Buf2, Start, reverse(Buf1)).
 
-fold(_Fun, _Acc, #slide{size = Sz}) when Sz == 0 ->
+fold(_TS, _Fun, _Acc, #slide{size = Sz}) when Sz == 0 ->
     [];
-fold(Fun, Acc, #slide{size = Sz, buf1 = Buf1, buf2 = Buf2}) ->
-    Start = timestamp() - Sz,
+fold(TS, Fun, Acc, #slide{size = Sz, buf1 = Buf1, buf2 = Buf2}) ->
+    Start = TS - Sz,
     lists:foldr(
       Fun, lists:foldl(Fun, Acc, take_since(Buf2, Start, [])), Buf1).
+
+fold(Fun, Acc, Slide) ->
+    fold(timestamp(), Fun, Acc, Slide).
 
 take_since([{TS,_} = H|T], Start, Acc) when TS >= Start ->
     take_since(T, Start, [H|Acc]);
@@ -69,39 +76,28 @@ take_since(_, _, Acc) ->
     %% Don't reverse; already the wanted order.
     Acc.
 
+    
 test() ->
-    S = new(1000),
-    S1 = lists:foldl(
-	   fun({K,V}, Acc) ->
-		   Acc1 = add_element({K,V}, Acc),
-		   Acc1
-	   end, S, [{K, V} || K <- lists:seq(1,100),
-			      V <- lists:seq(1,100)] ++
-	       [{K,V} || K <- [3,4],
-			 V <- [b,c]]),
-    timer:tc(?MODULE, build_histogram, [S1]).
+    %% Create a slotted slide covering 2000 elements (ms), where
+    S = new(2000),
+
+    {T1, S1 }= timer:tc(?MODULE, build_histogram, [S]),
+
+    {T2, _ } = timer:tc(?MODULE, calc_total, [S1]),
+    io:format("Histogram creation: ~p~n", [ T1 ]),
+    io:format("Tot calculation: ~p~n", [ T2 ]).
 
 build_histogram(S) ->
-    on_pdict(
-      fun() ->
-	      fold(fun({_T, {K, _V}}, Acc) ->
-			   pd_incr(K), Acc
-		   end, ok, S),
-	      get()
-      end).
+    %% Create 45000 events, Each millisecond, ten
+    %% elements (1-10) will be created and installed
+    %% in the histogram
+    %% The 10 msec slot size means that each slot will calculate
+    %% the average of 10 msec * 10 elements.
+    lists:foldl(fun({TS,Elem}, Acc) ->
+			add_element(TS, Elem, Acc)
+		end, S, [{TS, Elem} || TS <- lists:seq(1,4500),
+				       Elem <- lists:seq(1,10)]).
 
-on_pdict(F) when is_function(F, 0) ->
-    Prev = erase(),
-    try F()
-    after
-	erase(),
-	[put(K,V) || {K,V} <- Prev]
-    end.
+calc_total(S) ->
+     fold(4500, fun({_TS, Elem}, Acc) -> Elem + Acc end, 0, S).
 
-pd_incr(K) ->
-    case get(K) of
-	undefined ->
-	    put(K, 1);
-	N ->
-	    put(K, N+1)
-    end.
