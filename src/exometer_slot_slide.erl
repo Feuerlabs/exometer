@@ -365,9 +365,10 @@ test() ->
     S = new(2000, 100),
     {T1, S1 }= timer:tc(?MODULE, build_histogram, [S]),
 
-    {T2, _ } = timer:tc(?MODULE, calc_total, [S1]),
+    {T2, Avg } = timer:tc(?MODULE, calc_avg, [S1]),
     io:format("Histogram creation: ~p~n", [ T1 ]),
-    io:format("Tot calculation: ~p~n", [ T2 ]).
+    io:format("Avg calculation: ~p~n", [ T2 ]),
+    io:format("Avg value: ~p~n", [ Avg ]).
 
 build_histogram(S) ->
     %% Create 10*4500 events, Each millisecond, ten
@@ -381,6 +382,10 @@ build_histogram(S) ->
 		end, S, [{TS, Elem} || TS <- lists:seq(1,4500),
 				       Elem <- lists:seq(1,10)]).
 
-calc_total(S) ->
-     foldr(4500, fun({_TS, Elem}, Acc) -> Elem + Acc end, 0, S).
+calc_avg(Slide) ->
+    {T, C} = foldr(4500, fun({_TS, Elem}, {Sum, Count}) -> 
+				    {Sum + Elem, Count + 1} end, {0, 0}, Slide),
+    T / C.
+
+			    
 

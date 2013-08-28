@@ -78,26 +78,31 @@ take_since(_, _, Acc) ->
 
     
 test() ->
-    %% Create a slotted slide covering 2000 elements (ms), where
+    %% Create a slotted slide covering 2000 msec, where
+    %% each slot is 100 msec wide.
     S = new(2000),
-
     {T1, S1 }= timer:tc(?MODULE, build_histogram, [S]),
 
-    {T2, _ } = timer:tc(?MODULE, calc_total, [S1]),
+    {T2, Avg } = timer:tc(?MODULE, calc_avg, [S1]),
     io:format("Histogram creation: ~p~n", [ T1 ]),
-    io:format("Tot calculation: ~p~n", [ T2 ]).
+    io:format("Avg calculation: ~p~n", [ T2 ]),
+    io:format("Avg value: ~p~n", [ Avg ]).
 
 build_histogram(S) ->
-    %% Create 45000 events, Each millisecond, ten
+    %% Create 10*4500 events, Each millisecond, ten
     %% elements (1-10) will be created and installed
     %% in the histogram
-    %% The 10 msec slot size means that each slot will calculate
-    %% the average of 10 msec * 10 elements.
+    %% The 100 msec slot size means that each slot will calculate
+    %% the average of 100 msec * 10 (1000) elements.
+    %%
     lists:foldl(fun({TS,Elem}, Acc) ->
-			add_element(TS, Elem, Acc)
+			add_element(TS,Elem, Acc)
 		end, S, [{TS, Elem} || TS <- lists:seq(1,4500),
 				       Elem <- lists:seq(1,10)]).
 
-calc_total(S) ->
-     fold(4500, fun({_TS, Elem}, Acc) -> Elem + Acc end, 0, S).
+calc_avg(Slide) ->
+    {T, C} = fold(4500, fun({_TS, Elem}, {Sum, Count}) -> 
+				    {Sum + Elem, Count + 1} end, {0, 0}, Slide),
+    T / C.
+			    
 
