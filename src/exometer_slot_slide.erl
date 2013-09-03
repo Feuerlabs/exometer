@@ -154,6 +154,7 @@
 -export([new/2, new/4,
 	 add_element/2,
 	 add_element/3,
+	 reset/1,
 	 to_list/1,
 	 foldl/3,
 	 foldl/4,
@@ -253,6 +254,14 @@ to_list(#slide{timespan = TimeSpan } = Slide) ->
     Oldest = get_slot(Slide) - TimeSpan,
     take_since(Oldest, Slide).
 
+-spec reset(#slide{}) -> #slide{}.
+
+reset(#slide{} = Slide) ->
+    Slide#slide { cur_state = undefined, 
+		  list1 = [], 
+		  list2 = [],
+		  list1_start_slot = 0}.
+    
 
 foldl(TS, Fun, Acc, #slide{timespan = TimeSpan} = Slide) ->
     Oldest = get_slot(TS, Slide) - TimeSpan,
