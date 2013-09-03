@@ -2,6 +2,17 @@
 
 -compile(export_all).
 
+-include("exometer.hrl").
+
+
+update(Name, Value) ->
+    case ets:lookup(table(), {schema, Name}) of
+	[] ->
+	    error({not_found, Name});
+	[{_, #exometer_entry{module = M, type = Type}}] ->
+	    M:update(Name, Type, Value)
+    end.
+
 timestamp() ->
     %% Invented epoc is {1258,0,0}, or 2009-11-12, 4:26:40
     %% Millisecond resolution
@@ -19,6 +30,9 @@ timestamp_to_datetime(TS) ->
 
 tables() ->
     [table(S) || S <- lists:seq(1,erlang:system_info(schedulers))].
+
+table() ->
+    table(erlang:system_info(scheduler_id)).
 
 table(1) -> exometer_1;
 table(2) -> exometer_2;
