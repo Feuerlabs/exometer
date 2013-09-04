@@ -1,7 +1,8 @@
 -module(exometer_ctr).
--export([new/1,
+-behaviour(exometer_entry).
+-export([new/3,
 	 delete/1,
-	 incr/2,
+	 update/3,
 	 reset/1,
 	 time_since_reset/1,
 	 get_value/1,
@@ -10,22 +11,25 @@
 -compile(export_all).
 -import(exometer, [timestamp/0, tables/0, table/1]).
 
-new(Name) ->
+-include("exometer.hrl").
+
+new(Name, counter, _) ->
     TS = timestamp(),
     All = [ets:insert_new(T, {Name, 0, TS}) || T <- tables()],
     true = all_true(All),
     0.
 
+update(Name, counter, Value) ->
+    ets:update_counter(?EXOMETER_TABLE, Name, Value).
+
 delete(Name) ->
     [ets:delete(T, Name) || T <- tables()],
     true.
 
-incr(Name, I) ->
-    ets:update_counter(table(erlang:system_info(scheduler_id)), Name, I).
-
 reset(Name) ->
+    Vals = [{T, ets:lookup_element(T,Name,2)} || T <- tables()],
     TS = timestamp(),
-    [ets:update_element(T, Name, [{2,0},{3,TS}]) || T <- tables()],
+    [ets:update_element(T, Name, [{2,-I},{3,TS}]) || {T,I} <- Vals],
     ok.
 
 time_since_reset(Name) ->
@@ -47,7 +51,7 @@ all_true([true|T]) -> all_true(T);
 all_true(_) -> false.
 
 run(Iters, Ps) ->
-    new(test_ctr),
+    new(test_ctr, counter, []),
     Procs = [spawn_monitor(
 	       fun() ->
 		       exit({ok, run_(Iters)})
@@ -58,7 +62,7 @@ run(Iters, Ps) ->
     V.
 
 run_(I) when I > 0 ->
-    incr(test_ctr, 1),
+    update(test_ctr, counter, 1),
     run_(I-1);
 run_(_) ->
     ok.

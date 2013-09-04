@@ -1,12 +1,14 @@
+%% -*- erlang -*-
 {application, exometer,
  [
-  {description, ""},
-  {vsn, "1"},
+  {description, "Real-time metrics"},
+  {vsn, git},
   {registered, []},
   {applications, [
                   kernel,
                   stdlib
                  ]},
   {mod, { exometer_app, []}},
+  {start_phases, [{preset_defaults, []}]},
   {env, []}
  ]}.
