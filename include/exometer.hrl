@@ -9,6 +9,8 @@
 -record(exometer_entry, {
 	  name,
 	  type,
+	  value = 0,
+	  timestamp = 0,
 	  module = exometer,
 	  options = [],
 	  ref}).

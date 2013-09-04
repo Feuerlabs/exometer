@@ -1,6 +1,6 @@
 -module(exometer_ctr).
 -behaviour(exometer_entry).
--export([new/3,
+-export([new/1,
 	 delete/1,
 	 update/3,
 	 reset/1,
@@ -13,37 +13,38 @@
 
 -include("exometer.hrl").
 
-new(Name, counter, _) ->
+new(#exometer_entry{} = E) ->
     TS = timestamp(),
-    All = [ets:insert_new(T, {Name, 0, TS}) || T <- tables()],
-    true = all_true(All),
-    0.
+    E#exometer_entry{value = 0, timestamp = TS}.
 
 update(Name, counter, Value) ->
-    ets:update_counter(?EXOMETER_TABLE, Name, Value).
+    ets:update_counter(
+      ?EXOMETER_TABLE, Name, {#exometer_entry.value, Value}).
 
-delete(Name) ->
-    [ets:delete(T, Name) || T <- tables()],
-    true.
+delete(#exometer_entry{}) -> ok.
 
 reset(Name) ->
-    Vals = [{T, ets:lookup_element(T,Name,2)} || T <- tables()],
+    Vals = [{T, ets:lookup_element(T,Name,#exometer_entry.value)}
+	    || T <- tables()],
     TS = timestamp(),
-    [ets:update_element(T, Name, [{2,-I},{3,TS}]) || {T,I} <- Vals],
+    [ets:update_element(T, Name, [{#exometer_entry.value,-I},
+				  {#exometer_entry.timestamp,TS}])
+     || {T,I} <- Vals],
     ok.
 
 time_since_reset(Name) ->
-    Tr = ets:lookup_element(table(1), Name, 3),
+    Tr = ets:lookup_element(?EXOMETER_TABLE, Name, #exometer_entry.timestamp),
     timestamp() - Tr.
 
 get_value(Name) ->
-    lists:sum([ets:lookup_element(T, Name, 2) || T <- tables()]).
+    lists:sum([ets:lookup_element(T, Name, #exometer_entry.value)
+	       || T <- tables()]).
 
 get_value_and_time(Name) ->
     Tabs = tables(),
     Now = timestamp(),
-    [{_, C, TS}] = ets:lookup(hd(Tabs), Name),
-    Cs = [ets:lookup_element(T, Name, 2) || T <- tl(Tabs)],
+    [#exometer_entry{value = C, timestamp = TS}] = ets:lookup(hd(Tabs), Name),
+    Cs = [ets:lookup_element(T, Name, #exometer_entry.value) || T <- tl(Tabs)],
     {lists:sum([C | Cs]), Now - TS}.
 
 all_true([]) -> true;
@@ -51,7 +52,9 @@ all_true([true|T]) -> all_true(T);
 all_true(_) -> false.
 
 run(Iters, Ps) ->
-    new(test_ctr, counter, []),
+    new(#exometer_entry{name = [test_ctr],
+			module = ?MODULE,
+			type = counter}),
     Procs = [spawn_monitor(
 	       fun() ->
 		       exit({ok, run_(Iters)})

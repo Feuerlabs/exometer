@@ -3,7 +3,8 @@
 -export([new/2,
 	 new/3,
 	 update/2,
-	 delete/1]).
+	 delete/1,
+	 find_entries/1]).
 
 -include("exometer.hrl").
 
@@ -11,13 +12,14 @@
 -type type()    :: atom().
 -type options() :: [{atom(), any()}].
 
--callback new(Name :: name(), Type :: type(), Options :: options()) -> any().
+-callback new(#exometer_entry{}) -> #exometer_entry{}.
 -callback update(Name :: name(), Type :: type(), Value :: any()) -> ok.
 -callback delete(Name :: name()) -> ok.
 
 new(Name, Type) ->
     new(Name, Type, []).
 
+-spec new(name(), type(), options()) -> ok.
 new(Name, Type, Opts) when is_list(Name), is_list(Opts) ->
     #exometer_entry{} = E = exometer_admin:lookup_definition(Name, Type),
     create_entry(Name, E, Opts).
@@ -42,9 +44,14 @@ delete(Name) ->
 
 
 create_entry(Name, #exometer_entry{module = M,
-				   type = Type,
-				   options = Opts0} = Def, Opts) ->
-    Ref = M:new(Name, Type, Opts ++ Opts0),
-    [ets:insert(T, Def#exometer_entry{name = Name, ref = Ref}) ||
-	T <- exometer:tables()],
-    Ref.
+				   options = Opts0} = E, Opts) ->
+    E1 = M:new(E#exometer_entry{name = Name, options = Opts ++ Opts0}),
+    [ets:insert(T, E1) || T <- exometer:tables()],
+    ok.
+
+find_entries(Path) ->
+    Pat = Path ++ '_',
+    ets:select(?EXOMETER_TABLE,
+	       [ { #exometer_entry{name = Pat, _ = '_'}, [],
+		   [{{ {element, #exometer_entry.name, '$_'},
+		       {element, #exometer_entry.type, '$_'} }}] } ]).

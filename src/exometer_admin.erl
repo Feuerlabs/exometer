@@ -107,7 +107,7 @@ code_change(_, S, _) ->
 create_ets_tabs() ->
     case ets:info(?MODULE, name) of
 	undefined ->
-	    [ets:new(T, [public, named_table, set])
+	    [ets:new(T, [public, named_table, set, {keypos,2}])
 	     || T <- tables()],
 	    ets:new(?MODULE, [public, named_table, ordered_set,
 			      {keypos, 2}]);
@@ -146,7 +146,9 @@ default_definition(Name, Type) ->
 		#exometer_entry{} = E ->
 		    E#exometer_entry{name = Name};
 		false ->
-		    #exometer_entry{name = Name, module = module(Type)}
+		    #exometer_entry{name = Name,
+				    type = Type,
+				    module = module(Type)}
 	    end
     end.
 
