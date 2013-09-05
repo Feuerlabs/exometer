@@ -1,32 +1,41 @@
 -module(exometer_admin).
 
--export([new/2, new/3,
-	 set_default/3,
-	 delete/1]).
+%% ULF: See below for details
+%% -export([new/2, new/3,
+%% 	 set_default/3,
+%% 	 delete/1]).
+
+-export([set_default/3]).
 
 -compile(export_all).
 
 -record(st, {}).
 -include("exometer.hrl").
 
-new(Name, Type) ->
-    new(Name, Type, []).
+%% ULF: Implemented by exometer_entry:new().
+%%       These versions should be removed, thus focusing on the
+%%       Name pattern matching setup??
+%%
+%% new(Name, Type) ->
+%%     new(Name, Type, []).
 
-new(Name0, Type, Opts) when is_list(Opts) ->
-    Name = normalize_name(Name0),
-    Def = lookup_definition(Name, Type),
-    create_metric(Name, Def).
+%% new(Name0, Type, Opts) when is_list(Opts) ->
+%%     Name = normalize_name(Name0),
+%%     Def = lookup_definition(Name, Type),
+%%     exometer_entry:new(Name, Type, Opts ++ Def#exometer_entry.options ),
 
-delete(Name0) ->
-    Name = normalize_name(Name0),
-    case ets:lookup(exometer:table(), Name) of
-	[] ->
-	    ok;
-	[#exometer_entry{module = M, type = Type, ref = Ref}] ->
-	    M:delete(Name, Type, Ref),
-	    [ets:delete(T, Name) || T <- tables()],
-	    ok
-    end.
+%% ULF: Implemented by exometer_entry:delete().
+%%       Remove this version??
+%% delete(Name0) ->
+%%     Name = normalize_name(Name0),
+%%     case ets:lookup(exometer:table(), Name) of
+%% 	[] ->
+%% 	    ok;
+%% 	[#exometer_entry{module = M, type = _Type, mod_state = ModSt}] ->
+%% 	    M:delete(ModSt),
+%% 	    [ets:delete(T, Name) || T <- tables()],
+%% 	    ok
+%%     end.
 
 -spec set_default([atom()], atom(), #exometer_entry{} | [{atom(),any()}]) ->
 			 true.
@@ -121,13 +130,17 @@ tables() ->
 
 %% ====
 
-create_metric(Name, #exometer_entry{module = M,
-				    type = Type,
-				    options = Opts} = Def) ->
-    Ref = M:new(Name, Type, Opts),
-    [ets:insert(T, Def#exometer_entry{name = Name, ref = Ref}) ||
-	T <- tables()],
-    Ref.
+%% ULF: NOT USED. 
+%% exometer_entry:create_entry() does the same thing.
+%%
+%% create_metric(Name, #exometer_entry{module = M,
+%% 				    type = _Type,
+%% 				    options = Opts} = Def, ExtraOpts) ->
+%%     exometer_entry:new(
+%%     { ok, ModSt } = M:new(Name, ExtraOpts ++ Opts),
+%%     [ets:insert(T, Def#exometer_entry{name = Name, mod_state = ModSt, options = ExtraOpts ++ Opts}) ||
+%% 	T <- tables()],
+%%     ModSt.
 
 lookup_definition(Name, Type) ->
     case ets:lookup(?MODULE, Name) of
@@ -153,6 +166,9 @@ default_definition(Name, Type) ->
     end.
 
 module(counter  ) -> exometer_ctr;
+%% Be sure to specify { module, exometer_ctr } in Options when
+%% creating a ticker metrics through exometer_entry:new().
+module(ticker  ) -> exometer_probe; 
 module(histogram) -> exometer_histogram;
 module(spiral   ) -> exometer_spiral.
 

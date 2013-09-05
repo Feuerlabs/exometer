@@ -1,10 +1,16 @@
 -module(exometer_probe).
 -behaviour(gen_server).
+-behaviour(exometer_entry).
 
--export([start/3,
-	 stop/1,
-	 subscribe/1,
-	 unsubscribe/1]).
+% exometer_entry callb
+-export([new/2,
+	 delete/1,
+	 get_value/1,
+	 update/2,
+	 reset/1,
+	 sample/1,
+	 setopts/2]).
+
 
 %% gen_server callbacks
 -export([init/1,
@@ -14,77 +20,108 @@
 	 terminate/2,
 	 code_change/3]).
 
-%% behaviour_info
--export([behaviour_info/1]).
-
 -include("exometer.hrl").
 
 -record(st, {name,
-	     subscribers = [],
-	     collect_from = [],
-	     mod,
+	     module = undefined,
 	     mod_state,
 	     sample_timer,
-	     report_timer,
-	     sample_interval = infinity,
-	     report_interval = infinity,
-	     opts = [],
-	     user_opts = []}).
+	     sample_interval = 1000, %% msec
+	     opts = []}).
 
-behaviour_info(callbacks) ->
-    [{init, 3},        % (Name, Opts, Opaque)
-     {sample, 1},      % (ModSt)
-     {get_value, 1},   % (ModSt)
-     {report, 1},      % (ModSt)
-     {event, 2}];      % (Event, ModSt)
-behaviour_info(_) ->
-    undefined.
 
-start(Name, Mod, Opts) ->
-    gen_server:start_link({via, exometer_reg, Name}, ?MODULE,
-			  {Name, Mod, Opts}, []).
+%%
+%% exometer_entry callbacks
+%%
+new(Name, Options) ->
+    %% Extract the module to use.
+    {value, {module, Module}, Opts1 } = lists:keytake(module, 1, Options), 
 
-stop(Name) ->
-    call(Name, stop).
+    %% ULF: Do we still need to run a separate registration module
+    %% since we now work with pids?
+    %% Start server and return pid as module state
+%%    gen_server:start_link({via, exometer_reg, Name}, ?MODULE,
+%%			  {Name, Module, Opts1}, []).
+    gen_server:start_link(?MODULE, {Name, Module, Opts1}, []).
 
-subscribe(Name) ->
-    call(Name, {subscribe, self()}).
+delete(Pid) when is_pid(Pid) ->
+    gen_server:call(Pid, stop).
+    
 
-unsubscribe(Name) ->
-    call(Name, {unsubscribe, self()}).
+get_value(Pid) when is_pid(Pid) ->
+    gen_server:call(Pid, get_value).
 
+setopts(Options, Pid) when is_pid(Pid), is_list(Options) ->
+    gen_server:call(Pid, {setopts, Options}).
+
+update(Value, Pid) when is_pid(Pid) ->
+    gen_server:call(Pid, {update, Value}).
+	      
+reset(Pid) when is_pid(Pid) ->
+    gen_server:call(Pid, reset).
+	      
+sample(Pid) when is_pid(Pid) ->
+    gen_server:call(Pid, sample).
+	      
+
+%% gen_server implementation
 init({Name, Mod, Opts}) ->
-    St0 = check_opts(Name, Opts),
-    case Mod:init(Name, St0#st.user_opts, St0) of
+    %% Extract the (exometer_entry callback) module to use
+    St = process_opts(#st {name = Name, module = Mod}, Opts),
+
+    %% Create a new state for the module
+    io:format("exometer_probe(): St: ~p~n", [St]),
+    case Mod:new(Name, St#st.opts) of
 	{ok, ModSt} ->
-	    St = St0#st{name = Name,
-			mod = Mod,
-			mod_state = ModSt},
-	    %% Sample immediately. If subscribers exist, and there's a
-	    %% (non-infinity) report interval, start the report timer.
-	    {ok, sample(restart_timer(
-			  sample, check_report_timer(St)))};
+	    %% Fire up the timer, save the new module state.
+	    {ok, sample_(restart_timer(sample, St#st{ mod_state = ModSt }))};
+
 	{error, Reason} ->
 	    {error, Reason}
     end.
 
-handle_call({subscribe, Pid}, _From, #st{subscribers = Subs} = St) ->
-    MRef = erlang:monitor(process, Pid),
-    St1 = St#st{subscribers = [{Pid, MRef}|
-			       lists:keydelete(Pid, 1, Subs)]},
-    {reply, ok, check_report_timer(St1)};
-handle_call({unsubscribe, Pid}, _From, #st{subscribers = Subs} = St) ->
-    case lists:keyfind(Pid, 1, Subs) of
-	{_, Ref} ->
-	    erlang:demonitor(Ref),
-	    Subs1 = lists:keydelete(Pid, 1, Subs),
-	    {reply, ok, check_report_timer(St#st{subscribers = Subs1})};
-	false ->
-	    {reply, ok, St}
-    end;
+handle_call(stop, _From, St) ->
+    {stop, terminated, ok, St};
+
 handle_call(get_value, _From, St) ->
-    {V, St1} = get_value(St),
-    {reply, {ok, V}, St1};
+    %% Forward the call to the correct exometer_entry module
+    %% (as specified by the 'module' option provided to new()).
+    case (St#st.module):get_value(St#st.mod_state) of
+	{ ok , Val, ModSt } -> {reply, { ok, Val, self() }, St#st { mod_state = ModSt }};
+	{ error , Reason } -> {reply, { error, Reason }, St};
+	_ -> { reply, badarg, St}
+    end;
+
+
+handle_call({setopts, Options}, _From, St) ->
+    
+    %% Process (and delete) local options.
+    %% FIXME: Check for updated timer specs here and restart timer??
+    NSt = process_opts(St, Options),
+    
+    case (NSt#st.module):setopts(NSt#st.opts, NSt#st.mod_state) of
+	{ ok , ModSt } -> {reply, { ok, self() }, St#st { mod_state = ModSt }};
+	{ error , Reason } -> {reply, { error, Reason }, St};
+	_ -> { reply, badarg, St}
+    end;
+
+handle_call({update, Value}, _From, St) ->
+    case (St#st.module):update(Value, St#st.mod_state) of
+	{ ok , ModSt } -> {reply, { ok, self() }, St#st { mod_state = ModSt }};
+	{ error , Reason } -> {reply, { error, Reason }, St};
+	_ -> { reply, badarg, St}
+    end;
+
+handle_call(reset, _From, St) ->
+    case (St#st.module):reset(St#st.mod_state) of
+	{ ok , ModSt } -> {reply, { ok, self() }, St#st { mod_state = ModSt }};
+	{ error , Reason } -> {reply, { error, Reason }, St};
+	_ -> { reply, badarg, St}
+    end;
+
+handle_call(sample, _From, St) ->
+    {reply, { ok, self() }, sample_(St)};
+
 handle_call(_, _, St) ->
     {reply, error, St}.
 
@@ -92,23 +129,17 @@ handle_cast(_, St) ->
     {noreply, St}.
 
 handle_info({timeout, TRef, sample}, #st{sample_timer = TRef} = St) ->
-    {noreply, sample(restart_timer(sample, St))};
-handle_info({timeout, TRef, report}, #st{report_timer = TRef} = St) ->
-    {noreply, report(restart_timer(report, St))};
-handle_info({?MODULE, sample, From}, St) ->
-    {V, St1} = get_value(St),
-    From ! #exometer_event{from = St1#st.name, event = V},
-    {noreply, St1};
-handle_info(#exometer_event{} = E, #st{mod = M, mod_state = ModSt} = St) ->
-    St1 = handle_mod_return(M:event(E, ModSt), St),
-    {noreply, St1};
+    {noreply, sample_(restart_timer(sample, St))};
+
+
+
 handle_info(_, St) ->
     {noreply, St}.
 
 terminate(_, _) ->
     ok.
 
-code_change(From, #st{mod = M, mod_state = ModSt} = St, Extra) ->
+code_change(From, #st{module = M, mod_state = ModSt} = St, Extra) ->
     case M:code_change(From, ModSt, Extra) of
 	{ok, ModSt1} ->
 	    {ok, St#st{mod_state = ModSt1}};
@@ -116,102 +147,53 @@ code_change(From, #st{mod = M, mod_state = ModSt} = St, Extra) ->
 	    Other
     end.
 
-%% ===================================================================
 
-call(Name, Req) ->
-    gen_server:call({via, exometer_reg, Name}, Req).
-
-sample(#st{mod = M, mod_state = ModSt} = St) ->
-    Ret = M:sample(ModSt),
-    handle_mod_return(Ret, St).
-
-get_value(#st{mod = M, mod_state = ModSt} = St) ->
-    case M:get_value(ModSt) of
-	{ok, V} -> {V, St};
-	{ok, V, ModSt1} ->
-	    {V, St#st{mod_state = ModSt1}};
-	{ok, V, Events, ModSt1} ->
-	    broadcast(Events, St#st.subscribers),
-	    {V, St#st{mod_state = ModSt1}};
-	{ok, V, Actions, Events, ModSt1} ->
-	    broadcast(Events, St#st.subscribers),
-	    St1 = perform_actions(Actions, St#st{mod_state = ModSt1}),
-	    {V, St1};
-	{error, Reason} ->
-	    {{error, Reason}, St}  % ??
+sample_(#st{} = St) ->
+    case (St#st.module):sample(St#st.mod_state) of
+	{ ok, NModSt } ->
+	    St#st { mod_state = NModSt };
+	_ ->
+	    St
     end.
 
-report(#st{mod = M, mod_state = ModSt} = St) ->
-    handle_mod_return(M:report(ModSt), St).
+%% ===================================================================
 
-handle_mod_return({ok, ModSt1}, St) ->
-    St#st{mod_state = ModSt1};
-handle_mod_return({ok, Events, ModSt1}, St) ->
-    broadcast(Events, St#st.subscribers),
-    St#st{mod_state = ModSt1};
-handle_mod_return({ok, Actions, Events, ModSt1}, St) when is_list(Actions),
-							  is_list(Events) ->
-    broadcast(Events, St#st.subscribers),
-    perform_actions(Actions, St#st{mod_state = ModSt1});
-handle_mod_return({error, Reason}, _St) ->
-    error({Reason, erlang:get_stacktrace()}).
+%% ULF:
+%% Do we use this now that we have pids instead? The whole via 
+%% setup feels a bit obsolete?
+%%
+%% call(Name, Req) ->
+%%     gen_server:call({via, exometer_reg, Name}, Req).
 
-broadcast(Events, #st{name = Name, subscribers = Subs}) ->
-    T = exometer:timestamp(),
-    [[Pid ! #exometer_event{from = Name,
-			    time = T,
-			    event = E} || {Pid,_} <- Subs] || E <- Events].
-
-perform_actions(Actions, St) ->
-    lists:foldl(fun(collect, St1) ->
-			collect(St1)
-		end, St, Actions).
-
-collect(#st{collect_from = C} = St) ->
-    Msg = {exometer, sample, self()},
-    lists:foldl(
-      fun(Pid, St1) when is_pid(Pid) ->
-	      Pid ! Msg,
-	      St1;
-	 (Name, St1) ->
-	      exometer_reg:send(Name, Msg),
-	      St1
-      end, St, C).
 
 restart_timer(sample, #st{sample_interval = Int} = St) ->
-    St#st{sample_timer = start_timer(Int, sample)};
-restart_timer(report, #st{report_interval = Int} = St) ->
-    St#st{report_timer = start_timer(Int, report)}.
-
-check_report_timer(#st{report_timer = undefined,
-		       subscribers = [_|_],
-		       report_interval = Int} = St) ->
-    St#st{report_timer = start_timer(Int, report)};
-check_report_timer(#st{report_timer = TRef,
-		       subscribers = []} = St) when is_reference(TRef) ->
-    erlang:cancel_timer(TRef),
-    St#st{report_timer = undefined};
-check_report_timer(St) ->
-    St.
+    St#st{sample_timer = start_timer(Int, sample)}.
 
 start_timer(infinity, _) ->
     undefined;
+
 start_timer(T, Msg) when is_integer(T), T >= 0, T =< 16#FFffFFff ->
     erlang:start_timer(T, self(), Msg).
 
-check_opts(Name, Opts) ->
-    lists:foldl(fun({K, V}, S) ->
-			case K of
-			    sample_interval -> S#st{sample_interval = V};
-			    report_interval -> S#st{report_interval = V};
-			    user -> S#st{user_opts = V};
-			    collect_from ->
-				if is_list(V) ->
-					S#st{collect_from = V};
-				   true ->
-					error({badarg, K})
-				end;
-			    _ -> S
-			end
-		end, #st{name = Name}, Opts).
+process_opts(St, Options) ->
+    lists:foldl(fun
+		    %% Sample interval.
+		    ({sample_interval, Val}, St1) -> St1#st { sample_interval = Val };
+
+		    %% Unknown option, pass on to State options list, replacing
+		    %% any earlier versions of the same option.
+		    ({Opt, Val}, St1) ->
+			St1#st { opts = [ {Opt, Val} | lists:keydelete(Opt, 1, St1#st.opts) ] }
+
+		end, St, Options).
+
+
+
+
+
+
+
+
+
+
 

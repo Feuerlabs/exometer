@@ -1,6 +1,7 @@
 -module(exometer_probe_stackdriver).
 
--behaviour(exometer_probe).
+%% FIXME: NEEDS TO BE CONVERTED TO EXOMETER_ENTRY CALLBACK FORMAT.
+%% -behaviour(exometer_probe).
 
 %% Behavior callbacks
 -export([init/3,
