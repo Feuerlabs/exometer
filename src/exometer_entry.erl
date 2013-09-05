@@ -43,7 +43,6 @@ new(Name, Type) ->
 %% 			value = 0},
 %%     [ets:insert(T, E) || T <- exometer:tables()],
 %%     ok;
-
 new(Name, Type, Opts) when is_list(Name), is_list(Opts) ->
     #exometer_entry{} = E = exometer_admin:lookup_definition(Name, Type),
     create_entry(E#exometer_entry { name = Name }, Opts).
@@ -61,6 +60,7 @@ update(Name, Value) when is_list(Name) ->
 	    {error, not_found}
     end.
 
+
 -spec get_value(name()) -> {ok, value()} | error().
 get_value(Name) when is_list(Name) ->
     case ets:lookup(exometer:table(), Name) of
@@ -72,6 +72,7 @@ get_value(Name) when is_list(Name) ->
 	false ->
 	    {error, not_found}
     end.
+
 
 -spec delete(name()) -> ok | error().
 delete(Name) when is_list(Name) ->
@@ -87,6 +88,7 @@ delete(Name) when is_list(Name) ->
 	    {error, not_found}
     end.
 
+
 -spec sample(name()) -> ok | error().
 sample(Name)  when is_list(Name) ->
     case ets:lookup(exometer:table(), Name) of
@@ -95,6 +97,7 @@ sample(Name)  when is_list(Name) ->
 	[] ->
 	    {error, not_found}
     end.
+
 
 -spec reset(name()) -> ok | error().
 reset(Name)  when is_list(Name) ->

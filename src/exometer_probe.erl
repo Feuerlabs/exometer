@@ -4,12 +4,12 @@
 
 % exometer_entry callb
 -export([new/2,
-	 delete/1,
-	 get_value/1,
-	 update/2,
-	 reset/1,
-	 sample/1,
-	 setopts/2]).
+	 delete/2,
+	 get_value/2,
+	 update/3,
+	 reset/2,
+	 sample/2,
+	 setopts/3]).
 
 
 %% gen_server callbacks
@@ -24,7 +24,7 @@
 
 -record(st, {name,
 	     module = undefined,
-	     mod_state,
+	     mod_ref,
 	     sample_timer,
 	     sample_interval = 1000, %% msec
 	     opts = []}).
@@ -39,28 +39,28 @@ new(Name, Options) ->
 
     %% ULF: Do we still need to run a separate registration module
     %% since we now work with pids?
-    %% Start server and return pid as module state
+    %% Start server and return pid as module reference
 %%    gen_server:start_link({via, exometer_reg, Name}, ?MODULE,
 %%			  {Name, Module, Opts1}, []).
     gen_server:start_link(?MODULE, {Name, Module, Opts1}, []).
 
-delete(Pid) when is_pid(Pid) ->
+delete(_Name, Pid) when is_pid(Pid) ->
     gen_server:call(Pid, stop).
     
 
-get_value(Pid) when is_pid(Pid) ->
+get_value(_Name, Pid) when is_pid(Pid) ->
     gen_server:call(Pid, get_value).
 
-setopts(Options, Pid) when is_pid(Pid), is_list(Options) ->
+setopts(_Name, Options, Pid) when is_pid(Pid), is_list(Options) ->
     gen_server:call(Pid, {setopts, Options}).
 
-update(Value, Pid) when is_pid(Pid) ->
+update(_Name, Value, Pid) when is_pid(Pid) ->
     gen_server:call(Pid, {update, Value}).
 	      
-reset(Pid) when is_pid(Pid) ->
+reset(_Name, Pid) when is_pid(Pid) ->
     gen_server:call(Pid, reset).
 	      
-sample(Pid) when is_pid(Pid) ->
+sample(_Name, Pid) when is_pid(Pid) ->
     gen_server:call(Pid, sample).
 	      
 
@@ -72,9 +72,9 @@ init({Name, Mod, Opts}) ->
     %% Create a new state for the module
     io:format("exometer_probe(): St: ~p~n", [St]),
     case Mod:new(Name, St#st.opts) of
-	{ok, ModSt} ->
+	{ok, ModRef} ->
 	    %% Fire up the timer, save the new module state.
-	    {ok, sample_(restart_timer(sample, St#st{ mod_state = ModSt }))};
+	    {ok, sample_(restart_timer(sample, St#st{ mod_ref = ModRef }))};
 
 	{error, Reason} ->
 	    {error, Reason}
@@ -86,38 +86,20 @@ handle_call(stop, _From, St) ->
 handle_call(get_value, _From, St) ->
     %% Forward the call to the correct exometer_entry module
     %% (as specified by the 'module' option provided to new()).
-    case (St#st.module):get_value(St#st.mod_state) of
-	{ ok , Val, ModSt } -> {reply, { ok, Val, self() }, St#st { mod_state = ModSt }};
-	{ error , Reason } -> {reply, { error, Reason }, St};
-	_ -> { reply, badarg, St}
-    end;
+    { reply, (NSt#st.module):get_value(St#st.name, NSt#st.mod_ref), St };
 
 
 handle_call({setopts, Options}, _From, St) ->
-    
     %% Process (and delete) local options.
     %% FIXME: Check for updated timer specs here and restart timer??
     NSt = process_opts(St, Options),
-    
-    case (NSt#st.module):setopts(NSt#st.opts, NSt#st.mod_state) of
-	{ ok , ModSt } -> {reply, { ok, self() }, St#st { mod_state = ModSt }};
-	{ error , Reason } -> {reply, { error, Reason }, St};
-	_ -> { reply, badarg, St}
-    end;
+    { reply, (NSt#st.module):setopts(St#st.name, NSt#st.opts, NSt#st.mod_ref), St };
 
 handle_call({update, Value}, _From, St) ->
-    case (St#st.module):update(Value, St#st.mod_state) of
-	{ ok , ModSt } -> {reply, { ok, self() }, St#st { mod_state = ModSt }};
-	{ error , Reason } -> {reply, { error, Reason }, St};
-	_ -> { reply, badarg, St}
-    end;
+    { reply, (NSt#st.module):update(St#st.name, Value, NSt#st.opts, NSt#st.mod_ref), St };
 
 handle_call(reset, _From, St) ->
-    case (St#st.module):reset(St#st.mod_state) of
-	{ ok , ModSt } -> {reply, { ok, self() }, St#st { mod_state = ModSt }};
-	{ error , Reason } -> {reply, { error, Reason }, St};
-	_ -> { reply, badarg, St}
-    end;
+    { reply, (NSt#st.module):reset(St#st.name, NSt#st.mod_ref), St };
 
 handle_call(sample, _From, St) ->
     {reply, { ok, self() }, sample_(St)};
@@ -139,19 +121,19 @@ handle_info(_, St) ->
 terminate(_, _) ->
     ok.
 
-code_change(From, #st{module = M, mod_state = ModSt} = St, Extra) ->
-    case M:code_change(From, ModSt, Extra) of
-	{ok, ModSt1} ->
-	    {ok, St#st{mod_state = ModSt1}};
+code_change(From, #st{module = M, mod_ref = ModRef} = St, Extra) ->
+    case M:code_change(From, ModRef, Extra) of
+	{ok, ModRef1} ->
+	    {ok, St#st{mod_ref = ModRef1}};
 	Other ->
 	    Other
     end.
 
 
 sample_(#st{} = St) ->
-    case (St#st.module):sample(St#st.mod_state) of
-	{ ok, NModSt } ->
-	    St#st { mod_state = NModSt };
+    case (St#st.module):sample(St#st.mod_ref) of
+	{ ok, NModRef } ->
+	    St#st { mod_ref = NModRef };
 	_ ->
 	    St
     end.
@@ -186,14 +168,3 @@ process_opts(St, Options) ->
 			St1#st { opts = [ {Opt, Val} | lists:keydelete(Opt, 1, St1#st.opts) ] }
 
 		end, St, Options).
-
-
-
-
-
-
-
-
-
-
-
