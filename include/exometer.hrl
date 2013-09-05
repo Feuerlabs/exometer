@@ -1,5 +1,6 @@
 
 -define(EXOMETER_TABLE, exometer:table(erlang:system_info(scheduler_id))).
+-define(EXOMETER_SHARED, exometer_shared).
 
 -record(exometer_event,
 	{time = exometer:timestamp(),
@@ -10,6 +11,10 @@
 	  name,
 	  type,
 	  module = exometer,
+	  value,
+	  timestamp,
 	  options = [],
-	  mod_state = undefined}).
+	  ref}).
 
+%% Used to redirect lookup from the scheduler-specific tables to the shared
+-record(exometer_shared, { name }).

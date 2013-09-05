@@ -12,31 +12,6 @@
 -record(st, {}).
 -include("exometer.hrl").
 
-%% ULF: Implemented by exometer_entry:new().
-%%       These versions should be removed, thus focusing on the
-%%       Name pattern matching setup??
-%%
-%% new(Name, Type) ->
-%%     new(Name, Type, []).
-
-%% new(Name0, Type, Opts) when is_list(Opts) ->
-%%     Name = normalize_name(Name0),
-%%     Def = lookup_definition(Name, Type),
-%%     exometer_entry:new(Name, Type, Opts ++ Def#exometer_entry.options ),
-
-%% ULF: Implemented by exometer_entry:delete().
-%%       Remove this version??
-%% delete(Name0) ->
-%%     Name = normalize_name(Name0),
-%%     case ets:lookup(exometer:table(), Name) of
-%% 	[] ->
-%% 	    ok;
-%% 	[#exometer_entry{module = M, type = _Type, mod_state = ModSt}] ->
-%% 	    M:delete(ModSt),
-%% 	    [ets:delete(T, Name) || T <- tables()],
-%% 	    ok
-%%     end.
-
 -spec set_default([atom()], atom(), #exometer_entry{} | [{atom(),any()}]) ->
 			 true.
 %% @doc Sets a default definition for a metric type, possibly using wildcards.
@@ -56,7 +31,7 @@ set_default(NamePattern0, Type, #exometer_entry{} = E)
 			       ('' ) -> error({not_allowed, ''});
 			       (X  ) -> X
 			    end, NamePattern0),
-    ets:insert(?MODULE,
+    ets:insert(?EXOMETER_SHARED,
 	       E#exometer_entry{name = {default,NamePattern,Type},
 				type = Type});
 set_default(NamePattern, Type, Opts) when is_list(NamePattern) ->
@@ -114,12 +89,12 @@ code_change(_, S, _) ->
 
 
 create_ets_tabs() ->
-    case ets:info(?MODULE, name) of
+    case ets:info(?EXOMETER_SHARED, name) of
 	undefined ->
 	    [ets:new(T, [public, named_table, set, {keypos,2}])
 	     || T <- tables()],
-	    ets:new(?MODULE, [public, named_table, ordered_set,
-			      {keypos, 2}]);
+	    ets:new(?EXOMETER_SHARED, [public, named_table, ordered_set,
+				       {keypos, 2}]);
 	_ ->
 	    true
     end.
@@ -143,7 +118,7 @@ tables() ->
 %%     ModSt.
 
 lookup_definition(Name, Type) ->
-    case ets:lookup(?MODULE, Name) of
+    case ets:lookup(?EXOMETER_SHARED, Name) of
 	[] ->
 	    default_definition(Name, Type);
 	[{_, _, #exometer_entry{} = Def}]  ->
@@ -151,7 +126,7 @@ lookup_definition(Name, Type) ->
     end.
 
 default_definition(Name, Type) ->
-    case ets:lookup(?MODULE, {default, Type}) of
+    case ets:lookup(?EXOMETER_SHARED, {default, Type}) of
 	[{_, #exometer_entry{} = Def}] ->
 	    Def;
 	[] ->
@@ -174,9 +149,10 @@ module(spiral   ) -> exometer_spiral.
 
 
 search_default(Name, Type) ->
-    case ets:lookup(?MODULE, {default,Name,Type}) of
+    case ets:lookup(?EXOMETER_SHARED, {default,Name,Type}) of
 	[] ->
-	    case ets:select_reverse(?MODULE, make_patterns(Type, Name), 1) of
+	    case ets:select_reverse(
+		   ?EXOMETER_SHARED, make_patterns(Type, Name), 1) of
 		{[#exometer_entry{} = E],_} ->
 		    E#exometer_entry{name = Name};
 		'$end_of_table' ->
