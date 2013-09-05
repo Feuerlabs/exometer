@@ -27,7 +27,7 @@
     {ok, value()} | error().
 -callback update(name(), value(), ref()) ->
     ok | {ok, value()} | error().
--callback reset(name()) ->
+-callback reset(name(), ref()) ->
     ok | {ok, value()} | error().
 -callback sample(name(), ref()) ->
     ok | error().
@@ -38,11 +38,12 @@ new(Name, Type) ->
     new(Name, Type, []).
 
 -spec new(name(), type(), options()) -> ok.
-new(Name, counter, []) when is_list(Name) ->
-    E = #exometer_entry{module = ?MODULE, type = counter,
-			value = 0},
-    [ets:insert(T, E) || T <- exometer:tables()],
-    ok;
+%% new(Name, counter, []) when is_list(Name) ->
+%%     E = #exometer_entry{module = ?MODULE, type = counter,
+%% 			value = 0},
+%%     [ets:insert(T, E) || T <- exometer:tables()],
+%%     ok;
+
 new(Name, Type, Opts) when is_list(Name), is_list(Opts) ->
     #exometer_entry{} = E = exometer_admin:lookup_definition(Name, Type),
     create_entry(E#exometer_entry { name = Name }, Opts).
