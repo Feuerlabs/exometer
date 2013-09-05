@@ -3,13 +3,13 @@
 -behaviour(exometer_entry).
 
 % exometer_entry callb
--export([new/2,
-	 delete/1,
-	 get_value/1,
-	 update/2,
-	 reset/1,
-	 sample/1,
-	 setopts/2]).
+-export([new/3,
+	 delete/3,
+	 get_value/3,
+	 update/4,
+	 reset/3,
+	 sample/3,
+	 setopts/4]).
 
 
 %% gen_server callbacks
@@ -33,7 +33,7 @@
 %%
 %% exometer_entry callbacks
 %%
-new(Name, Options) ->
+new(Name, _Type, Options) ->
     %% Extract the module to use.
     {value, {module, Module}, Opts1 } = lists:keytake(module, 1, Options), 
 
@@ -44,25 +44,24 @@ new(Name, Options) ->
 %%			  {Name, Module, Opts1}, []).
     gen_server:start_link(?MODULE, {Name, Module, Opts1}, []).
 
-delete(Pid) when is_pid(Pid) ->
+delete(_Name, _Type, Pid) when is_pid(Pid) ->
     gen_server:call(Pid, stop).
-    
 
-get_value(Pid) when is_pid(Pid) ->
+get_value(_Name, _Type, Pid) when is_pid(Pid) ->
     gen_server:call(Pid, get_value).
 
-setopts(Options, Pid) when is_pid(Pid), is_list(Options) ->
+setopts(_Name, Options, _Type, Pid) when is_pid(Pid), is_list(Options) ->
     gen_server:call(Pid, {setopts, Options}).
 
-update(Value, Pid) when is_pid(Pid) ->
+update(_Name, Value, _Type, Pid) when is_pid(Pid) ->
     gen_server:call(Pid, {update, Value}).
-	      
-reset(Pid) when is_pid(Pid) ->
+
+reset(_Name, _Type, Pid) when is_pid(Pid) ->
     gen_server:call(Pid, reset).
-	      
-sample(Pid) when is_pid(Pid) ->
+
+sample(_Name, _Type, Pid) when is_pid(Pid) ->
     gen_server:call(Pid, sample).
-	      
+
 
 %% gen_server implementation
 init({Name, Mod, Opts}) ->

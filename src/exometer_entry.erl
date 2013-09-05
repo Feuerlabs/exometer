@@ -19,19 +19,19 @@
 -type ref()      :: pid() | undefined.
 -type error()   :: { error, any() }.
 
--callback new(name(), options()) ->
+-callback new(name(), type(), options()) ->
     ok | {ok, pid()} | error().
--callback delete(name(), ref()) ->
+-callback delete(name(), type(), ref()) ->
     ok | error().
--callback get_value(name(), ref()) ->
+-callback get_value(name(), type(), ref()) ->
     {ok, value()} | error().
--callback update(name(), value(), ref()) ->
+-callback update(name(), value(), type(), ref()) ->
     ok | {ok, value()} | error().
--callback reset(name(), ref()) ->
+-callback reset(name(), type(), ref()) ->
     ok | {ok, value()} | error().
--callback sample(name(), ref()) ->
+-callback sample(name(), type(), ref()) ->
     ok | error().
--callback setopts(name(), options(), ref()) ->
+-callback setopts(name(), options(), type(), ref()) ->
     ok | error().
 
 new(Name, Type) ->
@@ -55,8 +55,8 @@ update(Name, Value) when is_list(Name) ->
 	[#exometer_entry{module = ?MODULE, type = counter}] ->
 	    ets:update_counter(Name, {#exometer_entry.value, Value}),
 	    ok;
-	[#exometer_entry{module = M, ref = Ref}] ->
-	    M:update(Name, Value, Ref);
+	[#exometer_entry{module = M, type = Type, ref = Ref}] ->
+	    M:update(Name, Value, Type, Ref);
 	[] ->
 	    {error, not_found}
     end.
@@ -67,8 +67,8 @@ get_value(Name) when is_list(Name) ->
 	[#exometer_entry{module = ?MODULE, type = counter}] ->
 	    lists:sum([ets:lookup_element(T, Name, #exometer_entry.value)
 		       || T <- exometer:tables()]);
-	[#exometer_entry{module = M, ref = Ref}] ->
-	    M:get_value(Name, Ref);
+	[#exometer_entry{module = M, type = Type, ref = Ref}] ->
+	    M:get_value(Name, Type, Ref);
 	false ->
 	    {error, not_found}
     end.
@@ -78,8 +78,8 @@ delete(Name) when is_list(Name) ->
     case ets:lookup(exometer:table(), Name) of
 	[#exometer_entry{module = ?MODULE, type = counter}] ->
 	    [ets:delete(T, Name) || T <- exometer:tables()];
-	[#exometer_entry{module = M, ref = Ref}] ->
-	    try M:delete(Name, Ref)
+	[#exometer_entry{module = M, type = Type, ref = Ref}] ->
+	    try M:delete(Name, Type, Ref)
 	    after
 		[ets:delete(T, Name) || T <- exometer:tables()]
 	    end;
@@ -90,8 +90,8 @@ delete(Name) when is_list(Name) ->
 -spec sample(name()) -> ok | error().
 sample(Name)  when is_list(Name) ->
     case ets:lookup(exometer:table(), Name) of
-	[#exometer_entry{module = M, type = _Type, ref = Ref}] ->
-	    M:sample(Name, Ref);
+	[#exometer_entry{module = M, type = Type, ref = Ref}] ->
+	    M:sample(Name, Type, Ref);
 	[] ->
 	    {error, not_found}
     end.
@@ -105,8 +105,8 @@ reset(Name)  when is_list(Name) ->
 					  {#exometer_entry.timestamp, TS}])
 	     || T <- exometer:tables()],
 	    ok;
-	[#exometer_entry{module = M, type = _Type, ref = Ref}] ->
-	    M:reset(Name, Ref);
+	[#exometer_entry{module = M, type = Type, ref = Ref}] ->
+	    M:reset(Name, Type, Ref);
 	[] ->
 	    {error, not_found}
     end.
@@ -115,18 +115,19 @@ reset(Name)  when is_list(Name) ->
 -spec setopts(name(), options()) -> ok | error().
 setopts(Name, Options)  when is_list(Name), is_list(Options) ->
     case ets:lookup(exometer:table(), Name) of
-	[#exometer_entry{module = M, type = _Type, ref = Ref}] ->
-	    M:setopts(Name, Options, Ref);
+	[#exometer_entry{module = M, type = Type, ref = Ref}] ->
+	    M:setopts(Name, Options, Type, Ref);
 	[] ->
 	    {error, not_found}
     end.
 
 create_entry(#exometer_entry{module = M,
+			     type = Type,
 			     options = OptsTemplate,
 			     name = Name} = E, Opts) ->
     %% Process local options before handing off the rest to M:new.
     E1 = process_opts(E, OptsTemplate ++ Opts),
-    E2 = case Res = M:new(Name, E1#exometer_entry.options) of
+    E2 = case Res = M:new(Name, Type, E1#exometer_entry.options) of
 	     ok        -> E1;
 	     {ok, Ref} -> E1#exometer_entry{ ref = Ref }
 	 end,
