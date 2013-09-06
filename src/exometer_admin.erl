@@ -60,7 +60,7 @@ opts_to_rec(Opts) ->
 			setelement(pos(K, Flds), Acc, V)
 		end, #exometer_entry{}, Opts).
 
-pos(K, L) -> pos(K, L, 1).
+pos(K, L) -> pos(K, L, 2).
 
 pos(K, [K|_], P) -> P;
 pos(K, [_|T], P) -> pos(K, T, P+1);

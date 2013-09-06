@@ -4,14 +4,10 @@
 
 -include("exometer.hrl").
 
+start() ->
+    application:start(netlink),
+    application:start(exometer).
 
-update(Name, Value) ->
-    case ets:lookup(table(), {schema, Name}) of
-	[] ->
-	    error({not_found, Name});
-	[{_, #exometer_entry{module = M, type = Type}}] ->
-	    M:update(Name, Type, Value)
-    end.
 
 timestamp() ->
     %% Invented epoc is {1258,0,0}, or 2009-11-12, 4:26:40
