@@ -35,6 +35,7 @@
 -callback setopts(name(), options(), type(), ref()) ->
     ok | error().
 
+
 new(Name, Type) ->
     new(Name, Type, []).
 
@@ -129,6 +130,10 @@ setopts(Name, Options)  when is_list(Name), is_list(Options) ->
 	    {error, not_found}
     end.
 
+create_entry(#exometer_entry{module = ?MODULE, type = counter} = E, []) ->
+    E1 = E#exometer_entry{value = 0},
+    [ets:insert(T, E1) || T <- exometer:tables()],
+    ok;
 create_entry(#exometer_entry{module = M,
 			     type = Type,
 			     options = OptsTemplate,

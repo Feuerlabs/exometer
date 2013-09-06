@@ -237,8 +237,8 @@ mini_hist(Vals) ->
     [Min|Rest] = pick_items(Sorted, 1, Items),
     [Min, {percentile, lists:keydelete(max,1,Rest)}, lists:last(Rest)].
 
-pick_items([H|T], P, [{Tag,P}|Ps]) ->
-    [{Tag,H} | pick_items(T, P+1, Ps)];
+pick_items([H|_] = L, P, [{Tag,P}|Ps]) ->
+    [{Tag,H} | pick_items(L, P, Ps)];
 pick_items([_|T], P, Ps) ->
     pick_items(T, P+1, Ps);
 pick_items([], _, Ps) ->
