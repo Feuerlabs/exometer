@@ -279,9 +279,21 @@ foldr(Fun, Acc, Slide) ->
 %% Collect all elements in the histogram with a timestamp that falls
 %% within the timespan ranging from Oldest up to the current timme.
 %%
-take_since(Oldest, #slide{list1 = List1,
-			  list2 = List2,
-			  slot_period = SlotPeriod}) ->
+take_since(Oldest, #slide{cur_slot = CurrentSlot,
+			  slot_period = SlotPeriod } =Slide) ->
+
+    %% Check if we need to add a slot for the current time period
+    %% before we start to grab data.
+    TS = timestamp(),
+    TSSlot = get_slot(TS, Slide),
+    #slide { list1 = List1, 
+	     list2 = List2} = 
+	if TSSlot =/= CurrentSlot ->     
+		add_slot(TS, Slide);
+	   true -> 
+		Slide
+	end,
+
     take_since(List2, Oldest, SlotPeriod, take_since(List1, Oldest, SlotPeriod, [])).
 
 take_since([{TS,Element} |T], Oldest, SlotPeriod, Acc) when TS >= Oldest ->
