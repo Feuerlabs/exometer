@@ -74,7 +74,7 @@ get_value(Name) when is_list(Name) ->
 		       || T <- exometer:tables()]);
 	[#exometer_entry{module = M, type = Type, ref = Ref}] ->
 	    M:get_value(Name, Type, Ref);
-	false ->
+	[] ->
 	    {error, not_found}
     end.
 
