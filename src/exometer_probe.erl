@@ -60,9 +60,9 @@
 new(Name, Type, Options) ->
     %% Extract the module to use.
     {value, {module, Module}, Opts1 } = lists:keytake(module, 1, Options), 
-    exometer_entry:monitor(
-      Name,
-      gen_server:start(?MODULE, {Name, Type, Module, Opts1}, [])).
+    {ok, Pid} = gen_server:start(?MODULE, {Name, Type, Module, Opts1}, []),
+    exometer_admin:monitor(Name, Pid),
+    {ok, Pid}.
 
 delete(_Name, _Type, Pid) when is_pid(Pid) ->
     gen_server:call(Pid, stop).
@@ -81,7 +81,6 @@ reset(_Name, _Type, Pid) when is_pid(Pid) ->
 
 sample(_Name, _Type, Pid) when is_pid(Pid) ->
     gen_server:call(Pid, sample).
-
 
 %% gen_server implementation
 init({Name, Type, Mod, Opts}) ->
