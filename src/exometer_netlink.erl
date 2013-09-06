@@ -83,8 +83,7 @@ reset(Name, Type, Ref) ->
     exometer_probe:reset(Name, Type, Ref).
 
 probe_reset(St) ->
-    {ok, exometer_slot_slide:reset(St#st.slide)}.
-
+    { ok, St#st { slide = exometer_slot_slide:reset(St#st.slide)} }.
 
 sample(Name, Type, Ref) ->
     exometer_probe:sample(Name, Type, Ref).

@@ -31,7 +31,7 @@
 -record(st, {name,
 	     size = 1028,
 	     cur_sz = 0,
-	     percentiles = [ 99 ],
+	     percentiles = [ 99.0 ],
 	     ets_ref = undefined,
 	     opts = []}).
 

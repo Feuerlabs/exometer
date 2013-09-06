@@ -194,7 +194,7 @@ new(HistogramTimeSpan, SlotPeriod, SampleMFA, TransformMFA) ->
 	   sample_mfa = SampleMFA,
 	   transform_mfa = TransformMFA,
 	   slot_period = SlotPeriod,
-	   cur_slot = timestamp() / SlotPeriod,
+	   cur_slot = trunc(timestamp() / SlotPeriod),
 	   cur_state = undefined,
 	   list1_start_slot = 0,
 	   list1 = [],
@@ -212,7 +212,6 @@ add_element(Val, Slide) ->
     add_element(timestamp(), Val, Slide).
 
 add_element(TS, Val, #slide{cur_slot = CurrentSlot, 
-			    cur_state = CurrentState, 
 			    sample_mfa = SampleMFA} = Slide) ->
 
     TSSlot = get_slot(TS, Slide),
@@ -240,7 +239,7 @@ add_element(TS, Val, #slide{cur_slot = CurrentSlot,
     %% Invoke the sample MFA to get a new state to work with
     %%
     { SM, SF, SA } = SampleMFA,
-    Slide1#slide { cur_state = apply(SM, SF, [ TS, Val, CurrentState ] ++ SA)}.
+    Slide1#slide { cur_state = apply(SM, SF, [ TS, Val, Slide1#slide.cur_state ] ++ SA)}.
 
 
 -spec to_list(#slide{}) -> list().
@@ -250,7 +249,6 @@ to_list(#slide{timespan = TimeSpan}) when TimeSpan == 0 ->
 
 %% Convert the whole histograms, in both buffers, to a list.
 to_list(#slide{timespan = TimeSpan } = Slide) ->
-
     Oldest = get_slot(Slide) - TimeSpan,
     take_since(Oldest, Slide).
 
