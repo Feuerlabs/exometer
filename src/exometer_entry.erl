@@ -11,6 +11,7 @@
 	 find_entries/1]).
 
 -include("exometer.hrl").
+-export_type([name/0, type/0, options/0, value/0, ref/0, error/0]).
 
 -type name()     :: list().
 -type type()     :: atom().

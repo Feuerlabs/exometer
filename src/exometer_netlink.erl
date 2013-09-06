@@ -2,8 +2,9 @@
 %% NOT MULTI-PROCESSS SAFE.
 -module(exometer_netlink).
 -behaviour(exometer_entry).
+-behaviour(exometer_probe).
 
-% exometer_entry callb
+%% exometer_entry callbacks
 -export([new/3,
 	 delete/3,
 	 get_value/3,
@@ -11,6 +12,19 @@
 	 reset/3,
 	 sample/3,
 	 setopts/4]).
+
+%% exometer_probe callbacks
+-export([probe_init/3,
+	 probe_terminate/1,
+	 probe_get_value/1,
+	 probe_update/2,
+	 probe_reset/1,
+	 probe_sample/1,
+	 probe_setopts/2,
+	 probe_handle_call/3,
+	 probe_handle_cast/2,
+	 probe_handle_info/2,
+	 probe_code_change/3]).
 
 -export([count_sample/3,
 	 count_transform/2]).
@@ -29,60 +43,83 @@
 %%
 %% exometer_entry callbacks
 %%
-new(Name, _Type, Options) ->
-    St1 = process_opts(#st { name = Name }, Options),
-    Slide = exometer_slot_slide:new(St1#st.time_span, 
-				    St1#st.slot_period,
+new(Name, Type, Options) ->
+    exometer_probe:new(Name, Type, [{module, ?MODULE}|Options]).
+
+probe_init(Name, _Type, Options) ->
+    St = process_opts(#st { name = Name }, Options),
+    Slide = exometer_slot_slide:new(St#st.time_span,
+				    St#st.slot_period,
 				    { ?MODULE, count_sample, []},
 				    { ?MODULE, count_transform, []}),
-    
-    put(netlink_state, St1#st { slide = Slide }),
+    {ok, St#st{ slide = Slide }}.
+
+delete(Name, Type, Ref) ->
+    exometer_probe:delete(Name, Type, Ref).
+
+probe_terminate(_ModSt) ->
     ok.
 
-delete(_Name, _Type, _Ref) ->
-    erase(netlink_state).
+get_value(Name, Type, Ref) ->
+    exometer_probe:get_value(Name, Type, Ref).
 
-get_value(_Name, _Type, _Ref) ->
-    St = get(netlink_state),
+probe_get_value(St) ->
     { ok, exometer_slot_slide:to_list(St#st.slide) }.
 
-
 setopts(_Name, _Options, _Type, _Ref)  ->
-    { error, bad_argument }.
+    { error, unsupported }.
+
+probe_setopts(_Opts, _St) ->
+    error(unsupported).
 
 update(_Name, _Value, _Type, _Ref) ->
     { error, unsupported }.
 
+probe_update(_Value, _St) ->
+    error(unsupported).
 
-reset(_Name, _Type, _Ref) ->
-    St = get(netlink_state),
-    put(netlink_state, exometer_slot_slide:reset(St#st.slide)), 
-    ok.
 
-sample(_Name, _Type, _Refn) ->
-    St = get(netlink_state),
+reset(Name, Type, Ref) ->
+    exometer_probe:reset(Name, Type, Ref).
 
+probe_reset(St) ->
+    {ok, exometer_slot_slide:reset(St#st.slide)}.
+
+
+sample(Name, Type, Ref) ->
+    exometer_probe:sample(Name, Type, Ref).
+
+probe_sample(St) ->
     [{_, Count}] = netlink_stat:get_value(St#st.netlink_element),
-
     Slide = exometer_slot_slide:add_element(Count - St#st.last_count, St#st.slide),
+    {ok, St#st { slide = Slide, last_count = Count }}.
 
-    put(netlink_state, St#st { slide = Slide, last_count = Count }),
+probe_handle_call(_, _, _) ->
+    {ok, error}.
+
+probe_handle_cast(_, _) ->
     ok.
 
+probe_handle_info(_, _) ->
+    ok.
+
+probe_code_change(_From, ModSt, _Extra) ->
+    {ok, ModSt}.
 
 process_opts(St, Options) ->
-    lists:foldl(fun
-		    %% Sample interval.
-		    ({netlink_element, Val}, St1) -> St1#st { netlink_element = Val };
-		    ({time_span, Val}, St1) -> St1#st { time_span = Val };
-		    ({slot_period, Val}, St1) -> St1#st { slot_period = Val };
+    lists:foldl(
+      fun
+	  %% Sample interval.
+	  ({netlink_element, Val}, St1) -> St1#st { netlink_element = Val };
+	  ({time_span, Val}, St1) -> St1#st { time_span = Val };
+	  ({slot_period, Val}, St1) -> St1#st { slot_period = Val };
 
-		    %% Unknown option, pass on to State options list, replacing
-		    %% any earlier versions of the same option.
-		    ({Opt, Val}, St1) ->
-		       St1#st { opts = [ {Opt, Val} | lists:keydelete(Opt, 1, St1#st.opts) ] }
-
-		end, St, Options).
+	  %% Unknown option, pass on to State options list, replacing
+	  %% any earlier versions of the same option.
+	  ({Opt, Val}, St1) ->
+	      St1#st{ opts = [ {Opt, Val}
+			       | lists:keydelete(Opt, 1, St1#st.opts) ] }
+      end, St, Options).
 
 %% Simple sample processor that maintains a counter.
 %% of all 
