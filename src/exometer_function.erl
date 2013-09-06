@@ -6,13 +6,15 @@
 	 update/4,
 	 get_value/3,
 	 sample/3,
-	 delete/3]).
+	 delete/3,
+	 reset/3,
+	 setopts/4]).
 
 -export([empty/0]).
 
 new(_Name, function, Opts) ->
     case lists:keyfind(type_arg, 1, Opts) of
-	{function, M, F} ->
+	{_, {function, M, F}} ->
 	    {ok, {M, F}};
 	false ->
 	    {ok, {?MODULE, empty}}
@@ -29,6 +31,12 @@ sample(_, _, _) ->
 
 delete(_, _, _) ->
     ok.
+
+reset(_, _, _) ->
+    {error, unsupported}.
+
+setopts(_, _, _, _) ->
+    {error, unsupported}.
 
 empty() ->
     [].
