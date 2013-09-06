@@ -9,6 +9,8 @@
 
 -compile(export_all).
 
+-export([monitor/2]).
+
 -record(st, {}).
 -include("exometer.hrl").
 
@@ -49,6 +51,9 @@ preset_defaults() ->
 	    ok
     end.
 
+monitor(Name, Pid) when is_pid(Pid) ->
+    gen_server:cast(?MODULE, {monitor, Name, Pid}).
+
 opts_to_rec(Opts) ->
     Flds = record_info(fields, exometer_entry),
     lists:foldr(fun({K,V}, Acc) ->
@@ -76,9 +81,22 @@ init(_) ->
 handle_call(_, _, S) ->
     {reply, error, S}.
 
+handle_cast({monitor, Name, Pid}, S) ->
+    Ref = erlang:monitor(process, Pid),
+    put(Ref, Name),
+    {noreply, S};
 handle_cast(_, S) ->
     {noreply, S}.
 
+handle_info({'DOWN', Ref, _, _, _}, S) ->
+    case get(Ref) of
+	undefined ->
+	    {noreply, S};
+	Name when is_list(Name) ->
+	    erase(Ref),
+	    catch exometer_entry:delete(Name),
+	    {noreply, S}
+    end;
 handle_info(_, S) ->
     {noreply, S}.
 
@@ -171,5 +189,5 @@ make_patterns([H|T], Type, Acc) ->
     ID = Acc1 ++ [''],
     [{ #exometer_entry{name = {default, ID, Type}, _ = '_'}, [], ['$_'] }
      | make_patterns(T, Type, Acc1)];
-make_patterns([], _, _) ->
-    [].
+make_patterns([], Type, _) ->
+    [{ #exometer_entry{name = {default, [''], Type}, _ = '_'}, [], ['$_'] }].

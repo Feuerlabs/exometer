@@ -163,3 +163,4 @@ process_opts(Entry, Options) ->
 		options = [ {Opt, Val} | [O || {K,_} = O <- Opts1,
 					       K =/= Opt] ] }
       end, Entry, Options).
+
