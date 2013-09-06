@@ -40,11 +40,7 @@ new(Name, Type) ->
     new(Name, Type, []).
 
 -spec new(name(), type(), options()) -> ok.
-%% new(Name, counter, []) when is_list(Name) ->
-%%     E = #exometer_entry{module = ?MODULE, type = counter,
-%% 			value = 0},
-%%     [ets:insert(T, E) || T <- exometer:tables()],
-%%     ok;
+
 new(Name, Type0, Opts0) when is_list(Name), is_list(Opts0) ->
     {Type,Opts} = if is_tuple(Type0) -> {element(1,Type0),
 					 [{type_arg, Type0}|Opts0]};
@@ -75,7 +71,7 @@ get_value(Name) when is_list(Name) ->
 		       || T <- exometer:tables()]);
 	[#exometer_entry{module = M, type = Type, ref = Ref}] ->
 	    M:get_value(Name, Type, Ref);
-	false ->
+	[] ->
 	    {error, not_found}
     end.
 
