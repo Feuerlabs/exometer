@@ -44,7 +44,11 @@ new(Name, Type) ->
 %% 			value = 0},
 %%     [ets:insert(T, E) || T <- exometer:tables()],
 %%     ok;
-new(Name, Type, Opts) when is_list(Name), is_list(Opts) ->
+new(Name, Type0, Opts0) when is_list(Name), is_list(Opts0) ->
+    {Type,Opts} = if is_tuple(Type0) -> {element(1,Type0),
+					 [{type_arg, Type0}|Opts0]};
+		     true -> {Type0, Opts0}
+		  end,
     #exometer_entry{} = E = exometer_admin:lookup_definition(Name, Type),
     create_entry(E#exometer_entry { name = Name }, Opts).
 

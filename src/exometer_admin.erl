@@ -14,6 +14,7 @@
 
 -spec set_default([atom()], atom(), #exometer_entry{} | [{atom(),any()}]) ->
 			 true.
+
 %% @doc Sets a default definition for a metric type, possibly using wildcards.
 %%
 %% Names are lists of atoms, where '_' is a wildcard. For example,

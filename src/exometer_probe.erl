@@ -146,6 +146,7 @@ code_change(From, #st{module = M, mod_state = ModSt} = St, Extra) ->
 	    Other
     end.
 
+reply(ok                , St) -> {reply, ok, St};
 reply({ok, Reply}       , St) -> {reply, Reply, St};
 reply({error, _} = Error, St) -> {stop, Error, Error, St};
 reply({ok, Reply, ModSt}, St) -> {reply, Reply, St#st{mod_state = ModSt}};
