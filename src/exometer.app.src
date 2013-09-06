@@ -6,7 +6,8 @@
   {registered, []},
   {applications, [
                   kernel,
-                  stdlib
+                  stdlib,
+		  netlink
                  ]},
   {mod, { exometer_app, []}},
   {start_phases, [{preset_defaults, []}]},

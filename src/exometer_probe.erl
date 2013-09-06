@@ -3,13 +3,13 @@
 -behaviour(exometer_entry).
 
 % exometer_entry callb
--export([new/2,
-	 delete/2,
-	 get_value/2,
-	 update/3,
-	 reset/2,
-	 sample/2,
-	 setopts/3]).
+-export([new/3,
+	 delete/3,
+	 get_value/3,
+	 update/4,
+	 reset/3,
+	 sample/3,
+	 setopts/4]).
 
 
 %% gen_server callbacks
@@ -23,55 +23,51 @@
 -include("exometer.hrl").
 
 -record(st, {name,
+	     type,
 	     module = undefined,
 	     mod_ref,
 	     sample_timer,
 	     sample_interval = 1000, %% msec
 	     opts = []}).
 
-
 %%
 %% exometer_entry callbacks
 %%
-new(Name, Options) ->
+new(Name, Type, Options) ->
     %% Extract the module to use.
     {value, {module, Module}, Opts1 } = lists:keytake(module, 1, Options), 
+    gen_server:start_link(?MODULE, {Name, Type, Module, Opts1}, []).
 
-    %% ULF: Do we still need to run a separate registration module
-    %% since we now work with pids?
-    %% Start server and return pid as module reference
-%%    gen_server:start_link({via, exometer_reg, Name}, ?MODULE,
-%%			  {Name, Module, Opts1}, []).
-    gen_server:start_link(?MODULE, {Name, Module, Opts1}, []).
-
-delete(_Name, Pid) when is_pid(Pid) ->
+delete(_Name, _Type, Pid) when is_pid(Pid) ->
     gen_server:call(Pid, stop).
-    
 
-get_value(_Name, Pid) when is_pid(Pid) ->
+get_value(_Name, _Type, Pid) when is_pid(Pid) ->
     gen_server:call(Pid, get_value).
 
-setopts(_Name, Options, Pid) when is_pid(Pid), is_list(Options) ->
+setopts(_Name, Options, _Type, Pid) when is_pid(Pid), is_list(Options) ->
     gen_server:call(Pid, {setopts, Options}).
 
-update(_Name, Value, Pid) when is_pid(Pid) ->
+update(_Name, Value, _Type, Pid) when is_pid(Pid) ->
     gen_server:call(Pid, {update, Value}).
-	      
-reset(_Name, Pid) when is_pid(Pid) ->
+
+reset(_Name, _Type, Pid) when is_pid(Pid) ->
     gen_server:call(Pid, reset).
-	      
-sample(_Name, Pid) when is_pid(Pid) ->
+
+sample(_Name, _Type, Pid) when is_pid(Pid) ->
     gen_server:call(Pid, sample).
-	      
+
 
 %% gen_server implementation
-init({Name, Mod, Opts}) ->
+init({Name, Type, Mod, Opts}) ->
     %% Extract the (exometer_entry callback) module to use
-    St = process_opts(#st {name = Name, module = Mod}, Opts),
+    St = process_opts(#st {name = Name, type = Type, module = Mod}, Opts),
 
     %% Create a new state for the module
     io:format("exometer_probe(): St: ~p~n", [St]),
-    case Mod:new(Name, St#st.opts) of
+    case Mod:new(Name, Type, St#st.opts) of
+	ok ->
+	    %% Fire up the timer, save the new module state.
+	    {ok, sample_(restart_timer(sample, St#st{ mod_ref = undefined }))};
 	{ok, ModRef} ->
 	    %% Fire up the timer, save the new module state.
 	    {ok, sample_(restart_timer(sample, St#st{ mod_ref = ModRef }))};
@@ -86,20 +82,20 @@ handle_call(stop, _From, St) ->
 handle_call(get_value, _From, St) ->
     %% Forward the call to the correct exometer_entry module
     %% (as specified by the 'module' option provided to new()).
-    { reply, (NSt#st.module):get_value(St#st.name, NSt#st.mod_ref), St };
+    { reply, (St#st.module):get_value(St#st.name, St#st.type, St#st.mod_ref), St };
 
 
 handle_call({setopts, Options}, _From, St) ->
     %% Process (and delete) local options.
     %% FIXME: Check for updated timer specs here and restart timer??
     NSt = process_opts(St, Options),
-    { reply, (NSt#st.module):setopts(St#st.name, NSt#st.opts, NSt#st.mod_ref), St };
+    { reply, (NSt#st.module):setopts(NSt#st.name, NSt#st.type, NSt#st.opts, NSt#st.mod_ref), St };
 
 handle_call({update, Value}, _From, St) ->
-    { reply, (NSt#st.module):update(St#st.name, Value, NSt#st.opts, NSt#st.mod_ref), St };
+    { reply, (St#st.module):update(St#st.name, Value, St#st.type, St#st.mod_ref), St };
 
 handle_call(reset, _From, St) ->
-    { reply, (NSt#st.module):reset(St#st.name, NSt#st.mod_ref), St };
+    { reply, (St#st.module):reset(St#st.name, St#st.type, St#st.mod_ref), St };
 
 handle_call(sample, _From, St) ->
     {reply, { ok, self() }, sample_(St)};
@@ -131,7 +127,7 @@ code_change(From, #st{module = M, mod_ref = ModRef} = St, Extra) ->
 
 
 sample_(#st{} = St) ->
-    case (St#st.module):sample(St#st.mod_ref) of
+    case (St#st.module):sample(St#st.name, St#st.type, St#st.mod_ref) of
 	{ ok, NModRef } ->
 	    St#st { mod_ref = NModRef };
 	_ ->
