@@ -4,6 +4,8 @@
 
 -export([new/3,
 	 update/4,
+	 reset/3,
+	 setopts/4,
 	 get_value/3,
 	 sample/3,
 	 delete/3]).
@@ -25,6 +27,12 @@ update(_, _, _, _) ->
     {error, unsupported}.
 
 sample(_, _, _) ->
+    {error, unsupported}.
+
+reset(_, _, _) ->
+    {error, unsupported}.
+
+setopts(_,_, _, _) ->
     {error, unsupported}.
 
 delete(_, _, _) ->

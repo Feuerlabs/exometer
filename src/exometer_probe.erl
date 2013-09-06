@@ -26,7 +26,7 @@
 	     module = undefined,
 	     mod_state,
 	     sample_timer,
-	     sample_interval = 1000, %% msec
+	     sample_interval = infinity, %% msec. infinity = disable probe_sample() peridoc calls.
 	     opts = []}).
 
 -type name()        :: exometer_entry:name().
@@ -44,6 +44,7 @@
 		       | {error, any()}.
 
 -callback probe_init(name(), type(), options()) -> probe_noreply().
+-callback probe_terminate(mod_state()) -> probe_noreply().
 -callback probe_setopts(options(), mod_state()) -> probe_reply().
 -callback probe_update(any(), mod_state()) -> probe_reply().
 -callback probe_get_value(mod_state()) -> probe_reply().
@@ -88,15 +89,22 @@ init({Name, Type, Mod, Opts}) ->
 
     %% Create a new state for the module
     io:format("exometer_probe(): St: ~p~n", [St]),
-    case Mod:probe_init(Name, Type, St#st.opts) of
-	ok ->
-	    %% Fire up the timer, save the new module state.
+    case {Mod:probe_init(Name, Type, St#st.opts), St#st.sample_interval} of
+	{ ok, infinity} ->
+	    %% No sample timer to start. Return with undefined mod state
+	    {ok, St#st{ mod_state = undefined }};
+	{{ok, ModSt}, infinity} ->
+	    %% No sample timer to start. Returnn with the mod state returned by probe_init.
+	    {ok, St#st{ mod_state = ModSt }};
+
+	{ ok, _} ->
+	    %% Fire up the timer, return with undefined mod state
 	    {ok, sample_(restart_timer(sample, St#st{ mod_state = undefined }))};
-	{ok, ModSt} ->
-	    %% Fire up the timer, save the new module state.
+	{{ok, ModSt}, _ } ->
+	    %% Fire up the timer. Returnn with the mod state returned by probe_init.
 	    {ok, sample_(restart_timer(sample, St#st{ mod_state = ModSt }))};
 
-	{error, Reason} ->
+	{{error, Reason}, _} ->
 	    {error, Reason}
     end.
 
@@ -164,7 +172,6 @@ sample_(#st{module = M, mod_state = ModSt} = St) ->
     end.
 
 %% ===================================================================
-
 
 restart_timer(sample, #st{sample_interval = Int} = St) ->
     St#st{sample_timer = start_timer(Int, sample)}.
