@@ -86,7 +86,7 @@ delete(Name) when is_list(Name) ->
 	    after
 		[ets:delete(T, Name) || T <- exometer:tables()]
 	    end;
-	false ->
+	[] ->
 	    {error, not_found}
     end.
 
