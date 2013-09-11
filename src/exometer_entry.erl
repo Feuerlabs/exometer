@@ -136,11 +136,21 @@ create_entry(#exometer_entry{module = M,
 			     name = Name} = E, Opts) ->
     %% Process local options before handing off the rest to M:new.
     E1 = process_opts(E, OptsTemplate ++ Opts),
-    E2 = case Res = M:new(Name, Type, E1#exometer_entry.options) of
-	     ok        -> E1;
-	     {ok, Ref} -> E1#exometer_entry{ ref = Ref }
-	 end,
-    [ets:insert(T, E2) || T <- exometer:tables()],
+    case Res = M:new(Name, Type, E1#exometer_entry.options) of
+       ok        -> 
+           %% ?info("exometer:create_entry(): M(~p) Type(~p) Name(~p) Opt(~p) Res(ok)~n",
+           %%    [M, Type, Name, OptsTemplate ++ Opts]),
+
+           [ets:insert(T, E1) || T <- exometer:tables()];
+       {ok, Ref} ->
+           %% ?info("exometer:create_entry(): M(~p) Type(~p) Name(~p) Opt(~p) Res({ok, ~p})~n",
+           %%    [M, Type, Name, OptsTemplate ++ Opts, Ref]),
+           [ets:insert(T, E1#exometer_entry{ ref = Ref }) || T <- exometer:tables()];
+       _ -> 
+           %% ?info("exometer:create_entry(): M(~p) Type(~p) Name(~p) Opt(~p) Res(~p)~n",
+           %%    [M, Type, Name, OptsTemplate ++ Opts, Res]),
+           true
+    end,
     Res.
 
 find_entries(Path) ->
