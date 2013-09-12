@@ -16,7 +16,6 @@
 
 
 new(Name, Options) ->
-    io:format("exometer_ctr:new(~p, ~p)~n", [Name, Options]),
     {ok, #st { counter = 0 }}.
     
 delete(#st{}) ->

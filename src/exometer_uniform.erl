@@ -73,14 +73,12 @@ probe_get_value(St) ->
 	    [], St#st.ets_ref),
 
     Sorted = lists:sort(Val),
-    io:format("Sorted: ~p~n", [Sorted]),
     L = length(Sorted),
 
     Items = [{min,1}] ++ 
 	[ {P , perc(P / 100, L) } || P <- St#st.percentiles ] ++ 
 	[ {max, L} ],
 
-    io:format("Items: ~p~n", [ Items]),
     [Min|Rest] = pick_items(Sorted, 1, Items),
 
     {ok, [Min, {percentile, lists:keydelete(max,1,Rest)}, lists:last(Rest)] }.
@@ -102,7 +100,6 @@ probe_update(Value, St) when St#st.cur_sz < St#st.size ->
 
 probe_update(Value, St) ->
     Slot = random:uniform(St#st.size),
-    io:format("Slot: ~p~n", [ Slot ]),
     ets:insert(St#st.ets_ref, #elem { slot = Slot, val = Value }),
     ok.
 

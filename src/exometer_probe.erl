@@ -88,7 +88,6 @@ init({Name, Type, Mod, Opts}) ->
     St = process_opts(#st {name = Name, type = Type, module = Mod}, Opts),
 
     %% Create a new state for the module
-    io:format("exometer_probe(): St: ~p~n", [St]),
     case {Mod:probe_init(Name, Type, St#st.opts), St#st.sample_interval} of
 	{ ok, infinity} ->
 	    %% No sample timer to start. Return with undefined mod state
