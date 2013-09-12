@@ -26,7 +26,6 @@
 
 
 -include("exometer.hrl").
--import(netlink_stat, [get_value/1]).
 
 -record(st, {name,
 	     size = 1028,

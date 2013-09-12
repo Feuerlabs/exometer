@@ -5,7 +5,6 @@
 -include("exometer.hrl").
 
 start() ->
-    application:start(netlink),
     application:start(exometer).
 
 
