@@ -45,7 +45,7 @@ new(Name, Type, Options) ->
     exometer_probe:new(Name, Type, [{module, ?MODULE}|Options]).
 
 probe_init(Name, _Type, Options) ->
-    St = process_opts(#st { name = Name }, [ {percentiles, [ 95, 99 ]} ] ++ Options),
+    St = process_opts(#st { name = Name }, [ {percentiles, [ 50, 75, 95, 99, 999 ]} ] ++ Options),
     EtsRef = ets:new(uniform, [ set, { keypos, 2 } ]),
     
     %% Setup random seed, if not already done.
@@ -170,5 +170,8 @@ pick_items([_|T], P, Ps) ->
 pick_items([], _, Ps) ->
     [{Tag,undefined} || {Tag,_} <- Ps].
 
+perc(P, Len) when P > 1.0 ->
+    round((P / 10) * Len);
+      
 perc(P, Len) ->
     round(P * Len).

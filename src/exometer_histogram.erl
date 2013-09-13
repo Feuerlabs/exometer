@@ -45,7 +45,7 @@ new(Name, Type, Options) ->
     exometer_probe:new(Name, Type, [{module, ?MODULE}|Options]).
 
 probe_init(Name, _Type, Options) ->
-    St = process_opts(#st { name = Name }, [ {percentiles, [ 95, 99 ]},
+    St = process_opts(#st { name = Name }, [ {percentiles, [ 50, 75, 95, 99, 999 ]},
 					     { time_span, 60000}, 
 					     { slot_period,100 } ] ++ Options),
     Slide = exometer_slot_slide:new(St#st.time_span,
@@ -108,6 +108,9 @@ pick_items([_|T], P, Ps) ->
 
 pick_items([], _, Ps) ->
     [{Tag,undefined} || {Tag,_} <- Ps].
+
+perc(P, Len) when P > 1.0 ->
+    round((P / 10) * Len);
 
 perc(P, Len) ->
     round(P * Len).
