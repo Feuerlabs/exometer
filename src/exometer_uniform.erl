@@ -45,7 +45,7 @@ new(Name, Type, Options) ->
     exometer_probe:new(Name, Type, [{module, ?MODULE}|Options]).
 
 probe_init(Name, _Type, Options) ->
-    St = process_opts(#st { name = Name }, Options),
+    St = process_opts(#st { name = Name }, [ {percentiles, [ 95, 99 ]} ] ++ Options),
     EtsRef = ets:new(uniform, [ set, { keypos, 2 } ]),
     
     %% Setup random seed, if not already done.
@@ -68,19 +68,36 @@ get_value(Name, Type, Ref) ->
 probe_get_value(St) ->
 
     Val = ets:foldl(
-	    fun(#elem { val = Val }, List) -> [ Val | List ]  end, 
-	    [], St#st.ets_ref),
+	    fun(#elem { val = Val }, {Length, Total, List}) -> { Length + 1, Total + Val, [ Val | List ]}  end, 
+	    {0, 0.0, []}, St#st.ets_ref),
 
-    Sorted = lists:sort(Val),
-    L = length(Sorted),
+    {Length, Total, Lst} = Val,
+    Sorted = lists:sort(Lst),
+
+     %% Calc median. FIXME: Can probably be made faster.
+    Median = case {Length, Length rem 2} of
+	{0, _}-> %% No elements
+	    0.0;
+	
+	{_, 0} -> %% Even number with at least two elements. Return average of two center elements
+	    lists:sum(lists:sublist(Sorted, trunc(Length / 2), 2)) / 2.0;
+
+	{_, 1}-> %% Odd number with at least one element. Return center element
+	    lists:nth(trunc(Length / 2) + 1, Sorted)
+    end,
+    Mean = case Length of
+	       0 -> 0;
+	       _ -> Total / Length
+	   end,
+
 
     Items = [{min,1}] ++ 
-	[ {P , perc(P / 100, L) } || P <- St#st.percentiles ] ++ 
-	[ {max, L} ],
+	[ {P , perc(P / 100, Length) } || P <- St#st.percentiles ] ++ 
+	[ {max, Length} ],
 
     [Min|Rest] = pick_items(Sorted, 1, Items),
 
-    {ok, [Min, {percentile, lists:keydelete(max,1,Rest)}, lists:last(Rest)] }.
+    {ok, [Min, {mean, Mean}, {median, Median}, {arithmetic_mean, Mean}, {percentile, lists:keydelete(max,1,Rest)}, lists:last(Rest)] }.
 
 
 setopts(_Name, _Options, _Type, _Ref)  ->

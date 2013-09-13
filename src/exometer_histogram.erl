@@ -45,7 +45,8 @@ new(Name, Type, Options) ->
     exometer_probe:new(Name, Type, [{module, ?MODULE}|Options]).
 
 probe_init(Name, _Type, Options) ->
-    St = process_opts(#st { name = Name }, [ { time_span, 60000}, 
+    St = process_opts(#st { name = Name }, [ {percentiles, [ 95, 99 ]},
+					     { time_span, 60000}, 
 					     { slot_period,100 } ] ++ Options),
     Slide = exometer_slot_slide:new(St#st.time_span,
 				    St#st.slot_period,
@@ -63,21 +64,39 @@ get_value(Name, Type, Ref) ->
     exometer_probe:get_value(Name, Type, Ref).
 
 probe_get_value(St) ->
+    
+    %% We need element count and sum of all elements to get mean value.
     Val = exometer_slot_slide:foldl(
-	    fun({_TS, Val}, List) -> [ Val | List ]  end, 
-	    [], St#st.slide),
+	    fun({_TS, Val}, {Length, Total, List}) -> { Length + 1, Total + Val, [ Val | List ]}  end, 
+	    {0, 0.0, []}, St#st.slide),
 
-    Sorted = lists:sort(Val),
-    io:format("Sorted(~p)~n", [ Sorted]),
-    L = length(Sorted),
+    {Length, Total, Lst} = Val,
+    Sorted = lists:sort(Lst),
+
+    %% Calc median. FIXME: Can probably be made faster.
+    Median = case {Length, Length rem 2} of
+	{0, _} -> %% No elements
+	    0.0;
+	
+	{_, 0} -> %% Even number with at least two elements. Return average of two center elements
+	    lists:sum(lists:sublist(Sorted, trunc(Length / 2), 2)) / 2.0;
+
+	{_, 1}-> %% Odd number with at least one element. Return center element
+	    lists:nth(trunc(Length / 2) + 1, Sorted)
+    end,
+
+    Mean = case Length of
+	       0 -> 0;
+	       _ -> Total / Length
+	   end,
 
     Items = [{min,1}] ++ 
-	[ {P , perc(P / 100, L) } || P <- St#st.percentiles ] ++ 
-	[ {max, L} ],
+	[ {P , perc(P / 100, Length) } || P <- St#st.percentiles ] ++ 
+	[ {max, Length} ],
 
     [Min|Rest] = pick_items(Sorted, 1, Items),
 
-    {ok, [Min, {percentile, lists:keydelete(max,1,Rest)}, lists:last(Rest)] }.
+    {ok, [Min, {mean, Mean}, {arithmetic_mean, Mean}, {median, Median}, {percentile, lists:keydelete(max,1,Rest)}, lists:last(Rest)] }.
 
 
 pick_items([H|_] = L, P, [{Tag,P}|Ps]) ->

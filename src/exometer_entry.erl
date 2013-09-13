@@ -11,6 +11,8 @@
 	 find_entries/1]).
 
 -include("exometer.hrl").
+-include_lib("lager/include/log.hrl").
+
 -export_type([name/0, type/0, options/0, value/0, ref/0, error/0]).
 
 -type name()     :: list().
@@ -69,8 +71,12 @@ get_value(Name) when is_list(Name) ->
 	[#exometer_entry{module = ?MODULE, type = counter}] ->
 	    lists:sum([ets:lookup_element(T, Name, #exometer_entry.value)
 		       || T <- exometer:tables()]);
+
 	[#exometer_entry{module = M, type = Type, ref = Ref}] ->
-	    M:get_value(Name, Type, Ref);
+	    Res = M:get_value(Name, Type, Ref),
+	    %%?info("exometer:get_value(~p): ~p~n", [ Name, Res]),
+	    Res;
+
 	[] ->
 	    {error, not_found}
     end.
@@ -138,17 +144,17 @@ create_entry(#exometer_entry{module = M,
     E1 = process_opts(E, OptsTemplate ++ Opts),
     case Res = M:new(Name, Type, E1#exometer_entry.options) of
        ok        -> 
-           %% ?info("exometer:create_entry(): M(~p) Type(~p) Name(~p) Opt(~p) Res(ok)~n",
-           %%    [M, Type, Name, OptsTemplate ++ Opts]),
+	     %% ?info("exometer:create_entry(): M(~p) Type(~p) Name(~p) Opt(~p) Res(ok)~n",
+             %%   [M, Type, Name, OptsTemplate ++ Opts]),
 
            [ets:insert(T, E1) || T <- exometer:tables()];
        {ok, Ref} ->
-           %% ?info("exometer:create_entry(): M(~p) Type(~p) Name(~p) Opt(~p) Res({ok, ~p})~n",
-           %%    [M, Type, Name, OptsTemplate ++ Opts, Ref]),
+            %% ?info("exometer:create_entry(): M(~p) Type(~p) Name(~p) Opt(~p) Res({ok, ~p})~n",
+            %%    [M, Type, Name, OptsTemplate ++ Opts, Ref]),
            [ets:insert(T, E1#exometer_entry{ ref = Ref }) || T <- exometer:tables()];
        _ -> 
-           %% ?info("exometer:create_entry(): M(~p) Type(~p) Name(~p) Opt(~p) Res(~p)~n",
-           %%    [M, Type, Name, OptsTemplate ++ Opts, Res]),
+            %% ?info("exometer:create_entry(): M(~p) Type(~p) Name(~p) Opt(~p) Res(~p)~n",
+            %%    [M, Type, Name, OptsTemplate ++ Opts, Res]),
            true
     end,
     Res.

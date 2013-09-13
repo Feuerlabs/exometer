@@ -65,8 +65,8 @@ get_value(Name, Type, Ref) ->
 
 probe_get_value(St) ->
     { ok, [{count, St#st.total}, 
-      {one, exometer_slot_slide:foldl(fun({_TS, Val}, Acc) -> Acc + Val end,
-				      0, St#st.slide) } ]}.
+	   {one, exometer_slot_slide:foldl(fun({_TS, Val}, Acc) -> Acc + Val end,
+					   0, St#st.slide) } ]}.
 
 setopts(_Name, _Options, _Type, _Ref)  ->
     { error, unsupported }.
