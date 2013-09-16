@@ -45,7 +45,7 @@ new(Name, Type, Options) ->
     exometer_probe:new(Name, Type, [{module, ?MODULE}|Options]).
 
 probe_init(Name, _Type, Options) ->
-    St = process_opts(#st { name = Name }, [ {percentiles, [ 50, 75, 95, 99, 999 ]} ] ++ Options),
+    St = process_opts(#st { name = Name }, [ {percentiles, [ 50, 75, 90, 95, 99, 999 ]} ] ++ Options),
     EtsRef = ets:new(uniform, [ set, { keypos, 2 } ]),
     
     %% Setup random seed, if not already done.
