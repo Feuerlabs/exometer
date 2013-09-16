@@ -11,7 +11,7 @@
 	 find_entries/1]).
 
 -include("exometer.hrl").
--include_lib("lager/include/log.hrl").
+-include("log.hrl").
 
 -export_type([name/0, type/0, options/0, value/0, ref/0, error/0]).
 
