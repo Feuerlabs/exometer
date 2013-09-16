@@ -124,18 +124,6 @@ tables() ->
 
 %% ====
 
-%% ULF: NOT USED. 
-%% exometer_entry:create_entry() does the same thing.
-%%
-%% create_metric(Name, #exometer_entry{module = M,
-%% 				    type = _Type,
-%% 				    options = Opts} = Def, ExtraOpts) ->
-%%     exometer_entry:new(
-%%     { ok, ModSt } = M:new(Name, ExtraOpts ++ Opts),
-%%     [ets:insert(T, Def#exometer_entry{name = Name, mod_state = ModSt, options = ExtraOpts ++ Opts}) ||
-%% 	T <- tables()],
-%%     ModSt.
-
 lookup_definition(Name, Type) ->
     case ets:lookup(?EXOMETER_SHARED, Name) of
 	[] ->
@@ -161,11 +149,11 @@ default_definition(Name, Type) ->
 
 %% Be sure to specify { module, exometer_ctr } in Options when
 %% creating a ticker metrics through exometer_entry:new().
-module(ticker  ) ->  exometer_probe; 
-module(uniform) ->   exometer_uniform; 
-module(histogram) -> exometer_histogram;
-module(spiral   ) -> exometer_spiral.
-
+module(ticker  )    -> exometer_probe;
+module(uniform)     -> exometer_uniform;
+module(histogram)   -> exometer_histogram;
+module(spiral   )   -> exometer_spiral;
+module(probe)       -> exometer_probe.
 
 search_default(Name, Type) ->
     case ets:lookup(?EXOMETER_SHARED, {default,Name,Type}) of
