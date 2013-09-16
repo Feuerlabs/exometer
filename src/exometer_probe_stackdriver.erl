@@ -156,15 +156,15 @@ report_to_web([_|_] = Values, Time, #st{url = URL, api_key = Key}) ->
     {Body, Hdrs} = encode_request(Req, Key),
     post_request(URL, Hdrs, Body).
 
-data_point_json(T, N, V) when is_integer(V) ->
+data_point_json(T, N, V) when is_number(V) ->
     [data_point_json_(T, N, V)];
 data_point_json(T, N, [{_,_}|_] = Values) ->
     [data_point_json_(T, N ++ [K], V) || {K,V} <- Values,
-					 is_integer(V)];
+					 is_number(V)];
 data_point_json(_,_,_) ->
     [].
 
-data_point_json_(T, N, V) when is_integer(V) ->
+data_point_json_(T, N, V) when is_number(V) ->
     {struct, [{"name", encode_name(N)},
 	      {"value", V},
 	      {"collected_at", T}]}.
