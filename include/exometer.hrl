@@ -11,6 +11,8 @@
 	  name,
 	  type,
 	  module = exometer,
+	  status = enabled,
+	  cache = 0,
 	  value,
 	  timestamp,
 	  options = [],

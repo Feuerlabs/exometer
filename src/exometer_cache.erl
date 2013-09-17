@@ -66,7 +66,8 @@ handle_cast({start_timer, Name, TTLu, T}, #st{ttl = TTL0} = S) ->
 	     is_integer(TTLu) -> TTLu
 	  end,
     Timeout = timeout(T, TTL),
-    erlang:start_timer(Timeout, self(), {name, Name}),
+    TRef = erlang:start_timer(Timeout, self(), {name, Name}),
+    update_tref(Name, TRef),
     {noreply, S};
 handle_cast(_, S) ->
     {noreply, S}.
@@ -85,6 +86,10 @@ code_change(_, S, _) ->
 
 timeout(T, TTL) ->
     TTL - (timer:now_diff(os:timestamp(), T) div 1000).
+
+update_tref(Name, TRef) ->
+    catch ets:update_element(?TABLE, Name, {#cache.tref, TRef}).
+
 
 ensure_table() ->
     case ets:info(?TABLE, name) of
