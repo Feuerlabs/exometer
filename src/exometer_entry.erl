@@ -52,11 +52,12 @@ new(Name, Type0, Opts0) when is_list(Name), is_list(Opts0) ->
     create_entry(E#exometer_entry { name = Name }, Opts).
 
 
+
 -spec update(name(), value()) -> ok | error().
 update(Name, Value) when is_list(Name) ->
-    case ets:lookup(exometer:table(), Name) of
+    case ets:lookup((Tab = exometer:table()), Name) of
 	[#exometer_entry{module = ?MODULE, type = counter}] ->
-	    ets:update_counter(Name, {#exometer_entry.value, Value}),
+	    ets:update_counter(Tab, Name, {#exometer_entry.value, Value}),
 	    ok;
 	[#exometer_entry{module = M, type = Type, ref = Ref}] ->
 	    M:update(Name, Value, Type, Ref);
@@ -73,9 +74,7 @@ get_value(Name) when is_list(Name) ->
 		       || T <- exometer:tables()]);
 
 	[#exometer_entry{module = M, type = Type, ref = Ref}] ->
-	    Res = M:get_value(Name, Type, Ref),
-	    %%?info("exometer:get_value(~p): ~p~n", [ Name, Res]),
-	    Res;
+	    M:get_value(Name, Type, Ref);
 
 	[] ->
 	    {error, not_found}
@@ -144,17 +143,10 @@ create_entry(#exometer_entry{module = M,
     E1 = process_opts(E, OptsTemplate ++ Opts),
     case Res = M:new(Name, Type, E1#exometer_entry.options) of
        ok        -> 
-	     %% ?info("exometer:create_entry(): M(~p) Type(~p) Name(~p) Opt(~p) Res(ok)~n",
-             %%   [M, Type, Name, OptsTemplate ++ Opts]),
-
            [ets:insert(T, E1) || T <- exometer:tables()];
        {ok, Ref} ->
-            %% ?info("exometer:create_entry(): M(~p) Type(~p) Name(~p) Opt(~p) Res({ok, ~p})~n",
-            %%    [M, Type, Name, OptsTemplate ++ Opts, Ref]),
            [ets:insert(T, E1#exometer_entry{ ref = Ref }) || T <- exometer:tables()];
        _ -> 
-            %% ?info("exometer:create_entry(): M(~p) Type(~p) Name(~p) Opt(~p) Res(~p)~n",
-            %%    [M, Type, Name, OptsTemplate ++ Opts, Res]),
            true
     end,
     Res.
@@ -180,4 +172,3 @@ process_opts(Entry, Options) ->
 		options = [ {Opt, Val} | [O || {K,_} = O <- Opts1,
 					       K =/= Opt] ] }
       end, Entry, Options).
-
