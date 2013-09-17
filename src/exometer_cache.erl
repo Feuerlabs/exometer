@@ -20,7 +20,7 @@
 
 -record(st, {ttl = 5000}).
 
--record(cache, {name, value, tref}).
+-record(cache, {name, value, tref, time, ttl}).
 
 start_link() ->
     ensure_table(),
@@ -42,16 +42,18 @@ write(Name, Value, TTL) ->
 	 erlang:cancel_timer(OldTRef)
     catch error:_ -> ok
     end,
-    start_timer(Name, TTL),
-    ets:insert(?TABLE, #cache{name = Name, value = Value}),
+    TS = os:timestamp(),
+    start_timer(Name, TTL, TS),
+    ets:insert(?TABLE, #cache{name = Name, value = Value, ttl = TTL,
+			      time = TS}),
     ok.
 
 delete(Name) ->
     %% Cancel the timer?
     ets:delete(?TABLE, Name).
 
-start_timer(Name, TTL) ->
-    gen_server:cast(?MODULE, {start_timer, Name, TTL, os:timestamp()}).
+start_timer(Name, TTL, TS) ->
+    gen_server:cast(?MODULE, {start_timer, Name, TTL, TS}).
 
 init(_) ->
     S = #st{},
@@ -85,7 +87,10 @@ code_change(_, S, _) ->
     {ok, S}.
 
 timeout(T, TTL) ->
-    TTL - (timer:now_diff(os:timestamp(), T) div 1000).
+    timeout(T, TTL, os:timestamp()).
+
+timeout(T, TTL, TS) ->
+    erlang:max(TTL - (timer:now_diff(TS, T) div 1000), 0).
 
 update_tref(Name, TRef) ->
     catch ets:update_element(?TABLE, Name, {#cache.tref, TRef}).
@@ -103,14 +108,17 @@ restart_timers(TTL) ->
     random:seed(),
     restart_timers(
       ets:select(
-	?TABLE, [{#cache{name = '$1',_='_'},[],['$1']}], 100), TTL).
+	?TABLE, [{#cache{name = '$1', ttl = '$2', time = '$3', _='_'},
+		  [],[{{'$1','$2','$3'}}]}], 100),
+      TTL, os:timestamp()).
 
-restart_timers({Names, Cont}, TTL) ->
+restart_timers({Names, Cont}, TTL, TS) ->
     lists:foreach(
-      fun(Name) ->
-	      erlang:start_timer(
-		TTL + random:uniform(1000), self(), {name, Name})
+      fun({Name1, TTL1, T1}) ->
+	      Timeout = timeout(T1, TTL1, TS),
+	      TRef = erlang:start_timer(Timeout, self(), {name, Name1}),
+	      ets:update_element(?TABLE, Name1, {#cache.tref, TRef})
       end, Names),
-    restart_timers(ets:select(Cont), TTL);
-restart_timers('$end_of_table', _) ->
+    restart_timers(ets:select(Cont), TTL, TS);
+restart_timers('$end_of_table', _, _) ->
     ok.

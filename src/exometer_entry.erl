@@ -30,7 +30,7 @@
 -callback delete(name(), type(), ref()) ->
     ok | error().
 -callback get_value(name(), type(), ref()) ->
-    {ok, value()} | error().
+    {ok, value() | unavailable} | error().
 -callback update(name(), value(), type(), ref()) ->
     ok | {ok, value()} | error().
 -callback reset(name(), type(), ref()) ->
@@ -84,7 +84,7 @@ get_value_(#exometer_entry{status = Status,
 	    lists:sum([ets:lookup_element(T, Name, #exometer_entry.value)
 		       || T <- exometer:tables()]);
        Status == disabled ->
-	    0
+	    unavailable
     end;
 get_value_(#exometer_entry{status = Status, cache = Cache,
 			   name = Name, module = M, type = Type, ref = Ref}) ->
@@ -100,7 +100,7 @@ get_value_(#exometer_entry{status = Status, cache = Cache,
 		    M:get_value(Name, Type, Ref)
 	    end;
        Status == disabled ->
-	    M:empty_value(Name, Type, Ref)
+	    unavailable
     end.
 
 -spec delete(name()) -> ok | error().
