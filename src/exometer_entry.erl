@@ -72,20 +72,9 @@ update(Name, Value) when is_list(Name) ->
 -spec get_value(name()) -> {ok, value()} | error().
 get_value(Name) when is_list(Name) ->
     case ets:lookup(exometer:table(), Name) of
-<<<<<<< HEAD
 	[#exometer_entry{} = E] ->
 	    {ok, get_value_(E)};
 	_ ->
-=======
-	[#exometer_entry{module = ?MODULE, type = counter}] ->
-	    lists:sum([ets:lookup_element(T, Name, #exometer_entry.value)
-		       || T <- exometer:tables()]);
-
-	[#exometer_entry{module = M, type = Type, ref = Ref}] ->
-	    M:get_value(Name, Type, Ref);
-
-	[] ->
->>>>>>> 06b54ff74be3cb7ebd04d08adcb8d02f967c414e
 	    {error, not_found}
     end.
 
