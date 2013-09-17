@@ -280,15 +280,18 @@ foldr(Fun, Acc, Slide) ->
 %% within the timespan ranging from Oldest up to the current timme.
 %%
 take_since(Oldest, #slide{cur_slot = CurrentSlot,
+			  cur_state = CurrentState,
 			  slot_period = SlotPeriod } =Slide) ->
 
     %% Check if we need to add a slot for the current time period
     %% before we start to grab data.
+    %% We add the current slot if it has a sample (cur_state =/= undefined)
+    %% and the slot period has expired.
     TS = timestamp(),
     TSSlot = get_slot(TS, Slide),
     #slide { list1 = List1, 
 	     list2 = List2} = 
-	if TSSlot =/= CurrentSlot ->     
+	if TSSlot =/= CurrentSlot, CurrentState =/= undefined ->     
 		add_slot(TS, Slide);
 	   true -> 
 		Slide
