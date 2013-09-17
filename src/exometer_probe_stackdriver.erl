@@ -26,7 +26,7 @@
 	 probe_code_change/3  %% (FromVsn, St, Extra)
 	]).
 
--export([test/0]).
+-export([test/0, test/1, connect/0]).
 
 -include("exometer.hrl").
 
@@ -35,6 +35,7 @@
 
 -record(st, {
 	  name,
+	  instance,
 	  namespace = [],
 	  url = ?URL,
 	  api_key = "",
@@ -48,10 +49,16 @@
 
 
 test() ->
+    test(test).
+connect() ->
+    test(enabled).
+
+test(Status) ->
     exometer_entry:new([st,test], probe,
 		       [{module, ?MODULE},
 			{sample_interval, 5000},
 			{api_key, "JVJ1B4MLX5P7FC9E4UP9GNTOLMXRN4AG"},
+			{status, Status},
 			{namespace, [riak_kv]}]).
 
 %% exometer_entry redirects
@@ -85,11 +92,16 @@ probe_init(Name, _Type, Opts) ->
     URL = get_opt(url, Opts, ?URL),
     Namespace = get_opt(namespace, Opts, []),
     APIKey = get_opt(api_key, Opts),
+    Status = get_opt(status, Opts, enabled),
+    Instance = to_string(
+		 get_opt(instance, Opts, fun() -> instance(Name) end)),
     %% Window = get_opt(window, Opts, ?DEFAULT_WINDOW),
     {ok, #st{name = Name,
+	     instance = Instance,
 	     namespace = Namespace,
 	     url = URL,
-	     api_key = APIKey}}.
+	     api_key = APIKey,
+	     status = Status}}.
 
 probe_update(_Value, _St) ->
     ok.
@@ -98,16 +110,30 @@ probe_sample(#st{name = Name, namespace = Namespace} = St) ->
     Entries = exometer_entry:find_entries(Namespace),
     Time = unix_time(),
     Values = [{N, exometer_entry:get_value(N)}
-	      || {N, _} <- Entries,
+	      || {N, _, _} <- Entries,
 		 N =/= Name],
     report_to_web(Values, Time, St).
 
 probe_get_value(#st{status = Status}) -> {ok, Status}.
 
-probe_setopts(_Opts, _St) -> {error, not_supported}.
+probe_setopts(Opts, St) ->
+    St1 = lists:foldl(
+	    fun({status, Status}, Stx) when Status==enabled;
+					    Status==disabled;
+					    Status==test ->
+		    Stx#st{status = Status};
+	       ({api_key, K}, Stx) ->
+		    Stx#st{api_key = to_string(K)};
+	       ({instance, I}, Stx) ->
+		    Stx#st{instance = to_string(I)}
+	    end, St, Opts),
+    {ok, St1}.
 
 probe_reset(_St) ->  ok.
 
+probe_handle_call({set_status, Status}, _, St)
+  when Status==enabled; Status==disabled; Status==test ->
+    {ok, St#st{status = Status}};
 probe_handle_call(_Req, _From, St) -> {ok, error, St}.
 
 probe_handle_cast(_Msg, _St) -> ok.
@@ -138,34 +164,61 @@ get_opt(K, Opts) ->
 get_opt(K, Opts, Default) ->
     case lists:keyfind(K, 1, Opts) of
 	{_, V} -> V;
-	false  -> Default
+	false  ->
+	    if is_function(Default,0) -> Default();
+	       true -> Default
+	    end
     end.
+
+instance(Name) ->
+    {ok, If} = inet:getif(),
+    {A,B,C,D} = element(1, hd(lists:keydelete({127,0,0,1}, 1, If))),
+    Addr = to_string([i2l(A) | [[".", i2l(X)] || X <- [B,C,D]]]),
+    encode_name(Name ++ [Addr]).
+
+i2l(I) ->
+    integer_to_list(I).
 
 report_to_web([], _, _) ->
     ok;
-report_to_web([_|_] = Values, Time, #st{url = URL, api_key = Key}) ->
+report_to_web(_, _, #st{status = disabled}) ->
+    ok;
+report_to_web([_|_] = Values, Time, #st{url = URL, api_key = Key,
+					instance = Instance,
+					status = Status}) ->
     Req = {struct, [{"timestamp", Time},
 		    {"proto_version", 1},
 		    {"data",
 		     {array,
 		      lists:flatmap(
 			fun({N,V}) ->
-				data_point_json(Time, N, V)
+				data_point_json(Time, N, V, Instance)
 			end, Values)}}
 		   ]},
-    {Body, Hdrs} = encode_request(Req, Key),
-    post_request(URL, Hdrs, Body).
+    if Status == enabled ->
+	    {Body, Hdrs} = encode_request(Req, Key),
+	    post_request(URL, Hdrs, Body);
+       Status == test ->
+	    io:fwrite("Req = ~p~n", [Req])
+    end.
 
-data_point_json(T, N, V) when is_number(V) ->
-    [data_point_json_(T, N, V)];
-data_point_json(T, N, [{_,_}|_] = Values) ->
-    [data_point_json_(T, N ++ [K], V) || {K,V} <- Values,
-					 is_number(V)];
-data_point_json(_,_,_) ->
+data_point_json(T, N, V, I) when is_number(V) ->
+    [data_point_json_(T, N, V, I)];
+data_point_json(T, N, [{_,_}|_] = Values, I) ->
+    lists:flatmap(
+      fun({K, V}) when is_number(V) ->
+	      [data_point_json_(T, N ++ [K], V, I)];
+	 ({K, [{_,_}|_] = Vs}) ->
+	      data_point_json(T, N ++ [K], Vs, I);
+	 (_) ->
+	      []
+      end, Values);
+data_point_json(_,_,_,_) ->
     [].
 
-data_point_json_(T, N, V) when is_number(V) ->
+data_point_json_(T, N, V, I) when is_number(V) ->
     {struct, [{"name", encode_name(N)},
+	      {"instance", I},
 	      {"value", V},
 	      {"collected_at", T}]}.
 
@@ -174,9 +227,21 @@ encode_name([N|Ns]) ->
       list_to_binary(([to_binary(N) | [[":", to_binary(N1)]
 				       || N1 <- Ns]]))).
 
+to_string(A) when   is_atom(A) -> atom_to_list(A);
+to_string(B) when is_binary(B) -> binary_to_list(B);
+to_string(L) when   is_list(L) ->
+    try binary_to_list(list_to_binary(L))
+    catch error:_ -> lists:flatten(io_lib:fwrite("~w", [L]))
+    end;
+to_string(X) ->
+    lists:flatten(io_lib:fwrite("~w", [X])).
+
 to_binary(A) when is_atom(A) -> atom_to_binary(A, latin1);
 to_binary(B) when is_binary(B) -> B;
-to_binary(L) when is_list(L) -> list_to_binary(L);
+to_binary(L) when is_list(L) ->
+    try list_to_binary(L)
+    catch error:_ -> list_to_binary(io_lib:fwrite("~w", [L]))
+    end;
 to_binary(X) ->
     list_to_binary(io_lib:fwrite("~w", [X])).
 

@@ -8,7 +8,10 @@
 	 delete/1,
 	 reset/1,
 	 setopts/2,
-	 find_entries/1]).
+	 find_entries/1,
+	 select/1, select/2,
+	 info/1,
+	 info/2]).
 
 -include("exometer.hrl").
 -include("log.hrl").
@@ -54,9 +57,9 @@ new(Name, Type0, Opts0) when is_list(Name), is_list(Opts0) ->
 
 -spec update(name(), value()) -> ok | error().
 update(Name, Value) when is_list(Name) ->
-    case ets:lookup(exometer:table(), Name) of
+    case ets:lookup(Table = exometer:table(), Name) of
 	[#exometer_entry{module = ?MODULE, type = counter}] ->
-	    ets:update_counter(Name, {#exometer_entry.value, Value}),
+	    ets:update_counter(Table, Name, {#exometer_entry.value, Value}),
 	    ok;
 	[#exometer_entry{module = M, type = Type, ref = Ref}] ->
 	    M:update(Name, Value, Type, Ref);
@@ -68,19 +71,19 @@ update(Name, Value) when is_list(Name) ->
 -spec get_value(name()) -> {ok, value()} | error().
 get_value(Name) when is_list(Name) ->
     case ets:lookup(exometer:table(), Name) of
-	[#exometer_entry{module = ?MODULE, type = counter}] ->
-	    lists:sum([ets:lookup_element(T, Name, #exometer_entry.value)
-		       || T <- exometer:tables()]);
-
-	[#exometer_entry{module = M, type = Type, ref = Ref}] ->
-	    Res = M:get_value(Name, Type, Ref),
-	    %%?info("exometer:get_value(~p): ~p~n", [ Name, Res]),
-	    Res;
-
-	[] ->
+	[#exometer_entry{} = E] ->
+	    {ok, get_value_(E)};
+	_ ->
 	    {error, not_found}
     end.
 
+get_value_(#exometer_entry{name = Name, module = ?MODULE, type = counter}) ->
+    lists:sum([ets:lookup_element(T, Name, #exometer_entry.value)
+		    || T <- exometer:tables()]);
+get_value_(#exometer_entry{name = Name, module = M, type = Type, ref = Ref}) ->
+    Res = M:get_value(Name, Type, Ref),
+    %%?info("exometer:get_value(~p): ~p~n", [ Name, Res]),
+    Res.
 
 -spec delete(name()) -> ok | error().
 delete(Name) when is_list(Name) ->
@@ -159,12 +162,81 @@ create_entry(#exometer_entry{module = M,
     end,
     Res.
 
+info(Name, Item) ->
+    case ets:lookup(exometer:table(), Name) of
+	[#exometer_entry{} = E] ->
+	    case Item of
+		name      -> E#exometer_entry.name;
+		type      -> E#exometer_entry.type;
+		module    -> E#exometer_entry.module;
+		value     -> get_value_(E);
+		timestamp -> E#exometer_entry.timestamp;
+		options   -> E#exometer_entry.options;
+		ref       -> E#exometer_entry.ref;
+		_ -> undefined
+	    end;
+	_ ->
+	    undefined
+    end.
+
+info(Name) ->
+    case ets:lookup(exometer:table(), Name) of
+	[#exometer_entry{} = E] ->
+	    Flds = record_info(fields, exometer_entry),
+	    lists:keyreplace(value, 1,
+			     lists:zip(Flds, tl(tuple_to_list(E))),
+			     {value, get_value_(E)});
+	_ ->
+	    undefined
+    end.
+
 find_entries(Path) ->
     Pat = Path ++ '_',
     ets:select(?EXOMETER_TABLE,
 	       [ { #exometer_entry{name = Pat, _ = '_'}, [],
 		   [{{ {element, #exometer_entry.name, '$_'},
-		       {element, #exometer_entry.type, '$_'} }}] } ]).
+		       {element, #exometer_entry.type, '$_'},
+		       {element, #exometer_entry.ref, '$_'} }}] } ]).
+
+select(Pattern) ->
+    ets:select(?EXOMETER_TABLE, [pattern(P) || P <- Pattern]).
+
+select(Pattern, Limit) ->
+    ets:select(?EXOMETER_TABLE, [pattern(P) || P <- Pattern], Limit).
+
+pattern({'_', Gs, Prod}) ->
+    {'_', repl(Gs, g_subst(['$_'])), repl(Prod, p_subst(['$_']))};
+pattern({KP, Gs, Prod}) when is_atom(KP) ->
+    {KP, repl(Gs, g_subst([KP,'$_'])), repl(Prod, p_subst([KP,'$_']))};
+pattern({{N,T,R}, Gs, Prod}) ->
+    {#exometer_entry{name = N, type = T, ref = R, _ = '_'},
+     repl(Gs, g_subst(['$_'])), repl(Prod, p_subst(['$_']))}.
+
+repl(P, Subst) when is_atom(P) ->
+    case lists:keyfind(P, 1, Subst) of
+	{_, Repl} -> Repl;
+	false     -> P
+    end;
+repl(T, Subst) when is_tuple(T) ->
+    list_to_tuple(repl(tuple_to_list(T), Subst));
+repl([H|T], Subst) ->
+    [repl(H, Subst)|repl(T, Subst)];
+repl(X, _) ->
+    X.
+
+g_subst(Ks) ->
+    [g_subst_(K) || K <- Ks].
+g_subst_(K) when is_atom(K) ->
+    {K, {{element,#exometer_entry.name,'$_'},
+	 {element,#exometer_entry.type,'$_'},
+	 {element,#exometer_entry.ref,'$_'}}}.
+
+p_subst(Ks) ->
+    [p_subst_(K) || K <- Ks].
+p_subst_(K) when is_atom(K) ->
+    {K, {{{element,#exometer_entry.name,'$_'},
+	  {element,#exometer_entry.type,'$_'},
+	  {element,#exometer_entry.ref,'$_'}}}}.
 
 
 process_opts(Entry, Options) ->

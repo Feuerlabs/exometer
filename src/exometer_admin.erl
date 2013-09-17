@@ -149,6 +149,7 @@ default_definition(Name, Type) ->
 
 %% Be sure to specify { module, exometer_ctr } in Options when
 %% creating a ticker metrics through exometer_entry:new().
+module(counter )    -> exometer_entry;
 module(ticker  )    -> exometer_probe;
 module(uniform)     -> exometer_uniform;
 module(histogram)   -> exometer_histogram;

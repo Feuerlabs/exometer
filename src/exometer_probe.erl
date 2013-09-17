@@ -85,8 +85,10 @@ sample(_Name, _Type, Pid) when is_pid(Pid) ->
 
 %% gen_server implementation
 init({Name, Type, Mod, Opts}) ->
-    St = process_opts(#st {name = Name, type = Type, module = Mod}, Opts),
-
+    {St0, Opts1} = process_opts(Opts, #st{name = Name,
+					  type = Type,
+					  module = Mod}),
+    St = St0#st{opts = Opts1},
     %% Create a new state for the module
     case {Mod:probe_init(Name, Type, St#st.opts), St#st.sample_interval} of
 	{ ok, infinity} ->
@@ -113,11 +115,14 @@ handle_call(stop, _From, St) ->
 handle_call(get_value, _From, #st{module = M, mod_state = ModSt} = St) ->
     reply(M:probe_get_value(ModSt), St);
 
-handle_call({setopts, Options}, _From, #st{module = M, mod_state = ModSt} = St) ->
+handle_call({setopts, Options}, _From, #st{module = M,
+					   mod_state = ModSt} = St) ->
     %% Process (and delete) local options.
     %% FIXME: Check for updated timer specs here and restart timer??
-    {NSt, Opts1} = process_opts(St, Options),
-    reply(M:probe_setopts(Opts1, ModSt), NSt);
+    {#st{} = NSt, Opts1} = process_opts(Options, St),
+    reply(M:probe_setopts(Opts1, ModSt),
+	  NSt#st{opts = Opts1 ++ [{K,V} || {K,V} <- St#st.opts,
+					   not lists:keymember(K,1,Opts1)]});
 
 handle_call({update, Value}, _From, #st{module = M, mod_state = ModSt} = St) ->
     reply(M:probe_update(Value, ModSt), St);
@@ -181,14 +186,12 @@ start_timer(infinity, _) ->
 start_timer(T, Msg) when is_integer(T), T >= 0, T =< 16#FFffFFff ->
     erlang:start_timer(T, self(), Msg).
 
-process_opts(St, Options) ->
-    lists:foldl(fun
-		    %% Sample interval.
-		    ({sample_interval, Val}, St1) -> St1#st { sample_interval = Val };
+process_opts(Options, #st{} = St) ->
+    process_opts(Options, St, []).
 
-		    %% Unknown option, pass on to State options list, replacing
-		    %% any earlier versions of the same option.
-		    ({Opt, Val}, St1) ->
-			St1#st { opts = [ {Opt, Val} | lists:keydelete(Opt, 1, St1#st.opts) ] }
-
-		end, St, Options).
+process_opts([{sample_interval, Val}|T], #st{} = St, Acc) ->
+    process_opts(T, St#st{ sample_interval = Val }, Acc);
+process_opts([Opt|T], St, Acc) ->
+    process_opts(T, St, [Opt | Acc]);
+process_opts([], St, Acc) ->
+    {St, lists:reverse(Acc)}.
