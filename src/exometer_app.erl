@@ -1,3 +1,4 @@
+%% @private
 -module(exometer_app).
 
 -behaviour(application).

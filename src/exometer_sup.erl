@@ -1,4 +1,4 @@
-
+%% @private
 -module(exometer_sup).
 
 -behaviour(supervisor).

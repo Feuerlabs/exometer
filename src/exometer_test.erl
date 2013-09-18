@@ -1,3 +1,4 @@
+%% @private
 -module(exometer_test).
 
 -compile(export_all).

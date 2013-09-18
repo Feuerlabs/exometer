@@ -1,3 +1,4 @@
+%% @private
 -module(minmax_example).
 
 -export([minmax_sample/3, 
