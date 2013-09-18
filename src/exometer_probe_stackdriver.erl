@@ -26,7 +26,7 @@
 	 probe_code_change/3  %% (FromVsn, St, Extra)
 	]).
 
--export([test/0, test/1, connect/0]).
+-export([test/1, test/2, connect/1]).
 
 -include("exometer.hrl").
 
@@ -48,18 +48,18 @@
 -define(DEFAULT_WINDOW, 60000).
 
 
-test() ->
-    test(test).
-connect() ->
-    test(enabled).
+test(Opts) ->
+    test(disabled, [{mode, test}|Opts]).
+connect(Opts) ->
+    test(enabled, Opts).
 
-test(Status) ->
+test(Status, Opts) ->
     exometer_entry:new([st,test], probe,
 		       [{module, ?MODULE},
 			{sample_interval, 5000},
 			{api_key, "JVJ1B4MLX5P7FC9E4UP9GNTOLMXRN4AG"},
 			{status, Status},
-			{namespace, [riak_kv]}]).
+			{namespace, [riak_kv]}] ++ Opts).
 
 %% exometer_entry redirects
 
@@ -119,8 +119,7 @@ probe_get_value(#st{status = Status}) -> {ok, Status}.
 probe_setopts(Opts, St) ->
     St1 = lists:foldl(
 	    fun({status, Status}, Stx) when Status==enabled;
-					    Status==disabled;
-					    Status==test ->
+					    Status==disabled ->
 		    Stx#st{status = Status};
 	       ({api_key, K}, Stx) ->
 		    Stx#st{api_key = to_string(K)};

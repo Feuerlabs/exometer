@@ -1,3 +1,31 @@
+%% @doc API and behaviour for metrics instances
+%%
+%% <h2>Predefined templates</h2>
+%%
+%% It is possible to define a set of defaults for exometer.
+%%
+%% Example: Putting the following in a sys.config file,
+%% <pre lang="erlang">
+%% {exometer, [
+%%          {defaults,
+%%           [{['_'], function , [{module, exometer_function}]},
+%%            {['_'], counter  , [{module, exometer_entry}]},
+%%            {['_'], histogram, [{module, exometer_histogram}]},
+%%            {['_'], spiral   , [{module, exometer_spiral}]},
+%%            {['_'], duration , [{module, exometer_folsom}]},
+%%            {['_'], meter    , [{module, exometer_folsom}]},
+%%            {['_'], gauge    , [{module, exometer_folsom}]}
+%%           ]}
+%%         ]}
+%% </pre>
+%% will define global defaults for the given metric types. The format is
+%% `{NamePattern, Type, Options}'
+%%
+%% The options can be overridden by options given in the `new()' command.
+%%
+%% `NamePattern' is similar to that used in {@link find_entries/1}.
+%% For more information, see {@link exometer_admin:set_default/3}.
+%% @end
 -module(exometer_entry).
 
 -export([new/2,
@@ -9,17 +37,18 @@
 	 reset/1,
 	 setopts/2,
 	 find_entries/1,
-	 select/1, select/2,
+	 select/1, select/2, select_cont/1,
 	 info/1,
 	 info/2]).
 
 -include("exometer.hrl").
 -include("log.hrl").
 
--export_type([name/0, type/0, options/0, value/0, ref/0, error/0]).
+-export_type([name/0, type/0, status/0, options/0, value/0, ref/0, error/0]).
 
 -type name()     :: list().
 -type type()     :: atom().
+-type status()   :: enabled | disabled.
 -type options()  :: [{atom(), any()}].
 -type value()    :: any().
 -type ref()      :: pid() | undefined.
@@ -40,12 +69,30 @@
 -callback setopts(name(), options(), type(), ref()) ->
     ok | error().
 
-
+-spec new(name(), type()) -> ok.
+%% @equiv new(Name, Type, [])
 new(Name, Type) ->
     new(Name, Type, []).
 
 -spec new(name(), type(), options()) -> ok.
-
+%% @doc Create a new metrics entry.
+%%
+%% `Name' must be a list of terms (e.g. atoms). `Type' must be either one
+%% of the built-in types, or match a predefined template.
+%%
+%% `Options' will be passed to the entry, but the framework will recognize
+%% the following options:
+%%
+%% * `{cache, Lifetime}' - Cache the results of {@link get_value/1} for
+%% the given number of milliseconds. Subsequent calls to {@link get_value/1}
+%% will get the cached value, if found. Default is `0', which means no
+%% caching will be performed.
+%%
+%% * `{status, enabled | disabled}' - Default is `enabled'. If the metric
+%% is `disabled', calls to {@link get_value/1} will return `{ok, unavailable}',
+%% and calls to {@link update/2} and {@link sample/1} will return `ok' but
+%% will do nothing.
+%% @end
 new(Name, Type0, Opts0) when is_list(Name), is_list(Opts0) ->
     {Type,Opts} = if is_tuple(Type0) -> {element(1,Type0),
 					 [{type_arg, Type0}|Opts0]};
@@ -57,6 +104,14 @@ new(Name, Type0, Opts0) when is_list(Name), is_list(Opts0) ->
 
 
 -spec update(name(), value()) -> ok | error().
+%% @doc Update the given metric with `Value'.
+%%
+%% The exact semantics of an update will vary depending on metric type.
+%% For exometer's built-in counters, the counter instance on the current
+%% scheduler will be incremented. For a plugin metric (e.g. a probe), the
+%% corresponding callback module will be called. For a disabled metric,
+%% `ok' will be returned without any other action being taken.
+%% @end
 update(Name, Value) when is_list(Name) ->
     case ets:lookup(Table = exometer:table(), Name) of
 	[#exometer_entry{module = ?MODULE, type = counter}] ->
@@ -70,6 +125,14 @@ update(Name, Value) when is_list(Name) ->
 
 
 -spec get_value(name()) -> {ok, value()} | error().
+%% @doc Fetch the current value of the metric.
+%%
+%% For a built-in counter, the value returned is the sum of all counter
+%% instances (one per scheduler). For plugin metrics, the callback module is
+%% responsible for providing the value. If the metric has a specified
+%% (non-zero) cache lifetime, and a value resides in the cache, the cached
+%% value will be returned.
+%% @end
 get_value(Name) when is_list(Name) ->
     case ets:lookup(exometer:table(), Name) of
 	[#exometer_entry{} = E] ->
@@ -104,6 +167,7 @@ get_value_(#exometer_entry{status = Status, cache = Cache,
     end.
 
 -spec delete(name()) -> ok | error().
+%% @doc Delete the metric
 delete(Name) when is_list(Name) ->
     case ets:lookup(exometer:table(), Name) of
 	[#exometer_entry{module = ?MODULE, type = counter}] ->
@@ -119,8 +183,17 @@ delete(Name) when is_list(Name) ->
 
 
 -spec sample(name()) -> ok | error().
+%% @doc Tells the metric (mainly probes) to take a sample.
+%%
+%% Probes often take care of data sampling using a configured sample
+%% interval. This function provides a way to explicitly tell a probe to
+%% take a sample. The operation is asynchronous. For other metrics, the
+%% operation likely has no effect, and will return `ok'.
+%% @end
 sample(Name)  when is_list(Name) ->
     case ets:lookup(exometer:table(), Name) of
+	[#exometer_entry{module = ?MODULE, type = counter}] ->
+	    ok;
 	[#exometer_entry{status = enabled,
 			 module = M, type = Type, ref = Ref}] ->
 	    M:sample(Name, Type, Ref);
@@ -132,6 +205,14 @@ sample(Name)  when is_list(Name) ->
 
 
 -spec reset(name()) -> ok | error().
+%% @doc Reset the metric.
+%%
+%% For a built-in counter, the value of the counter is set to zero. For other
+%% types of metric, the callback module will define exactly what happens
+%% when a reset() is requested. A timestamp (`os:timestamp()') is saved in
+%% the exometer entry, which can be recalled using {@link info/2}, and will
+%% indicate the time that has passed since the metric was last reset.
+%% @end
 reset(Name)  when is_list(Name) ->
     case ets:lookup(exometer:table(), Name) of
 	[#exometer_entry{status = enabled,
@@ -151,22 +232,31 @@ reset(Name)  when is_list(Name) ->
 
 
 -spec setopts(name(), options()) -> ok | error().
+%% @doc Change options for the metric.
+%%
+%% Valid options are whatever the metric type supports, plus:
+%%
+%% * `{cache, Lifetime}' - The cache lifetime (0 for no caching).
+%%
+%% * `{status, enabled | disabled}' - the operational status of the metric.
+%%
+%% Note that if the metric is disabled, setopts/2 will fail unless the options
+%% list contains `{status, enabled}', which will enable the metric and cause
+%% other options to be processed.
+%% @end
 setopts(Name, Options)  when is_list(Name), is_list(Options) ->
     case ets:lookup(exometer:table(), Name) of
 	[#exometer_entry{status = enabled,
 			 module = M, type = Type, ref = Ref} = E] ->
-	    update_entry_elems(Name, [{#exometer_entry.options,
-				       update_opts(
-					 Options, E#exometer_entry.options)}]),
+	    Elems = process_setopts(E, Options),
+	    update_entry_elems(Name, Elems),
 	    M:setopts(Name, Options, Type, Ref);
-	[#exometer_entry{status = disabled, options = OldOpts,
-			 module = M, type = Type, ref = Ref}] ->
+	[#exometer_entry{status = disabled,
+			 module = M, type = Type, ref = Ref} = E] ->
 	    case lists:keyfind(status, 1, Options) of
 		{_, enabled} ->
-		    update_entry_elems(Name, [{#exometer_entry.status, enabled},
-					      {#exometer_entry.options,
-					       update_opts(
-						 Options, OldOpts)}]),
+		    Elems = process_setopts(E, Options),
+		    update_entry_elems(Name, Elems),
 		    M:setopts(Name, Options, Type, Ref);
 		false ->
 		    {error, disabled}
@@ -174,6 +264,7 @@ setopts(Name, Options)  when is_list(Name), is_list(Options) ->
 	[] ->
 	    {error, not_found}
     end.
+
 
 create_entry(#exometer_entry{module = ?MODULE, type = counter} = E, []) ->
     E1 = E#exometer_entry{value = 0},
@@ -207,6 +298,23 @@ update_entry_elems(Name, Elems) ->
     [ets:update_element(T, Name, Elems) || T <- exometer:tables()],
     ok.
 
+-type info() :: name | type | module | value | cache
+	      | status | timestamp | options | ref.
+-spec info(name(), info()) -> any().
+%% @doc Retrieves information about a metric.
+%%
+%% Supported info items:
+%%
+%% * `name' - The name of the metric
+%% * `type' - The type of the metric
+%% * `module' - The callback module used
+%% * `value' - The result of `get_value(Name)'
+%% * `cache' - The cache lifetime
+%% * `status' - Operational status: `enabled' or `disabled'
+%% * `timestamp' - When the metric was last reset/initiated
+%% * `options' - Options passed to the metric at creation (or via setopts())
+%% * `ref' - Instance-specific reference; usually a pid (probe) or undefined
+%% @end
 info(Name, Item) ->
     case ets:lookup(exometer:table(), Name) of
 	[#exometer_entry{} = E] ->
@@ -226,6 +334,8 @@ info(Name, Item) ->
 	    undefined
     end.
 
+-spec info(name()) -> [{info(), any()}].
+%% @doc Returns a list of info items for Metric, see {@link info/2}.
 info(Name) ->
     case ets:lookup(exometer:table(), Name) of
 	[#exometer_entry{} = E] ->
@@ -237,26 +347,65 @@ info(Name) ->
 	    undefined
     end.
 
+-spec find_entries([any() | '_']) -> [{name(), type(), status()}].
+%% @doc Find metrics based on a name prefix pattern.
+%%
+%% This function will find and return metrics whose name matches the given
+%% prefix. For example `[kvdb, kvdb_conf, Table]' would match any metrics
+%% tied to the given table in the `kvdb_conf' database.
+%%
+%% It is possible to insert wildcards:
+%% <code>[kvdb, kvdb_conf, '_', write]</code> would match
+%% `write'-related metrics in all tables of the `kvdb_conf' database.
+%%
+%% The format of the returned metrics is `[{Name, Type, Status}]'.
+%% @end
 find_entries(Path) ->
     Pat = Path ++ '_',
     ets:select(?EXOMETER_TABLE,
 	       [ { #exometer_entry{name = Pat, _ = '_'}, [],
 		   [{{ {element, #exometer_entry.name, '$_'},
 		       {element, #exometer_entry.type, '$_'},
-		       {element, #exometer_entry.ref, '$_'} }}] } ]).
+		       {element, #exometer_entry.status, '$_'} }}] } ]).
 
+-spec select(ets:match_spec()) ->
+		    '$end_of_table' | [{name(), type(), status()}].
+%% @doc Perform an `ets:select()' on the set of metrics.
+%%
+%% This function operates on a virtual structure representing the metrics,
+%% but otherwise works as a normal `select()'. The representation of the
+%% metrics is `{Name, Type, Status}'.
+%% @end
 select(Pattern) ->
     ets:select(?EXOMETER_TABLE, [pattern(P) || P <- Pattern]).
 
+-spec select(ets:match_spec(), pos_integer() | infinity) ->
+		    '$end_of_table'
+			| {[{name(), type(), status()}], _Cont}.
+%% @doc Perform an `ets:select()' with a Limit on the set of metrics.
+%%
+%% This function is equivalent to {@link select/1}, but also takes a limit.
+%% After `Limit' number of matches, the function returns the matches and a
+%% continuation, which can be passed to {@link select_cont/1}.
+%% @end
 select(Pattern, Limit) ->
     ets:select(?EXOMETER_TABLE, [pattern(P) || P <- Pattern], Limit).
+
+-spec select_cont('$end_of_table' | tuple()) ->
+			 '$end_of_table'
+			     | {[{name(), type(), status()}], _Cont}.
+%% @equiv ets:select(Cont)
+%%
+select_cont('$end_of_table') -> '$end_of_table';
+select_cont(Cont) ->
+    ets:select(Cont).
 
 pattern({'_', Gs, Prod}) ->
     {'_', repl(Gs, g_subst(['$_'])), repl(Prod, p_subst(['$_']))};
 pattern({KP, Gs, Prod}) when is_atom(KP) ->
     {KP, repl(Gs, g_subst([KP,'$_'])), repl(Prod, p_subst([KP,'$_']))};
-pattern({{N,T,R}, Gs, Prod}) ->
-    {#exometer_entry{name = N, type = T, ref = R, _ = '_'},
+pattern({{N,T,S}, Gs, Prod}) ->
+    {#exometer_entry{name = N, type = T, status = S, _ = '_'},
      repl(Gs, g_subst(['$_'])), repl(Prod, p_subst(['$_']))}.
 
 repl(P, Subst) when is_atom(P) ->
@@ -276,18 +425,20 @@ g_subst(Ks) ->
 g_subst_(K) when is_atom(K) ->
     {K, {{element,#exometer_entry.name,'$_'},
 	 {element,#exometer_entry.type,'$_'},
-	 {element,#exometer_entry.ref,'$_'}}}.
+	 {element,#exometer_entry.status,'$_'}}}.
 
 p_subst(Ks) ->
     [p_subst_(K) || K <- Ks].
 p_subst_(K) when is_atom(K) ->
     {K, {{{element,#exometer_entry.name,'$_'},
 	  {element,#exometer_entry.type,'$_'},
-	  {element,#exometer_entry.ref,'$_'}}}}.
+	  {element,#exometer_entry.status,'$_'}}}}.
 
-
+%% This function is called when creating an #exometer_entry{} record.
+%% All options are passed unchanged to the callback module, but some
+%% are acted upon by the framework: namely 'cache' and 'status'.
 process_opts(Entry, Options) ->
-    lists:foldl(
+    lists:foldr(
       fun
 	  %% Some future  exometer_entry-level option
 	  %% ({something, Val}, Entry1) ->
@@ -300,20 +451,45 @@ process_opts(Entry, Options) ->
 		 true ->
 		      error({illegal, {cache, Val}})
 	      end;
-	  ({status, Status}, #exometer_entry{options = Os} = E) ->
+	  ({status, Status}, #exometer_entry{} = E) ->
 	      if Status==enabled; Status==disabled ->
-		      E#exometer_entry{status = Status,
-				       options = lists:keystore(
-						   status, 1, Os,
-						   {status, Status})};
+		      E#exometer_entry{status = Status};
 		 true ->
 		      error({illegal, {status, Status}})
 	      end;
-	  ({Opt, Val}, #exometer_entry{options = Opts1} = Entry1) ->
-	      Entry1#exometer_entry {
-		options = [ {Opt, Val} | [O || {K,_} = O <- Opts1,
-					       K =/= Opt] ] }
-      end, Entry, Options).
+	  ({_Opt, _Val}, #exometer_entry{} = Entry1) ->
+	      Entry1
+      end, Entry#exometer_entry{options = Options}, Options).
+
+%% This function returns a list of elements for ets:update_element/3,
+%% to be used for updating the #exometer_entry{} instances.
+%% The options attribute is always updated, replacing old matching
+%% options in the record.
+process_setopts(#exometer_entry{options = OldOpts} = Entry, Options) ->
+    {_, Elems} =
+	lists:foldr(
+	  fun({cache, Val},
+	      {#exometer_entry{cache = Cache0} = E, Elems} = Acc) ->
+		  if is_integer(Val), Val >= 0 ->
+			  if Val =/= Cache0 ->
+				  {E#exometer_entry{cache = Val},
+				   add_elem(cache, Val, Elems)};
+			     true ->
+				  Acc
+			  end;
+		     true -> error({illegal, {cache, Val}})
+		  end;
+	     ({_,_}, Acc) ->
+		  Acc
+	  end, {Entry, []}, Options),
+    [{#exometer_entry.options, update_opts(Options, OldOpts)}|Elems].
+
+add_elem(K, V, Elems) ->
+    P = pos(K),
+    lists:keystore(P, 1, Elems, {P, V}).
+
+pos(cache ) -> #exometer_entry.cache;
+pos(status) -> #exometer_entry.status.
 
 update_opts(New, Old) ->
     lists:foldl(
