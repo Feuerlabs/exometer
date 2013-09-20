@@ -1,4 +1,9 @@
--module(exometer_probe_stackdriver).
+%% @doc Custom reporting probe for Hosted Graphite.
+%%
+%% This probe periodically samples a user-defined set of metrics, and
+%% reports them to Hosted Graphite (https://hostedgraphite.com)
+%% @end
+-module(exometer_probe_graphite).
 -behaviour(exometer_entry).
 -behaviour(exometer_probe).
 
@@ -30,37 +35,40 @@
 
 -include("exometer.hrl").
 
--define(URL, "https://custom-gateway.stackdriver.com/v1/custom").
--define(HOST, "custom-gateway.stackdriver.com").
+-define(URL, "https://hostedgraphite.com/api/v1/sink").
+-define(HOST, "hostedgraphite.com").
 
 -record(st, {
 	  name,
-	  instance,
 	  namespace = [],
-	  url = ?URL,
+	  prefix = [],
+	  url,
 	  api_key = "",
 	  window,
 	  buffer,
-	  status = disabled}).
+	  status = enabled,
+	  mode}).
 
 %% calendar:datetime_to_gregorian_seconds({{1970,1,1},{0,0,0}}).
 -define(UNIX_EPOCH, 62167219200).
--define(DEFAULT_WINDOW, 60000).
 
 
 %% Remember to provide {api_key, YourAPIkey} as part of Opts
 %%
 test(Opts) ->
-    test(disabled, [{mode, test}|Opts]).
+    test(enabled, [{mode, test}|Opts]).
 connect(Opts) ->
     test(enabled, Opts).
 
 test(Status, Opts) ->
-    exometer_entry:new([st,test], probe,
-		       [{module, ?MODULE},
-			{sample_interval, 5000},
-			{status, Status},
-			{namespace, [riak_kv]}] ++ Opts).
+    DefOpts = [{module, ?MODULE},
+	       {sample_interval, 5000},
+	       {status, Status},
+	       {namespace, [riak_kv]}],
+    Opts1 = lists:foldl(fun({K,V}, Acc) ->
+				lists:keystore(K,1,Acc,{K,V})
+			end, DefOpts, Opts),
+    exometer_entry:new([hg_test], probe, Opts1).
 
 %% exometer_entry redirects
 
@@ -88,19 +96,18 @@ setopts(Name, Opts, Type, Ref) ->
 %% Probe callbacks
 
 probe_init(Name, _Type, Opts) ->
-    URL = get_opt(url, Opts, ?URL),
     Namespace = get_opt(namespace, Opts, []),
-    APIKey = get_opt(api_key, Opts),
     Status = get_opt(status, Opts, enabled),
-    Instance = to_string(
-		 get_opt(instance, Opts, fun() -> instance(Name) end)),
-    %% Window = get_opt(window, Opts, ?DEFAULT_WINDOW),
+    Mode = get_opt(mode, Opts, normal),
+    API_key = get_opt(api_key, Opts),
+    Prefix = to_binary(
+	       get_opt(prefix, Opts, fun() -> instance(Name) end)),
     {ok, #st{name = Name,
-	     instance = Instance,
 	     namespace = Namespace,
-	     url = URL,
-	     api_key = APIKey,
-	     status = Status}}.
+	     prefix = Prefix,
+	     api_key = API_key,
+	     status = Status,
+	     mode = Mode}}.
 
 probe_update(_Value, _St) ->
     ok.
@@ -127,9 +134,13 @@ probe_setopts(Opts, St) ->
 					    Status==disabled ->
 		    Stx#st{status = Status};
 	       ({api_key, K}, Stx) ->
-		    Stx#st{api_key = to_string(K)};
-	       ({instance, I}, Stx) ->
-		    Stx#st{instance = to_string(I)}
+		    Stx#st{api_key = K};
+	       ({prefix, P}, Stx) ->
+		    Stx#st{prefix = to_binary(P)};
+	       ({namespace, N}, Stx) ->
+		    Stx#st{namespace = N};
+	       ({mode, M}, Stx) ->
+		    Stx#st{mode = M}
 	    end, St, Opts),
     {ok, St1}.
 
@@ -177,7 +188,7 @@ get_opt(K, Opts, Default) ->
 instance(Name) ->
     {ok, If} = inet:getif(),
     {A,B,C,D} = element(1, hd(lists:keydelete({127,0,0,1}, 1, If))),
-    Addr = to_string([i2l(A) | [[".", i2l(X)] || X <- [B,C,D]]]),
+    Addr = to_string([i2l(A) | [["_", i2l(X)] || X <- [B,C,D]]]),
     encode_name(Name ++ [Addr]).
 
 i2l(I) ->
@@ -187,49 +198,28 @@ report_to_web([], _, _) ->
     ok;
 report_to_web(_, _, #st{status = disabled}) ->
     ok;
-report_to_web([_|_] = Values, Time, #st{url = URL, api_key = Key,
-					instance = Instance,
+report_to_web([_|_] = Values, Time, #st{prefix = Prefix,
+					api_key = APIKey,
+					mode = Mode,
 					status = Status}) ->
-    Req = {struct, [{"timestamp", Time},
-		    {"proto_version", 1},
-		    {"data",
-		     {array,
-		      lists:flatmap(
-			fun({N,V}) ->
-				data_point_json(Time, N, V, Instance)
-			end, Values)}}
-		   ]},
     if Status == enabled ->
-	    {Body, Hdrs} = encode_request(Req, Key),
-	    post_request(URL, Hdrs, Body);
-       Status == test ->
-	    io:fwrite("Req = ~p~n", [Req])
+	    case encode_data_points(Values, Prefix, i2l(Time)) of
+		[] -> ok;
+		[_|_] = Req ->
+		    {Body, Hdrs} = encode_request(Req, APIKey),
+		    if Mode == test ->
+			    io:fwrite("Req = ~s~n", [Req]);
+		       true ->
+			    post_request(?URL, Hdrs, Body)
+		    end
+	    end;
+       true ->
+	    ok
     end.
 
-data_point_json(T, N, V, I) when is_number(V) ->
-    [data_point_json_(T, N, V, I)];
-data_point_json(T, N, [{_,_}|_] = Values, I) ->
-    lists:flatmap(
-      fun({K, V}) when is_number(V) ->
-	      [data_point_json_(T, N ++ [K], V, I)];
-	 ({K, [{_,_}|_] = Vs}) ->
-	      data_point_json(T, N ++ [K], Vs, I);
-	 (_) ->
-	      []
-      end, Values);
-data_point_json(_,_,_,_) ->
-    [].
-
-data_point_json_(T, N, V, I) when is_number(V) ->
-    {struct, [{"name", encode_name(N)},
-	      {"instance", I},
-	      {"value", V},
-	      {"collected_at", T}]}.
-
 encode_name([N|Ns]) ->
-    binary_to_list(
-      list_to_binary(([to_binary(N) | [[":", to_binary(N1)]
-				       || N1 <- Ns]]))).
+    [to_binary(N) | [[".", to_binary(N1)]
+		     || N1 <- Ns]].
 
 to_string(A) when   is_atom(A) -> atom_to_list(A);
 to_string(B) when is_binary(B) -> binary_to_list(B);
@@ -249,15 +239,35 @@ to_binary(L) when is_list(L) ->
 to_binary(X) ->
     list_to_binary(io_lib:fwrite("~w", [X])).
 
-encode_request(JSON, Key) ->
-    Body = mochijson:encode(JSON),
+encode_data_points([{_,unavailable}|T], Prefix, Time) ->
+    encode_data_points(T, Prefix, Time);
+encode_data_points([{K,V} | Values], Prefix, Time) ->
+    case encode_data_point(K, V, Prefix, Time) of
+	[] ->
+	    encode_data_points(Values, Prefix, Time);
+	Result ->
+	    [Result | encode_data_points(Values, Prefix, Time)]
+    end;
+encode_data_points([], _, _) ->
+    [].
+
+encode_data_point(K, V, Prefix, Time) when is_number(V) ->
+    [encode_name([Prefix|K]), $\s, to_string(V), $\s, Time, $\n];
+encode_data_point(K, [{_,_}|_] = L, Prefix, Time) ->
+    encode_data_points([{K++[K1], V1} || {K1,V1} <- L], Prefix, Time);
+encode_data_point(_, _, _, _) ->
+    [].
+
+
+
+encode_request(Data, APIKey) ->
     Hdrs = [
-            {'Content-Length', integer_to_list(iolist_size(Body))},
-            {'Content-Type', "application/json"},
-            {'Host', ?HOST},
-	    {'x-stackdriver-apikey', Key}
+            {'Content-Length', integer_to_list(iolist_size(Data))},
+            {'Content-Type', "application/octet-stream"},
+            {'Host', ?HOST}
+	    | exo_http:make_headers(APIKey, undefined)
            ],
-    {Body, Hdrs}.
+    {Data, Hdrs}.
 
 
 post_request(URL, Hdrs, Body) ->
