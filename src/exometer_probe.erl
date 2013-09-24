@@ -5,7 +5,7 @@
 % exometer_entry callb
 -export([new/3,
 	 delete/3,
-	 get_value/3,
+	 get_value/4,
 	 update/4,
 	 reset/3,
 	 sample/3,
@@ -34,6 +34,7 @@
 -type type()        :: exometer_entry:type().
 -type mod_state()   :: any().
 -type from()        :: {pid(), reference()}.
+-type data_points() :: [atom()].
 -type probe_reply() :: ok
 		     | {ok, mod_state()}
 		     | {ok, any(), mod_state()}
@@ -47,7 +48,7 @@
 -callback probe_terminate(mod_state()) -> probe_noreply().
 -callback probe_setopts(options(), mod_state()) -> probe_reply().
 -callback probe_update(any(), mod_state()) -> probe_reply().
--callback probe_get_value(mod_state()) -> probe_reply().
+-callback probe_get_value(mod_state(), data_points()) -> probe_reply().
 -callback probe_reset(mod_state()) -> probe_reply().
 -callback probe_sample(mod_state()) -> probe_noreply().
 -callback probe_handle_call(any(), from(), mod_state()) -> probe_reply().
@@ -68,8 +69,8 @@ new(Name, Type, Options) ->
 delete(_Name, _Type, Pid) when is_pid(Pid) ->
     gen_server:call(Pid, stop).
 
-get_value(_Name, _Type, Pid) when is_pid(Pid) ->
-    gen_server:call(Pid, get_value).
+get_value(_Name, _Type, Pid, DataPoints) when is_pid(Pid) ->
+    gen_server:call(Pid, {get_value, DataPoints}).
 
 setopts(_Name, Options, _Type, Pid) when is_pid(Pid), is_list(Options) ->
     gen_server:call(Pid, {setopts, Options}).
@@ -112,8 +113,8 @@ init({Name, Type, Mod, Opts}) ->
 handle_call(stop, _From, St) ->
     {stop, terminated, ok, St};
 
-handle_call(get_value, _From, #st{module = M, mod_state = ModSt} = St) ->
-    reply(M:probe_get_value(ModSt), St);
+handle_call({get_value, DataPoints}, _From, #st{module = M, mod_state = ModSt} = St) ->
+    reply(M:probe_get_value(ModSt, DataPoints), St);
 
 handle_call({setopts, Options}, _From, #st{module = M,
 					   mod_state = ModSt} = St) ->

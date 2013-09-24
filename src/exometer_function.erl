@@ -5,7 +5,8 @@
 -export([new/3,
 	 update/4,
 	 reset/3,
-	 get_value/3,
+	 get_value/4,
+	 get_datapoints/3,
 	 sample/3,
 	 delete/3,
 	 setopts/4]).
@@ -20,8 +21,11 @@ new(_Name, function, Opts) ->
 	    {ok, {?MODULE, empty}}
     end.
 
-get_value(_, function, {M, F}) ->
-    M:F().
+get_value(_, function, {M, F}, DataPoints) ->
+    M:F(DataPoints).
+
+get_datapoints(_Name, _Type, _Ref) ->
+    [].
 
 update(_, _, _, _) ->
     {error, unsupported}.

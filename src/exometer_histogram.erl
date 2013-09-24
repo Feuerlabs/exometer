@@ -7,16 +7,17 @@
 %% exometer_entry callbacks
 -export([new/3,
 	 delete/3,
-	 get_value/3,
+	 get_value/4,
 	 update/4,
 	 reset/3,
 	 sample/3,
+	 get_datapoints/3,
 	 setopts/4]).
 
 %% exometer_probe callbacks
 -export([probe_init/3,
 	 probe_terminate/1,
-	 probe_get_value/1,
+	 probe_get_value/2,
 	 probe_update/2,
 	 probe_reset/1,
 	 probe_sample/1,
@@ -60,19 +61,17 @@ delete(Name, Type, Ref) ->
 probe_terminate(_ModSt) ->
     ok.
 
-get_value(Name, Type, Ref) ->
-    exometer_probe:get_value(Name, Type, Ref).
+get_value(Name, Type, Ref, DataPoints) ->
+    exometer_probe:get_value(Name, Type, Ref, DataPoints).
 
-probe_get_value(St) ->
+get_datapoint_value(_Length, _Total, Sorted, min) ->
+    [ Min | _ ] = Sorted,
+    { min, Min };
+
+get_datapoint_value(_Length, _Total, Sorted, max) ->
+    { max, lists:last(Sorted) };
     
-    %% We need element count and sum of all elements to get mean value.
-    Val = exometer_slot_slide:foldl(
-	    fun({_TS, Val}, {Length, Total, List}) -> { Length + 1, Total + Val, [ Val | List ]}  end, 
-	    {0, 0.0, []}, St#st.slide),
-
-    {Length, Total, Lst} = Val,
-    Sorted = lists:sort(Lst),
-
+get_datapoint_value(Length, _Total, Sorted, median) ->
     %% Calc median. FIXME: Can probably be made faster.
     Median = case {Length, Length rem 2} of
 	{0, _} -> %% No elements
@@ -84,38 +83,38 @@ probe_get_value(St) ->
 	{_, 1}-> %% Odd number with at least one element. Return center element
 	    lists:nth(trunc(Length / 2) + 1, Sorted)
     end,
+    { median, Median };
 
-    
+get_datapoint_value(Length, Total, _Sorted, mean) ->
     Mean = case Length of
 	       0 -> 0;
 	       _ -> Total / Length
 	   end,
+    { mean, Mean };
 
-    Items = [{min,1}] ++ 
-	[ {P , perc(P / 100, Length) } || P <- St#st.percentiles ] ++ 
-	[ {max, Length} ],
+get_datapoint_value(Length, _Total, _Sorted, Perc) when is_number(Perc) ->
+    {Perc , perc(Perc / 100, Length) };
 
-    [Min|Rest] = pick_items(Sorted, 1, Items),
-
-    {ok, [Min, {mean, Mean}, {arithmetic_mean, Mean}, {median, Median}, {percentile, lists:keydelete(max,1,Rest)}, lists:last(Rest)] }.
-
-
-pick_items([H|_] = L, P, [{Tag,P}|Ps]) ->
-    [{Tag,H} | pick_items(L, P, Ps)];
-
-pick_items([_|T], P, Ps) ->
-    pick_items(T, P+1, Ps);
+get_datapoint_value(_Length, _Total, _Sorted, Unknown)  ->
+    { Unknown, { error, undefined} }.
 
 
-pick_items([], _, Ps) ->
-    [{Tag,0.0} || {Tag,_} <- Ps].
+probe_get_value(St, DataPoints) ->
+    %% We need element count and sum of all elements to get mean value.
+    {Length, Total, Lst }
+	= exometer_slot_slide:foldl(
+	    fun({_TS, Val}, {Length, Total, List}) -> { Length + 1, Total + Val, [ Val | List ]}  end, 
+	    {0, 0.0, []}, St#st.slide),
+
+    Sorted = lists:sort(Lst),
+    {ok, [ get_datapoint_value(Length, Total, Sorted, DataPoint) || DataPoint <- DataPoints ]}.
+
 
 perc(P, Len) when P > 1.0 ->
     round((P / 10) * Len);
 
 perc(P, Len) ->
     round(P * Len).
-
 
 setopts(_Name, _Options, _Type, _Ref)  ->
     { error, unsupported }.
@@ -190,3 +189,6 @@ average_transform(_TS, undefined) ->
 average_transform(_TS, {Count, Total}) ->
     Total / Count. %% Return the sum of all counter increments received during this slot.
 
+
+get_datapoints(_Name, _Type, _Ref) ->
+    [ min, max, median, mean, 50, 75, 90, 95, 99, 999 ].

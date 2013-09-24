@@ -7,7 +7,7 @@ compile:
 
 clean:
 	rebar clean
-	rm doc/*.md doc/*.png doc/stylesheet.css
+	rm -f doc/*.md doc/*.png doc/stylesheet.css
 
 test:
 	rebar eunit

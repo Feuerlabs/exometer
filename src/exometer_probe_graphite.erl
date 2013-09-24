@@ -10,7 +10,7 @@
 %% Entry behaviour callbacks
 -export([new/3,        %% (Name, Type, Options)
 	 delete/3,     %% (Name, Type, Ref)
-	 get_value/3,  %% (Name, Type, Ref)
+	 get_value/4,  %% (Name, Type, Ref)
 	 update/4,     %% (Name, Value, Type, Ref)
 	 reset/3,      %% (Name, Type, Ref)
 	 sample/3,     %% (Name, Type, Ref)
@@ -20,7 +20,7 @@
 %% Probe behavior callbacks
 -export([probe_init/3,        %% (Name, Type, Options)
 	 probe_sample/1,      %% (St)
-	 probe_get_value/1,   %% (St)
+	 probe_get_value/2,   %% (St)
 	 probe_reset/1,       %% (St)
 	 probe_setopts/2,     %% (Opts, St)
 	 probe_update/2,      %% (Value, St)
@@ -78,8 +78,8 @@ new(Name, Type, Options) ->
 delete(Name, Type, Ref) ->
     exometer_probe:delete(Name, Type, Ref).
 
-get_value(Name, Type, Ref) ->
-    exometer_probe:get_value(Name, Type, Ref).
+get_value(Name, Type, Ref, DataPoints) ->
+    exometer_probe:get_value(Name, Type, Ref, DataPoints).
 
 update(Name, Value, Type, Ref) ->
     exometer_probe:update(Name, Value, Type, Ref).
@@ -126,7 +126,8 @@ ok({error,_}) ->
     unavailable.
 
 
-probe_get_value(#st{status = Status}) -> {ok, Status}.
+%% Ulf. Filter stuff here?
+probe_get_value(#st{status = Status}, _DataPoints) -> {ok, Status}.
 
 probe_setopts(Opts, St) ->
     St1 = lists:foldl(

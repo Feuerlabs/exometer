@@ -7,7 +7,7 @@
 %% exometer_entry callbacks
 -export([new/3,
 	 delete/3,
-	 get_value/3,
+	 get_value/4,
 	 update/4,
 	 reset/3,
 	 sample/3,
@@ -16,7 +16,7 @@
 %% exometer_probe callbacks
 -export([probe_init/3,
 	 probe_terminate/1,
-	 probe_get_value/1,
+	 probe_get_value/2,
 	 probe_update/2,
 	 probe_reset/1,
 	 probe_sample/1,
@@ -60,10 +60,10 @@ delete(Name, Type, Ref) ->
 probe_terminate(_ModSt) ->
     ok.
 
-get_value(Name, Type, Ref) ->
-    exometer_probe:get_value(Name, Type, Ref).
+get_value(Name, Type, Ref, DataPoints) ->
+    exometer_probe:get_value(Name, Type, Ref, DataPoints).
 
-probe_get_value(St) ->
+probe_get_value(St, _DataPoints) ->
     { ok, [{count, St#st.total}, 
 	   {one, exometer_slot_slide:foldl(fun({_TS, Val}, Acc) -> Acc + Val end,
 					   0, St#st.slide) } ]}.

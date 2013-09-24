@@ -32,6 +32,7 @@
 	 new/3,
 	 update/2,
 	 get_value/1,
+	 get_value/2,
 	 sample/1,
 	 delete/1,
 	 reset/1,
@@ -50,6 +51,7 @@
 -type type()     :: atom().
 -type status()   :: enabled | disabled.
 -type options()  :: [{atom(), any()}].
+-type datapoints()  :: [atom()].
 -type value()    :: any().
 -type ref()      :: pid() | undefined.
 -type error()   :: { error, any() }.
@@ -58,17 +60,18 @@
     ok | {ok, pid()} | error().
 -callback delete(name(), type(), ref()) ->
     ok | error().
--callback get_value(name(), type(), ref()) ->
-    {ok, value() | unavailable} | error().
+-callback get_value(name(), type(), ref(), datapoints()) ->
+    {ok, value()} | error().
 -callback update(name(), value(), type(), ref()) ->
     ok | {ok, value()} | error().
 -callback reset(name(), type(), ref()) ->
     ok | {ok, value()} | error().
 -callback sample(name(), type(), ref()) ->
     ok | error().
+-callback get_datapoints(name(), type(), ref()) ->
+    datapoints().
 -callback setopts(name(), options(), type(), ref()) ->
     ok | error().
-
 -spec new(name(), type()) -> ok.
 %% @equiv new(Name, Type, [])
 new(Name, Type) ->
@@ -135,36 +138,47 @@ update(Name, Value) when is_list(Name) ->
 %% @end
 get_value(Name) when is_list(Name) ->
     case ets:lookup(exometer:table(), Name) of
-	[#exometer_entry{} = E] ->
-	    {ok, get_value_(E)};
+	[ #exometer_entry{name = Name, module = M, type = Type, ref = Ref} = E] ->
+	    %% Do a get_value_ with all supported data points
+	    {ok, get_value_(E, M:get_datapoints(Name, Type, Ref))};
 	_ ->
 	    {error, not_found}
     end.
 
-get_value_(#exometer_entry{status = Status,
-			   name = Name, module = ?MODULE, type = counter}) ->
-    if Status == enabled ->
-	    lists:sum([ets:lookup_element(T, Name, #exometer_entry.value)
-		       || T <- exometer:tables()]);
+-spec get_value(name(), [atom()]) -> {ok, value()} | error().
+get_value(Name, DataPoints) when is_list(Name) ->
+    case ets:lookup(exometer:table(), Name) of
+	[#exometer_entry{} = E] ->
+	    {ok, get_value_(E, DataPoints)};
+	_ ->
+	    {error, not_found}
+    end.
+
+get_value_(#exometer_entry{status = Status, 
+			    module = ?MODULE, type = counter} = E, DataPoints) ->    
+    if Status == enabled -> [ get_ctr_datapoint(E, D) || D <- DataPoints];
        Status == disabled ->
 	    unavailable
     end;
+
 get_value_(#exometer_entry{status = Status, cache = Cache,
-			   name = Name, module = M, type = Type, ref = Ref}) ->
+			   name = Name, module = M, type = Type, ref = Ref}, DataPoints) ->
     if Status == enabled ->
 	    if Cache > 0 ->
 		    case exometer_cache:read(Name) of
 			{ok, Value} -> Value;
 			error ->
 			    cache(Cache, Name,
-				  M:get_value(Name, Type, Ref))
+				  M:get_value(Name, Type, Ref, DataPoints))
 		    end;
 	       Cache == 0 ->
-		    M:get_value(Name, Type, Ref)
+		    M:get_value(Name, Type, Ref, DataPoints)
 	    end;
        Status == disabled ->
 	    unavailable
     end.
+    
+
 
 -spec delete(name()) -> ok | error().
 %% @doc Delete the metric
@@ -322,17 +336,26 @@ info(Name, Item) ->
 		name      -> E#exometer_entry.name;
 		type      -> E#exometer_entry.type;
 		module    -> E#exometer_entry.module;
-		value     -> get_value_(E);
+		value     -> get_value_(E,[]);
 		cache     -> E#exometer_entry.cache;
 		status    -> E#exometer_entry.status;
 		timestamp -> E#exometer_entry.timestamp;
 		options   -> E#exometer_entry.options;
 		ref       -> E#exometer_entry.ref;
+		datapoints-> get_datapoints_(E);
 		_ -> undefined
 	    end;
 	_ ->
 	    undefined
     end.
+
+
+get_datapoints_(#exometer_entry{type = counter}) ->
+     [ counter, ms_since_reset ];
+
+%% @doc Call module-specific get_datapoints
+get_datapoints_( #exometer_entry{name = Name, module = M, type = Type, ref = Ref}) ->
+    M:get_datapoints(Name, Type, Ref).
 
 -spec info(name()) -> [{info(), any()}].
 %% @doc Returns a list of info items for Metric, see {@link info/2}.
@@ -342,7 +365,7 @@ info(Name) ->
 	    Flds = record_info(fields, exometer_entry),
 	    lists:keyreplace(value, 1,
 			     lists:zip(Flds, tl(tuple_to_list(E))),
-			     {value, get_value_(E)});
+			     {value, get_value_(E, [])});
 	_ ->
 	    undefined
     end.
@@ -496,3 +519,18 @@ update_opts(New, Old) ->
       fun({K,_} = Opt, Acc) ->
 	      lists:keystore(K, 1, Acc, Opt)
       end, Old, New).
+
+
+
+%% Retrieve individual data points for the counter maintained by 
+%% the exometer record itself.
+get_ctr_datapoint(#exometer_entry{ name = Name }, counter) ->
+    { counter, lists:sum([ets:lookup_element(T, Name, #exometer_entry.value)
+			 || T <- exometer:tables()])};
+
+get_ctr_datapoint(#exometer_entry{timestamp = TS }, ms_since_reset) ->
+    { ms_since_reset, TS };
+
+get_ctr_datapoint(#exometer_entry{ }, Undefined) ->
+    { Undefined, { error, undefined } }.
+

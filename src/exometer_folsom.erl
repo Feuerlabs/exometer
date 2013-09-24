@@ -33,22 +33,22 @@ reset(Name, counter, _Ref) ->
 reset(_, _, _) ->
     {error, unsupported}.
 
-get_value(Name, Type, Ref) ->
-    try get_value_(Name, Type, Ref)
+get_value(Name, Type, Ref, DataPoints) ->
+    try get_value_(Name, Type, Ref, DataPoints)
     catch
 	error:_ ->
 	    unavailable
     end.
 
-get_value_(Name, counter, _Ref) ->
+get_value_(Name, counter, _Ref, _DataPoints) ->
     folsom_metrics_counter:get_value(Name);
-get_value_(Name, histogram, _Ref) ->
+get_value_(Name, histogram, _Ref, _DataPoints) ->
     folsom_metrics_histogram:get_histogram_statistics(Name);
-get_value_(Name, duration, _Ref) ->
+get_value_(Name, duration, _Ref, _DataPoints) ->
     folsom_metrics:get_metric_value(Name);
-get_value_(Name, meter, _Ref) ->
+get_value_(Name, meter, _Ref, _DataPoints) ->
     folsom_metrics:get_metric_value(Name);
-get_value_(Name, spiral, _Ref) ->
+get_value_(Name, spiral, _Ref, _DataPoints) ->
     folsom_metrics_spiral:get_values(Name).
 
 
