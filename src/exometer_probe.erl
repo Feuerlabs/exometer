@@ -167,6 +167,7 @@ reply({noreply, ModSt}  , St) -> {noreply, St#st{mod_state = ModSt}}.
 
 noreply(ok         , St) -> {noreply, St};
 noreply({ok, ModSt}, St) -> {noreply, St#st{mod_state = ModSt}};
+noreply({ok, ok, ModSt}, St) -> {noreply, St#st{mod_state = ModSt}};
 noreply({error,_}=E, St) -> {stop, E, St}.
 
 sample_(#st{module = M, mod_state = ModSt} = St) ->
