@@ -8,6 +8,7 @@
 -export([new/3,
 	 delete/3,
 	 get_value/4,
+	 get_datapoints/3,
 	 update/4,
 	 reset/3,
 	 sample/3,
@@ -17,6 +18,7 @@
 -export([probe_init/3,
 	 probe_terminate/1,
 	 probe_get_value/2,
+	 probe_get_datapoints/1,
 	 probe_update/2,
 	 probe_reset/1,
 	 probe_sample/1,
@@ -63,8 +65,14 @@ probe_terminate(_ModSt) ->
 get_value(Name, Type, Ref, DataPoints) ->
     exometer_probe:get_value(Name, Type, Ref, DataPoints).
 
+get_datapoints(_Name, _Type, _Ref) ->
+    [].
+
 probe_get_value(St, _DataPoints) ->
     { ok, exometer_slot_slide:to_list(St#st.slide) }.
+
+probe_get_datapoints(_St) ->
+    {ok, []}.
 
 setopts(_Name, _Options, _Type, _Ref)  ->
     { error, unsupported }.

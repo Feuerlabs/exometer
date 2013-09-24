@@ -7,7 +7,9 @@ compile:
 
 clean:
 	rebar clean
-	rm -f doc/*.md doc/*.png doc/stylesheet.css
+# The files removed by clean are checked in??
+#	rm -f doc/exometer*.md doc/*.png doc/stylesheet.css
+
 
 test:
 	rebar eunit

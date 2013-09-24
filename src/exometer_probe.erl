@@ -5,6 +5,7 @@
 % exometer_entry callb
 -export([new/3,
 	 delete/3,
+	 get_datapoints/3,
 	 get_value/4,
 	 update/4,
 	 reset/3,
@@ -49,6 +50,7 @@
 -callback probe_setopts(options(), mod_state()) -> probe_reply().
 -callback probe_update(any(), mod_state()) -> probe_reply().
 -callback probe_get_value(mod_state(), data_points()) -> probe_reply().
+-callback probe_get_datapoints(mod_state()) -> probe_reply().
 -callback probe_reset(mod_state()) -> probe_reply().
 -callback probe_sample(mod_state()) -> probe_noreply().
 -callback probe_handle_call(any(), from(), mod_state()) -> probe_reply().
@@ -71,6 +73,9 @@ delete(_Name, _Type, Pid) when is_pid(Pid) ->
 
 get_value(_Name, _Type, Pid, DataPoints) when is_pid(Pid) ->
     gen_server:call(Pid, {get_value, DataPoints}).
+
+get_datapoints(_Name, _Type, Pid) when is_pid(Pid) ->
+    gen_server:call(Pid, get_datapoints).
 
 setopts(_Name, Options, _Type, Pid) when is_pid(Pid), is_list(Options) ->
     gen_server:call(Pid, {setopts, Options}).
@@ -113,8 +118,14 @@ init({Name, Type, Mod, Opts}) ->
 handle_call(stop, _From, St) ->
     {stop, terminated, ok, St};
 
+handle_call({get_value, default}, _From, #st{module = M, mod_state = ModSt} = St) ->
+    reply(M:probe_get_value(ModSt, default), St);
+
 handle_call({get_value, DataPoints}, _From, #st{module = M, mod_state = ModSt} = St) ->
     reply(M:probe_get_value(ModSt, DataPoints), St);
+
+handle_call(get_datapoints, _From, #st{module = M, mod_state = ModSt} = St) ->
+    reply(M:probe_get_datapoints(ModSt), St);
 
 handle_call({setopts, Options}, _From, #st{module = M,
 					   mod_state = ModSt} = St) ->

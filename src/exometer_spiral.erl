@@ -8,6 +8,7 @@
 -export([new/3,
 	 delete/3,
 	 get_value/4,
+	 get_datapoints/3,
 	 update/4,
 	 reset/3,
 	 sample/3,
@@ -17,6 +18,7 @@
 -export([probe_init/3,
 	 probe_terminate/1,
 	 probe_get_value/2,
+	 probe_get_datapoints/1,
 	 probe_update/2,
 	 probe_reset/1,
 	 probe_sample/1,
@@ -38,6 +40,7 @@
 	     total = 0,
 	     opts = []}).
 
+-define(DATAPOINTS, [ count, one ]).
 
 %%
 %% exometer_entry callbacks
@@ -63,10 +66,18 @@ probe_terminate(_ModSt) ->
 get_value(Name, Type, Ref, DataPoints) ->
     exometer_probe:get_value(Name, Type, Ref, DataPoints).
 
-probe_get_value(St, _DataPoints) ->
-    { ok, [{count, St#st.total}, 
-	   {one, exometer_slot_slide:foldl(fun({_TS, Val}, Acc) -> Acc + Val end,
-					   0, St#st.slide) } ]}.
+get_datapoints(_Name, _Type, _Ref) ->
+    ?DATAPOINTS.
+
+probe_get_value(St, default) ->
+    { ok, [ get_single_value(St, DataPoint) || DataPoint <- probe_get_datapoints(St)]};
+
+probe_get_value(St, DataPoints) ->
+    { ok, [ get_single_value(St, DataPoint) || DataPoint <- DataPoints]}.
+
+probe_get_datapoints(_St) ->
+    { ok, ?DATAPOINTS }.
+      
 
 setopts(_Name, _Options, _Type, _Ref)  ->
     { error, unsupported }.
@@ -140,3 +151,14 @@ count_transform(_TS, undefined) ->
 %% element to be stored in the histogram.
 count_transform(_TS, Total) ->
     Total. %% Return the sum of all counter increments received during this slot.
+
+get_single_value(St, count) ->
+    {count, St#st.total};
+
+get_single_value(St, one) ->
+    {one, exometer_slot_slide:foldl(fun({_TS, Val}, Acc) -> Acc + Val end,
+					   0, St#st.slide) };
+
+get_single_value(_St, Unsupported) ->
+    {Unsupported, {error, unsupported}}.
+    

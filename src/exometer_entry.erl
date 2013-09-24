@@ -47,6 +47,8 @@
 
 -export_type([name/0, type/0, status/0, options/0, value/0, ref/0, error/0]).
 
+-define(DATAPOINTS, [ ms_since_reset, counter ]).
+
 -type name()     :: list().
 -type type()     :: atom().
 -type status()   :: enabled | disabled.
@@ -70,6 +72,7 @@
     ok | error().
 -callback get_datapoints(name(), type(), ref()) ->
     datapoints().
+
 -callback setopts(name(), options(), type(), ref()) ->
     ok | error().
 -spec new(name(), type()) -> ok.
@@ -137,13 +140,7 @@ update(Name, Value) when is_list(Name) ->
 %% value will be returned.
 %% @end
 get_value(Name) when is_list(Name) ->
-    case ets:lookup(exometer:table(), Name) of
-	[ #exometer_entry{name = Name, module = M, type = Type, ref = Ref} = E] ->
-	    %% Do a get_value_ with all supported data points
-	    {ok, get_value_(E, M:get_datapoints(Name, Type, Ref))};
-	_ ->
-	    {error, not_found}
-    end.
+    get_value(Name, default).
 
 -spec get_value(name(), [atom()]) -> {ok, value()} | error().
 get_value(Name, DataPoints) when is_list(Name) ->
@@ -153,6 +150,9 @@ get_value(Name, DataPoints) when is_list(Name) ->
 	_ ->
 	    {error, not_found}
     end.
+
+get_value_(#exometer_entry{type = counter} = E, default) ->    
+    get_value_(E, get_datapoints_(E));
 
 get_value_(#exometer_entry{status = Status, 
 			    module = ?MODULE, type = counter} = E, DataPoints) ->    
@@ -351,7 +351,7 @@ info(Name, Item) ->
 
 
 get_datapoints_(#exometer_entry{type = counter}) ->
-     [ counter, ms_since_reset ];
+     ?DATAPOINTS;
 
 %% @doc Call module-specific get_datapoints
 get_datapoints_( #exometer_entry{name = Name, module = M, type = Type, ref = Ref}) ->

@@ -6,6 +6,7 @@
 -export([new/3,
 	 delete/3,
 	 get_value/4,
+	 get_datapoints/3,
 	 update/4,
 	 reset/3,
 	 sample/3,
@@ -15,6 +16,7 @@
 -export([probe_init/3,
 	 probe_terminate/1,
 	 probe_get_value/2,
+	 probe_get_datapoints/1,
 	 probe_update/2,
 	 probe_reset/1,
 	 probe_sample/1,
@@ -37,6 +39,8 @@
 -record(elem, { slot = 0,
 		val = undefined } ).
 		
+-define(DATAPOINTS, 
+	[ min, max, median, mean, 50, 75, 90, 95, 99, 999 ]).
 
 %%
 %% exometer_entry callbacks
@@ -65,40 +69,22 @@ probe_terminate(ModSt) ->
 get_value(Name, Type, Ref, DataPoints) ->
     exometer_probe:get_value(Name, Type, Ref, DataPoints).
 
-probe_get_value(St, _DataPoints) ->
+get_datapoints(_Name, _Type, _Ref) ->
+    ?DATAPOINTS.
 
-    Val = ets:foldl(
+
+
+probe_get_value(St, DataPoints) ->
+    {Length, Total, Lst} = ets:foldl(
 	    fun(#elem { val = Val }, {Length, Total, List}) -> { Length + 1, Total + Val, [ Val | List ]}  end, 
 	    {0, 0.0, []}, St#st.ets_ref),
 
-    {Length, Total, Lst} = Val,
     Sorted = lists:sort(Lst),
 
-     %% Calc median. FIXME: Can probably be made faster.
-    Median = case {Length, Length rem 2} of
-	{0, _}-> %% No elements
-	    0.0;
-	
-	{_, 0} -> %% Even number with at least two elements. Return average of two center elements
-	    lists:sum(lists:sublist(Sorted, trunc(Length / 2), 2)) / 2.0;
+    {ok, [ get_datapoint_value(Length, Total, Sorted, DataPoint) || DataPoint <- DataPoints ]}.
 
-	{_, 1}-> %% Odd number with at least one element. Return center element
-	    lists:nth(trunc(Length / 2) + 1, Sorted)
-    end,
-    Mean = case Length of
-	       0 -> 0;
-	       _ -> Total / Length
-	   end,
-
-
-    Items = [{min,1}] ++ 
-	[ {P , perc(P / 100, Length) } || P <- St#st.percentiles ] ++ 
-	[ {max, Length} ],
-
-    [Min|Rest] = pick_items(Sorted, 1, Items),
-
-    {ok, [Min, {mean, Mean}, {median, Median}, {arithmetic_mean, Mean}, {percentile, lists:keydelete(max,1,Rest)}, lists:last(Rest)] }.
-
+probe_get_datapoints(_St) ->
+    { ok, ?DATAPOINTS }.
 
 setopts(_Name, _Options, _Type, _Ref)  ->
     { error, unsupported }.
@@ -160,18 +146,43 @@ process_opts(St, Options) ->
       end, St, Options).
 
 
-pick_items([H|_] = L, P, [{Tag,P}|Ps]) ->
-    [{Tag,H} | pick_items(L, P, Ps)];
-
-pick_items([_|T], P, Ps) ->
-    pick_items(T, P+1, Ps);
-
-
-pick_items([], _, Ps) ->
-    [{Tag,0.0} || {Tag,_} <- Ps].
-
 perc(P, Len) when P > 1.0 ->
     round((P / 10) * Len);
       
 perc(P, Len) ->
     round(P * Len).
+
+
+get_datapoint_value(_Length, _Total, Sorted, min) ->
+    [ Min | _ ] = Sorted,
+    { min, Min };
+
+get_datapoint_value(_Length, _Total, Sorted, max) ->
+    { max, lists:last(Sorted) };
+    
+get_datapoint_value(Length, _Total, Sorted, median) ->
+    %% Calc median. FIXME: Can probably be made faster.
+    Median = case {Length, Length rem 2} of
+	{0, _} -> %% No elements
+	    0.0;
+	
+	{_, 0} -> %% Even number with at least two elements. Return average of two center elements
+	    lists:sum(lists:sublist(Sorted, trunc(Length / 2), 2)) / 2.0;
+
+	{_, 1}-> %% Odd number with at least one element. Return center element
+	    lists:nth(trunc(Length / 2) + 1, Sorted)
+    end,
+    { median, Median };
+
+get_datapoint_value(Length, Total, _Sorted, mean) ->
+    Mean = case Length of
+	       0 -> 0;
+	       _ -> Total / Length
+	   end,
+    { mean, Mean };
+
+get_datapoint_value(Length, _Total, _Sorted, Perc) when is_number(Perc) ->
+    {Perc , perc(Perc / 100, Length) };
+
+get_datapoint_value(_Length, _Total, _Sorted, Unknown)  ->
+    { Unknown, { error, undefined} }.

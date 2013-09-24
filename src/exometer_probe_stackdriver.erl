@@ -3,27 +3,29 @@
 -behaviour(exometer_probe).
 
 %% Entry behaviour callbacks
--export([new/3,        %% (Name, Type, Options)
-	 delete/3,     %% (Name, Type, Ref)
-	 get_value/4,  %% (Name, Type, Ref)
-	 update/4,     %% (Name, Value, Type, Ref)
-	 reset/3,      %% (Name, Type, Ref)
-	 sample/3,     %% (Name, Type, Ref)
-	 setopts/4     %% (Name, Options, Type, Ref)
+-export([new/3,            %% (Name, Type, Options)
+	 delete/3,         %% (Name, Type, Ref)
+	 get_value/4,      %% (Name, Type, Ref)
+	 get_datapoints/3, %% (Name, Type, Ref)
+	 update/4,         %% (Name, Value, Type, Ref)
+	 reset/3,          %% (Name, Type, Ref)
+	 sample/3,         %% (Name, Type, Ref)
+	 setopts/4         %% (Name, Options, Type, Ref)
 	]).
 
 %% Probe behavior callbacks
--export([probe_init/3,        %% (Name, Type, Options)
-	 probe_sample/1,      %% (St)
-	 probe_get_value/2,   %% (St)
-	 probe_reset/1,       %% (St)
-	 probe_setopts/2,     %% (Opts, St)
-	 probe_update/2,      %% (Value, St)
-	 probe_handle_call/3, %% (Req, From, St)
-	 probe_handle_cast/2, %% (Msg, St)
-	 probe_handle_info/2, %% (Msg, St)
-	 probe_terminate/1,   %% (St)
-	 probe_code_change/3  %% (FromVsn, St, Extra)
+-export([probe_init/3,            %% (Name, Type, Options)
+	 probe_sample/1,          %% (St)
+	 probe_get_value/2,       %% (St)
+	 probe_get_datapoints/1,  %% (St)
+	 probe_reset/1,           %% (St)
+	 probe_setopts/2,         %% (Opts, St)
+	 probe_update/2,          %% (Value, St)
+	 probe_handle_call/3,     %% (Req, From, St)
+	 probe_handle_cast/2,     %% (Msg, St)
+	 probe_handle_info/2,     %% (Msg, St)
+	 probe_terminate/1,       %% (St)
+	 probe_code_change/3      %% (FromVsn, St, Extra)
 	]).
 
 -export([test/1, test/2, connect/1]).
@@ -73,6 +75,9 @@ delete(Name, Type, Ref) ->
 get_value(Name, Type, Ref, DataPoints) ->
     exometer_probe:get_value(Name, Type, Ref, DataPoints).
 
+get_datapoints(_Name, _Type, _Ref) ->
+    [].
+
 update(Name, Value, Type, Ref) ->
     exometer_probe:update(Name, Value, Type, Ref).
 
@@ -120,6 +125,9 @@ ok({error,_}) ->
 
 
 probe_get_value(#st{status = Status}, _DataPoints) -> {ok, Status}.
+
+probe_get_datapoints(_St) ->
+    {ok, []}.
 
 probe_setopts(Opts, St) ->
     St1 = lists:foldl(

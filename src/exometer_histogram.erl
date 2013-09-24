@@ -8,16 +8,17 @@
 -export([new/3,
 	 delete/3,
 	 get_value/4,
+	 get_datapoints/3,
 	 update/4,
 	 reset/3,
 	 sample/3,
-	 get_datapoints/3,
 	 setopts/4]).
 
 %% exometer_probe callbacks
 -export([probe_init/3,
 	 probe_terminate/1,
 	 probe_get_value/2,
+	 probe_get_datapoints/1,
 	 probe_update/2,
 	 probe_reset/1,
 	 probe_sample/1,
@@ -39,6 +40,10 @@
 	     percentiles = [ 99.0 ], %% Which percentages to calculate
 	     opts = []}).
 
+-define(DATAPOINTS, 
+	[ min, max, median, mean, 50, 75, 90, 95, 99, 999 ]).
+
+
 %%
 %% exometer_entry callbacks
 %%
@@ -46,8 +51,7 @@ new(Name, Type, Options) ->
     exometer_probe:new(Name, Type, [{module, ?MODULE}|Options]).
 
 probe_init(Name, _Type, Options) ->
-    St = process_opts(#st { name = Name }, [ {percentiles, [ 50, 75, 90, 95, 99, 999 ]},
-					     { time_span, 60000}, 
+    St = process_opts(#st { name = Name }, [ { time_span, 60000}, 
 					     { slot_period,100 } ] ++ Options),
     Slide = exometer_slot_slide:new(St#st.time_span,
 				    St#st.slot_period,
@@ -64,39 +68,9 @@ probe_terminate(_ModSt) ->
 get_value(Name, Type, Ref, DataPoints) ->
     exometer_probe:get_value(Name, Type, Ref, DataPoints).
 
-get_datapoint_value(_Length, _Total, Sorted, min) ->
-    [ Min | _ ] = Sorted,
-    { min, Min };
-
-get_datapoint_value(_Length, _Total, Sorted, max) ->
-    { max, lists:last(Sorted) };
-    
-get_datapoint_value(Length, _Total, Sorted, median) ->
-    %% Calc median. FIXME: Can probably be made faster.
-    Median = case {Length, Length rem 2} of
-	{0, _} -> %% No elements
-	    0.0;
-	
-	{_, 0} -> %% Even number with at least two elements. Return average of two center elements
-	    lists:sum(lists:sublist(Sorted, trunc(Length / 2), 2)) / 2.0;
-
-	{_, 1}-> %% Odd number with at least one element. Return center element
-	    lists:nth(trunc(Length / 2) + 1, Sorted)
-    end,
-    { median, Median };
-
-get_datapoint_value(Length, Total, _Sorted, mean) ->
-    Mean = case Length of
-	       0 -> 0;
-	       _ -> Total / Length
-	   end,
-    { mean, Mean };
-
-get_datapoint_value(Length, _Total, _Sorted, Perc) when is_number(Perc) ->
-    {Perc , perc(Perc / 100, Length) };
-
-get_datapoint_value(_Length, _Total, _Sorted, Unknown)  ->
-    { Unknown, { error, undefined} }.
+%% No need to go through exometer_probe for this one.
+get_datapoints(_Name, _Type, _Ref) ->
+    ?DATAPOINTS.
 
 
 probe_get_value(St, DataPoints) ->
@@ -109,6 +83,11 @@ probe_get_value(St, DataPoints) ->
     Sorted = lists:sort(Lst),
     {ok, [ get_datapoint_value(Length, Total, Sorted, DataPoint) || DataPoint <- DataPoints ]}.
 
+
+%% Never called since the probe does not get involved for
+%% get_datapoints().
+probe_get_datapoints(_St) ->
+    { ok, ?DATAPOINTS }.
 
 perc(P, Len) when P > 1.0 ->
     round((P / 10) * Len);
@@ -190,5 +169,37 @@ average_transform(_TS, {Count, Total}) ->
     Total / Count. %% Return the sum of all counter increments received during this slot.
 
 
-get_datapoints(_Name, _Type, _Ref) ->
-    [ min, max, median, mean, 50, 75, 90, 95, 99, 999 ].
+get_datapoint_value(_Length, _Total, Sorted, min) ->
+    [ Min | _ ] = Sorted,
+    { min, Min };
+
+get_datapoint_value(_Length, _Total, Sorted, max) ->
+    { max, lists:last(Sorted) };
+    
+get_datapoint_value(Length, _Total, Sorted, median) ->
+    %% Calc median. FIXME: Can probably be made faster.
+    Median = case {Length, Length rem 2} of
+	{0, _} -> %% No elements
+	    0.0;
+	
+	{_, 0} -> %% Even number with at least two elements. Return average of two center elements
+	    lists:sum(lists:sublist(Sorted, trunc(Length / 2), 2)) / 2.0;
+
+	{_, 1}-> %% Odd number with at least one element. Return center element
+	    lists:nth(trunc(Length / 2) + 1, Sorted)
+    end,
+    { median, Median };
+
+get_datapoint_value(Length, Total, _Sorted, mean) ->
+    Mean = case Length of
+	       0 -> 0;
+	       _ -> Total / Length
+	   end,
+    { mean, Mean };
+
+get_datapoint_value(Length, _Total, _Sorted, Perc) when is_number(Perc) ->
+    {Perc , perc(Perc / 100, Length) };
+
+get_datapoint_value(_Length, _Total, _Sorted, Unknown)  ->
+    { Unknown, { error, undefined} }.
+
