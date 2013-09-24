@@ -121,7 +121,8 @@ handle_call(stop, _From, St) ->
     {stop, terminated, ok, St};
 
 handle_call({get_value, default}, _From, #st{module = M, mod_state = ModSt} = St) ->
-    reply(M:probe_get_value(ModSt, default), St);
+    {ok, DataPoints} = M:probe_get_datapoints(ModSt),
+    reply(M:probe_get_value(ModSt, DataPoints), St);
 
 handle_call({get_value, DataPoints}, _From, #st{module = M, mod_state = ModSt} = St) ->
     reply(M:probe_get_value(ModSt, DataPoints), St);

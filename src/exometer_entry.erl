@@ -281,7 +281,7 @@ setopts(Name, Options)  when is_list(Name), is_list(Options) ->
 
 
 create_entry(#exometer_entry{module = ?MODULE, type = counter} = E, []) ->
-    E1 = E#exometer_entry{value = 0},
+    E1 = E#exometer_entry{value = 0, timestamp = exometer:timestamp()},
     [ets:insert(T, E1) || T <- exometer:tables()],
     ok;
 create_entry(#exometer_entry{module = M,
@@ -364,7 +364,8 @@ info(Name) ->
 	[#exometer_entry{} = E] ->
 	    Flds = record_info(fields, exometer_entry),
 	    lists:keyreplace(value, 1,
-			     lists:zip(Flds, tl(tuple_to_list(E))),
+			     lists:zip(Flds, tl(tuple_to_list(E))) ++ 
+				 [ {datapoints, get_datapoints_(E)}],
 			     {value, get_value_(E, [])});
 	_ ->
 	    undefined
@@ -529,7 +530,7 @@ get_ctr_datapoint(#exometer_entry{ name = Name }, counter) ->
 			 || T <- exometer:tables()])};
 
 get_ctr_datapoint(#exometer_entry{timestamp = TS }, ms_since_reset) ->
-    { ms_since_reset, TS };
+    { ms_since_reset, exometer:timestamp() - TS };
 
 get_ctr_datapoint(#exometer_entry{ }, Undefined) ->
     { Undefined, { error, undefined } }.
