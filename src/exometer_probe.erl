@@ -76,7 +76,7 @@ setopts(_Name, Options, _Type, Pid) when is_pid(Pid), is_list(Options) ->
     gen_server:call(Pid, {setopts, Options}).
 
 update(_Name, Value, _Type, Pid) when is_pid(Pid) ->
-    gen_server:call(Pid, {update, Value}).
+    gen_server:cast(Pid, {update, Value}).
 
 reset(_Name, _Type, Pid) when is_pid(Pid) ->
     gen_server:call(Pid, reset).
@@ -137,6 +137,8 @@ handle_call(sample, _From, St) ->
 handle_call(Req, From, #st{module = M, mod_state = ModSt} = St) ->
     reply(M:probe_handle_call(Req, From, ModSt), St).
 
+handle_cast({update, Value}, #st{module = M, mod_state = ModSt} = St) ->
+    noreply(M:probe_update(Value, ModSt), St);
 handle_cast(Msg, #st{module = M, mod_state = ModSt} = St) ->
     noreply(M:probe_handle_cast(Msg, ModSt), St).
 
