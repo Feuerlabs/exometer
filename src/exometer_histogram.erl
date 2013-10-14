@@ -169,9 +169,16 @@ average_transform(_TS, {Count, Total}) ->
     Total / Count. %% Return the sum of all counter increments received during this slot.
 
 
+get_datapoint_value(_Length, _Total, [], min) ->
+    { min, 0 };
+
+get_datapoint_value(_Length, _Total, [], max) ->
+    { max, 0 };
+
 get_datapoint_value(_Length, _Total, Sorted, min) ->
     [ Min | _ ] = Sorted,
     { min, Min };
+
 
 get_datapoint_value(_Length, _Total, Sorted, max) ->
     { max, lists:last(Sorted) };
@@ -196,6 +203,10 @@ get_datapoint_value(Length, Total, _Sorted, mean) ->
 	       _ -> Total / Length
 	   end,
     { mean, Mean };
+
+get_datapoint_value(Length, Total, Sorted, arithmetic_mean) ->
+    { mean, Mean } = get_datapoint_value(Length, Total, Sorted, mean),
+    { arithmetic_mean, Mean };
 
 get_datapoint_value(Length, _Total, _Sorted, Perc) when is_number(Perc) ->
     {Perc , perc(Perc / 100, Length) };

@@ -153,6 +153,12 @@ perc(P, Len) ->
     round(P * Len).
 
 
+get_datapoint_value(_Length, _Total, [], min) ->
+    { min, 0 };
+
+get_datapoint_value(_Length, _Total, [], max) ->
+    { max, 0 };
+
 get_datapoint_value(_Length, _Total, Sorted, min) ->
     [ Min | _ ] = Sorted,
     { min, Min };
@@ -173,6 +179,10 @@ get_datapoint_value(Length, _Total, Sorted, median) ->
 	    lists:nth(trunc(Length / 2) + 1, Sorted)
     end,
     { median, Median };
+
+get_datapoint_value(Length, Total, Sorted, arithmetic_mean) ->
+    { mean, Mean } = get_datapoint_value(Length, Total, Sorted, mean),
+    { arithmetic_mean, Mean };
 
 get_datapoint_value(Length, Total, _Sorted, mean) ->
     Mean = case Length of
