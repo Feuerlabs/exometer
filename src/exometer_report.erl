@@ -12,7 +12,8 @@
 
 %% API
 -export([start_link/0,
-	 subscribe/4]).
+	 subscribe/4,
+	 unsubscribe/3]).
 
 
 %% gen_server callbacks
@@ -63,7 +64,7 @@
 %%--------------------------------------------------------------------
 start_link() ->
     {ok, Opts} = application:get_env(exometer, exometer_report),
-    gen_server:start_link({local, ?SERVER}, ?MODULE,  Opts, []).
+    gen_server:start_link({local, ?MODULE}, ?MODULE,  Opts, []).
 
 
 subscribe(Recipient, Probe, DataPoint, Interval) when is_pid(Recipient) ->
@@ -71,6 +72,9 @@ subscribe(Recipient, Probe, DataPoint, Interval) when is_pid(Recipient) ->
 
 subscribe(Recipient, Probe, DataPoint, Interval) when is_atom(Recipient) ->
     gen_server:call(?MODULE, { subscribe, module, Recipient, Probe, DataPoint, Interval }).
+
+unsubscribe(Recipient, Probe, DataPoint)  ->
+    gen_server:call(?MODULE, { unsubscribe, module, Recipient, Probe, DataPoint }).
 
 	
 %%%===================================================================
@@ -129,8 +133,7 @@ handle_call({subscribe, Type, Recipient, Probe, DataPoint, Interval }, _From, St
 
     %% FIXME: Validate Probe and datapoint
     %% FIXME: Monitor on pids.
-
-    {ok, TRef } = timer:send_after(Interval, self(), 
+    TRef = erlang:send_after(Interval, self(), 
 				   { report, Type, Recipient, Probe, DataPoint, Interval }),
 
     {reply, ok, St#st { subscribers = [ #subscriber {
@@ -142,7 +145,7 @@ handle_call({unsubscribe, Type, Recipient, Probe, DataPoint }, _From, St) ->
     case lists:keytake({Type, Recipient, Probe, DataPoint}, 
 		       #subscriber.key, St#st.subscribers) of
 	{ value, Val, Rem } ->
-	    timer:cancel(Val#subscriber.t_ref),
+	    erlang:cancel_timer(Val#subscriber.t_ref),
 	    {reply, ok, St#st { subscribers = Rem }};
 	_ -> 
 	    {reply, not_found, St }
@@ -204,8 +207,8 @@ handle_info({ report, Type, Recipient, Probe, DataPoint, Interval }, St) ->
 
 	    %% If the reporting went well, re-arm the timer for next round
 	    TRef = if ReArmTimer =:= true ->
-		    {ok, T } = timer:send_after(Interval, self(), 
-						   { report, Type, Recipient, Probe, DataPoint, Interval }),
+		     T = erlang:send_after(Interval, self(), 
+					   { report, Type, Recipient, Probe, DataPoint, Interval }),
 			   T;
 		    true -> undefined
 	    end,
