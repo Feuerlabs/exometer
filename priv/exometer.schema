@@ -1,0 +1,33 @@
+%% @doc Exometer metrics
+{mapping, "exometer.template.function.module", "exometer.defaults", [
+  {default, "exometer_function"}
+]}.
+{mapping, "exometer.template.counter.module", "exometer.defaults", [
+  {default, "exometer_entry"}
+]}.
+{mapping, "exometer.template.fast_counter.module", "exometer.defaults", [
+  {default, "exometer_entry"}
+]}.
+{mapping, "exometer.template.histogram.module", "exometer.defaults", [
+  {default, "exometer_histogram"}
+]}.
+{mapping, "exometer.template.spiral.module", "exometer.defaults", [
+  {default, "exometer_spiral"}
+]}.
+{mapping, "exometer.template.duration.module", "exometer.defaults", [
+  {default, "exometer_folsom"}
+]}.
+{mapping, "exometer.template.meter.module", "exometer.defaults", [
+  {default, "exometer_folsom"}
+]}.
+{mapping, "exometer.template.gauge.module", "exometer.defaults", [
+  {default, "exometer_folsom"}
+]}.
+
+{translation, "exometer.defaults",
+ fun(Conf) ->
+	 Mods = cuttlefish_util:filter_by_variable_starts_with(
+		  ["exometer", "template"], Conf),
+	 [{['_'], list_to_atom(Type), [{module, list_to_atom(Value)}]}
+	  || {[_,_,Type,"module"],Value} <- Mods]
+ end}.
