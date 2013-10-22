@@ -5,6 +5,7 @@
 %% 	 set_default/3,
 %% 	 delete/1]).
 
+-export([new_entry/3]).
 -export([set_default/3]).
 
 -compile(export_all).
@@ -51,6 +52,14 @@ preset_defaults() ->
 	    ok
     end.
 
+new_entry(Name, Type, Opts) ->
+    case gen_server:call(?MODULE, {new_entry, Name, Type, Opts}) of
+	{error, Reason} ->
+	    error(Reason);
+	ok ->
+	    ok
+    end.
+
 monitor(Name, Pid) when is_pid(Pid) ->
     gen_server:cast(?MODULE, {monitor, Name, Pid}).
 
@@ -78,6 +87,17 @@ start_link() ->
 init(_) ->
     {ok, #st{}}.
 
+handle_call({new_entry, Name, Type, Opts}, _From, S) ->
+    try
+	#exometer_entry{options = OptsTemplate} = E =
+	    lookup_definition(Name, Type),
+	Res = exometer_entry:create_entry(
+		process_opts(E, OptsTemplate ++ Opts)),
+	{reply, Res, S}
+    catch
+	error:Error ->
+	    {reply, {error, Error}, S}
+    end;
 handle_call(_, _, S) ->
     {reply, error, S}.
 
@@ -129,7 +149,7 @@ lookup_definition(Name, Type) ->
 	[] ->
 	    default_definition(Name, Type);
 	[{_, _, #exometer_entry{} = Def}]  ->
-	    Def
+	    Def#exometer_entry{name = Name}
     end.
 
 default_definition(Name, Type) ->
@@ -149,12 +169,13 @@ default_definition(Name, Type) ->
 
 %% Be sure to specify { module, exometer_ctr } in Options when
 %% creating a ticker metrics through exometer_entry:new().
-module(counter )    -> exometer_entry;
-module(ticker  )    -> exometer_probe;
-module(uniform)     -> exometer_uniform;
-module(histogram)   -> exometer_histogram;
-module(spiral   )   -> exometer_spiral;
-module(probe)       -> exometer_probe.
+module(counter )     -> exometer_entry;
+module(fast_counter) -> exometer_entry;
+module(ticker  )     -> exometer_probe;
+module(uniform)      -> exometer_uniform;
+module(histogram)    -> exometer_histogram;
+module(spiral   )    -> exometer_spiral;
+module(probe)        -> exometer_probe.
 
 search_default(Name, Type) ->
     case ets:lookup(?EXOMETER_SHARED, {default,Name,Type}) of
@@ -180,3 +201,31 @@ make_patterns([H|T], Type, Acc) ->
      | make_patterns(T, Type, Acc1)];
 make_patterns([], Type, _) ->
     [{ #exometer_entry{name = {default, [''], Type}, _ = '_'}, [], ['$_'] }].
+
+
+%% This function is called when creating an #exometer_entry{} record.
+%% All options are passed unchanged to the callback module, but some
+%% are acted upon by the framework: namely 'cache' and 'status'.
+process_opts(Entry, Options) ->
+    lists:foldr(
+      fun
+	  %% Some future  exometer_entry-level option
+	  %% ({something, Val}, Entry1) ->
+	  %%        Entry1#exometer_entry { something = Val };
+	  %% Unknown option, pass on to exometer entry options list, replacing
+	  %% any earlier versions of the same option.
+	  ({cache, Val}, E) ->
+	      if is_integer(Val), Val >= 0 ->
+		      E#exometer_entry{cache = Val};
+		 true ->
+		      error({illegal, {cache, Val}})
+	      end;
+	  ({status, Status}, #exometer_entry{} = E) ->
+	      if Status==enabled; Status==disabled ->
+		      E#exometer_entry{status = Status};
+		 true ->
+		      error({illegal, {status, Status}})
+	      end;
+	  ({_Opt, _Val}, #exometer_entry{} = Entry1) ->
+	      Entry1
+      end, Entry#exometer_entry{options = Options}, Options).
