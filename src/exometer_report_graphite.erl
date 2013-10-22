@@ -25,68 +25,69 @@
 %% calendar:datetime_to_gregorian_seconds({{1970,1,1},{0,0,0}}).
 -define(UNIX_EPOCH, 62167219200).
 
+-include("log.hrl").
+
 %% Probe callbacks
 
 init(Opts) ->
-    io:format("exometer_report_graphite:exometer_init():~p~n", [ Opts ] ),
+    ?info("Exometer Graphite Reporter; Opts: ~p~n", [Opts]),
     Mode = get_opt(mode, Opts, normal),
-
     API_key = get_opt(api_key, Opts),
     Prefix = get_opt(prefix, Opts, []),
-    case gen_tcp:connect(?HOST, ?PORT,  [ { mode, list } ], ?CONNECT_TIMEOUT) of
-	{ ok, Sock } ->
-	    { ok, #st{prefix = Prefix,
-		      api_key = API_key,
-		      socket = Sock, 
-		      mode = Mode} };
-	_ -> { error, could_not_connect }
+
+    case gen_tcp:connect(?HOST, ?PORT,  [{mode, list}], ?CONNECT_TIMEOUT) of
+	{ok, Sock} ->
+	    {ok, #st{prefix = Prefix,
+		     api_key = API_key,
+		     socket = Sock,
+		     mode = Mode}};
+	{error, _} = Error ->
+	    Error
     end.
 
 
-
-report(Probe, DataPoint, Value, #st { socket = Sock, 
-				      api_key = APIKey,
-				      prefix = Prefix				      
-				    } = St) ->
-    Line = 
-	%% Add prefix, if non-empty.
-	case Prefix of 
-	    [] -> APIKey;
-	    _ -> APIKey ++ "." ++ Prefix 
-	end ++ "." ++ 
-	%% Add probe and datapoint within probe
-	Probe ++ "." ++ atom_to_list(DataPoint) ++ " " ++ 
-	%% Add value, int or float, converted to list
-	if is_integer(Value) -> integer_to_list(Value);
-	   is_float(Value) -> float_to_list(Value);
-	   true -> 0
-	end  ++ 
-	%% Add timestamp and newline
-	" " ++ integer_to_list(unix_time()) ++ [$\n],
-
+report(Probe, DataPoint, Value, #st{socket = Sock,
+				    api_key = APIKey,
+				    prefix = Prefix} = St) ->
+    Line = [prefix(Prefix, APIKey), ".", name(Probe, DataPoint), " ",
+	    value(Value), " ", timestamp(), $\n],
+    io:fwrite("L = ~s~n", [Line]),
     case gen_tcp:send(Sock, Line) of
 	ok ->
-	    { ok, St };
-
-	_ -> 
+	    {ok, St};
+	_ ->
 	    reconnect(St)
     end.
-		
+
+%% Add prefix, if non-empty.
+prefix([]     , APIKey) -> APIKey;
+prefix(Prefix , APIKey) -> [APIKey, ".", Prefix].
+
+%% Add probe and datapoint within probe
+name(Probe, DataPoint) -> [Probe, ".", atom_to_list(DataPoint)].
+
+%% Add value, int or float, converted to list
+value(V) when is_integer(V) -> integer_to_list(V);
+value(V) when is_float(V)   -> float_to_list(V);
+value(_) -> 0.
+
+timestamp() ->
+    integer_to_list(unix_time()).
+
 
 reconnect(St) ->
-    case gen_tcp:connect(?HOST, ?PORT,  [ { mode, list } ], ?CONNECT_TIMEOUT) of
-	{ ok, Sock } -> { ok, St#st{ socket = Sock } };
-	_ -> { error, could_not_connect }
+    case gen_tcp:connect(?HOST, ?PORT,  [{mode, list}], ?CONNECT_TIMEOUT) of
+	{ok, Sock} ->
+	    {ok, St#st{socket = Sock}};
+	{error, _} = Error ->
+	    Error
     end.
-		     
-		   
+
 unix_time() ->
     datetime_to_unix_time(erlang:universaltime()).
 
-
 datetime_to_unix_time({{_,_,_},{_,_,_}} = DateTime) ->
     calendar:datetime_to_gregorian_seconds(DateTime) - ?UNIX_EPOCH.
-
 
 get_opt(K, Opts) ->
     case lists:keyfind(K, 1, Opts) of

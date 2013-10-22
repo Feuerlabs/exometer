@@ -20,7 +20,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
 	 terminate/2, code_change/3]).
 
--define(SERVER, ?MODULE). 
+-define(SERVER, ?MODULE).
 -type probe() :: list().
 -type datapoint() :: atom().
 -type value() :: any().
@@ -28,28 +28,37 @@
 -type recipient() :: pid() | atom().
 -type options() :: [ { atom(), any()} ].
 
--type key() :: { pid | module, recipient(), probe(), datapoint()}.
+-type key() :: {pid | module, recipient(), probe(), datapoint()}.
 
 %% Callback for function, not cast-based, reports that
 %% are invoked in-process.
 -callback report(probe(), datapoint(), value(), mod_state()) -> any().
 -callback init(options()) -> any().
 
--record(subscriber, { 
-	  key :: key(),
+-record(key, {
+	  type,
+	  recipient,
+	  probe,
+	  datapoint
+	 }).
+
+-record(subscriber, {
+	  key   :: key(),
+	  m_ref :: reference(),
 	  t_ref :: reference()
 	 }).
 
-
 -record(mod_state, {
 	  module :: atom(),
-	  state :: any()
+	  state  :: any()
 	 }).
 
--record(st, { 
+-record(st, {
 	  subscribers:: [ #subscriber{} ],
-	  mod_states:: [ #mod_state{} ]
+	  mod_states :: [ #mod_state{}  ]
 	 }).
+
+-include("log.hrl").
 
 %%%===================================================================
 %%% API
@@ -67,16 +76,21 @@ start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE,  Opts, []).
 
 
-subscribe(Recipient, Probe, DataPoint, Interval) when is_pid(Recipient) ->
-    gen_server:call(?MODULE, { subscribe, pid, Recipient, Probe, DataPoint, Interval });
-
-subscribe(Recipient, Probe, DataPoint, Interval) when is_atom(Recipient) ->
-    gen_server:call(?MODULE, { subscribe, module, Recipient, Probe, DataPoint, Interval }).
+subscribe(Recipient, Probe, DataPoint, Interval) ->
+    call({subscribe, #key{type = recipient_type(Recipient),
+			  recipient = Recipient,
+			  probe = Probe,
+			  datapoint = DataPoint}, Interval}).
 
 unsubscribe(Recipient, Probe, DataPoint)  ->
-    gen_server:call(?MODULE, { unsubscribe, module, Recipient, Probe, DataPoint }).
+    call({unsubscribe, #key{type = recipient_type(Recipient),
+			    recipient = Recipient,
+			    probe = Probe,
+			    datapoint = DataPoint}}).
 
-	
+call(Req) ->
+    gen_server:call(?MODULE, Req).
+
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
@@ -93,27 +107,27 @@ unsubscribe(Recipient, Probe, DataPoint)  ->
 %% @end
 %%--------------------------------------------------------------------
 init(Opts) ->
-
     %% Dig out the mod opts.
     %% { modules, [ {module1, [{opt1, val}, ...]}, {module2, [...]}]}
-    {value, {modules, Modules}, _Opts1 } = lists:keytake(modules, 1, Opts), 
-    
+    {value, {modules, Modules}, _Opts1 } = lists:keytake(modules, 1, Opts),
+
     %% Traverse list and init modules.
     %% If init fails, leave module out of module state list
-    ModStates = lists:foldl(fun(ModConfig, Acc) ->  
-			      { Mod, ModOpts} = ModConfig,
-			      case Mod:init(ModOpts) of 
-				  {ok, St} ->[ { Mod, St } | Acc ];
-				  _ -> Acc
-			      end
-		       end, [], Modules),
-    
-    
+    ModStates = lists:foldr(fun init_module/2, [], Modules),
+    {ok, #st{
+	    subscribers = [],
+	    mod_states = ModStates
+	   }}.
 
-    {ok, #st{ 
-       subscribers = [],
-       mod_states = ModStates
-      }}.
+init_module({Mod, Opts}, Acc) ->
+    case catch Mod:init(Opts) of
+	{ok, ModSt} ->
+	    [{Mod, ModSt} | Acc];
+	{Error, Reason} when Error == error; Error == 'EXIT' ->
+	    ?error("~p:init(~p) -> {~p, ~p}; skipping module~n",
+		   [Mod, Opts, Error, Reason]),
+	    Acc
+    end.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -129,38 +143,34 @@ init(Opts) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_call({subscribe, Type, Recipient, Probe, DataPoint, Interval }, _From, St) ->
-
+handle_call({subscribe, #key{type = Type,
+			     recipient = Recipient} = Key, Interval},
+	    _From, #st{subscribers = Subs} = St) ->
     %% FIXME: Validate Probe and datapoint
     %% FIXME: Monitor on pids.
-    TRef = erlang:send_after(Interval, self(), 
-				   { report, Type, Recipient, Probe, DataPoint, Interval }),
-
-    {reply, ok, St#st { subscribers = [ #subscriber {
-					   key = { Type, Recipient, Probe, DataPoint},
-					   t_ref = TRef
-				       } | St#st.subscribers] }};
-
-handle_call({unsubscribe, Type, Recipient, Probe, DataPoint }, _From, St) ->
-    case lists:keytake({Type, Recipient, Probe, DataPoint}, 
-		       #subscriber.key, St#st.subscribers) of
-	{ value, Val, Rem } ->
-	    erlang:cancel_timer(Val#subscriber.t_ref),
-	    {reply, ok, St#st { subscribers = Rem }};
-	_ -> 
+    TRef = erlang:send_after(Interval, self(), {report, Key, Interval}),
+    MRef = set_monitor(Type, Recipient),
+    Sub = #subscriber{key = Key,
+		      m_ref = MRef,
+		      t_ref = TRef},
+    {reply, ok, St#st{subscribers = [Sub | Subs]}};
+%%
+handle_call({unsubscribe, #key{} = Key}, _, #st{subscribers = Subs} = St) ->
+    case lists:keytake(Key, #subscriber.key, Subs) of
+	{value, #subscriber{t_ref = TRef, m_ref = MRef}, Rem} ->
+	    cancel_timer(TRef),
+	    cancel_monitor(MRef),
+	    {reply, ok, St#st{subscribers = Rem}};
+	_ ->
 	    {reply, not_found, St }
     end;
-
-
+%%
 handle_call(_Request, _From, State) ->
-    io:format("exometer_report:handle_call(??): ~p~n", [ _Request ]),
-    Reply = ok,
-    {reply, Reply, State}.
+    {reply, {error, unknown_call}, State}.
 
 %%--------------------------------------------------------------------
 %% @private
-%% @docp
-%% Handling cast messages
+%% @doc Handling cast messages.
 %%
 %% @spec handle_cast(Msg, State) -> {noreply, State} |
 %%                                  {noreply, State, Timeout} |
@@ -172,64 +182,63 @@ handle_cast(_Msg, State) ->
 
 %%--------------------------------------------------------------------
 %% @private
-%% @doc
-%% Handling all non call/cast messages
+%% @doc Handling all non call/cast messages.
 %%
 %% @spec handle_info(Info, State) -> {noreply, State} |
 %%                                   {noreply, State, Timeout} |
 %%                                   {stop, Reason, State}
 %% @endo
 %%--------------------------------------------------------------------
-handle_info({ report, Type, Recipient, Probe, DataPoint, Interval }, St) ->
-    case exometer_entry:get_value(Probe, [ DataPoint ]) of
-	{ ok, [ { _, Val}] } ->
-	    %% Distribute probe value to pid subscriber or module, depending on type.
-	    %% Store indication if we should re-arm the timer, and the new module states
-	    %% (for module reporting).
-	    { ReArmTimer, NewModStates } = 
-		if Type =:= pid ->
-			%% Send a message to the recipient process
-			%% FIXME: Monitor or exception handling for dead pids
-			Recipient ! { exometer_report, Probe, DataPoint, Val },
-			{ true, St#st.mod_states };
+handle_info({report, #key{type = Type, recipient = Recipient, probe = Probe,
+			  datapoint = DataPoint} = Key, Interval},
+	    #st{mod_states = ModStates, subscribers = Subs} = St) ->
+    case lists:keyfind(Key, #subscriber.key, Subs) of
+	#subscriber{} = Sub ->
+	    case exometer_entry:get_value(Probe, [DataPoint]) of
+		{ok, [{_, Val}]} ->
+		    %% Distribute probe value to pid subscriber or module,
+		    %% depending on type.
+		    %% Store indication if we should re-arm the timer,
+		    %% and the new module states (for module reporting).
+		    {ReArmTimer, NewModStates} =
+			report_value(Type, Recipient, Probe,
+				     DataPoint, Val, ModStates),
 
-		   true ->
-			%% Invoke the module with probe, datapoint and current module state
-			%% New state will be saved.
-			{ value, { _, ModSt}, TmpModList } = lists:keytake(Recipient, 1, St#st.mod_states) ,
-
-			%% Check that the reporting went well. If not, remove from Mod State list
-			case  Recipient:report(Probe, DataPoint, Val, ModSt) of
-			    { ok, NewModSt } -> { true, [ { Recipient, NewModSt } | TmpModList ]};
-			    _  -> { false, TmpModList }
-			end
-		end,
-
-	    %% If the reporting went well, re-arm the timer for next round
-	    TRef = if ReArmTimer =:= true ->
-		     T = erlang:send_after(Interval, self(), 
-					   { report, Type, Recipient, Probe, DataPoint, Interval }),
-			   T;
-		    true -> undefined
-	    end,
-
-	    %% Replace the pid_subscriber info with a record having the new timer ref.
-	    %% Replace mod states with the updates state returned by Recipient:report()
-	    {noreply, St#st { mod_states = NewModStates,
-			      subscribers = 
-			     lists:keyreplace({Type, Recipient, Probe, DataPoint}, 
-					      #st.subscribers,
-					      St#st.subscribers,
-					      #subscriber {
-						      key = { Type, Recipient, Probe, DataPoint},
-						      t_ref = TRef
-						     })}};
-	%% Entry removed while timer in progress.
-	_ ->
-	    io:format("Probe(~p) Datapoint(~p) not found~n", [ Probe, DataPoint]),
-	    {noreply, St }
+		    %% If the reporting went well, re-arm the timer
+		    %% for next round
+		    TRef = if ReArmTimer ->
+				   erlang:send_after(
+				     Interval, self(), {report, Key, Interval});
+			      true -> undefined
+			   end,
+		    %% Replace the pid_subscriber info with a record having
+		    %% the new timer ref. Replace mod states with the updates
+		    %% state returned by Recipient:report()
+		    {noreply, St#st{mod_states = NewModStates,
+				    subscribers =
+					lists:keyreplace(
+					  Key, #subscriber.key, Subs,
+					  Sub#subscriber{t_ref = TRef})}};
+		_ ->
+		    %% Entry removed while timer in progress.
+		    ?error("Probe(~p) Datapoint(~p) not found~n",
+			   [Probe, DataPoint]),
+		    {noreply, St}
+	    end;
+	false ->
+	    %% Possibly an unsubscribe removed the subscriber
+	    ?error("No such subscriber (Key=~p)~n", [Key]),
+	    {noreply, St}
     end;
-
+%%
+handle_info({'DOWN', _, _, Pid, _}, #st{subscribers = Subs} = St) ->
+    case [S || #subscriber{key = #key{recipient = P}} = S <- Subs, P==Pid] of
+	[#subscriber{t_ref = TRef} = Subscriber] ->
+	    cancel_timer(TRef),
+	    {noreply, St#st{subscribers = Subs -- [Subscriber]}};
+	[] ->
+	    {noreply, St}
+    end;
 handle_info(_Info, State) ->
     io:format("exometer_report:info(??): ~p~n", [ _Info ]),
     {noreply, State}.
@@ -262,3 +271,46 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+recipient_type(P) when is_pid(P)  -> pid;
+recipient_type(M) when is_atom(M) -> module.
+
+set_monitor(pid, P) when is_pid(P) ->
+    erlang:monitor(process, P);
+set_monitor(_, _) ->
+    undefined.
+
+
+cancel_timer(undefined) -> ok;
+cancel_timer(TRef) ->
+    erlang:cancel_timer(TRef).
+
+cancel_monitor(undefined) -> ok;
+cancel_monitor(MRef) ->
+    erlang:demonitor(MRef).
+
+report_value(pid, Recipient, Probe, DataPoint, Val, ModStates) ->
+    %% Send a message to the recipient process
+    Recipient ! {exometer_report, os:timestamp(), Probe, DataPoint, Val},
+    {true, ModStates};
+report_value(module, Mod, Probe, DataPoint, Val, ModStates) ->
+    %% Invoke the module with probe, datapoint and current
+    %% module state. New state will be saved.
+    case lists:keyfind(Mod, 1, ModStates) of
+	{_, ModSt} ->
+	    %% Check that the reporting went well.
+	    %% If not, remove from ModState list
+	    case catch Mod:report(Probe, DataPoint, Val, ModSt) of
+		{ok, NewModSt} ->
+		    {true, lists:keyreplace(
+			     Mod, 1, ModStates, {Mod, NewModSt})};
+		{Error, Reason} ->
+		    ?error("~p:report(~p, ~p, ~p, ~p) ->"
+			   " {~p, ~p}; removing module~n",
+			   [Mod, Probe, DataPoint, Val, ModSt, Error, Reason]),
+		    {false, lists:keydelete(Mod, 1, ModStates)}
+	    end;
+	false ->
+	    ?error("Cannot find module ~p~n", [Mod]),
+	    {false, ModStates}
+    end.
