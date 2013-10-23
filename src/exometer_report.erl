@@ -109,15 +109,25 @@ call(Req) ->
 init(Opts) ->
     %% Dig out the mod opts.
     %% { modules, [ {module1, [{opt1, val}, ...]}, {module2, [...]}]}
-    {value, {modules, Modules}, _Opts1 } = lists:keytake(modules, 1, Opts),
-
-    %% Traverse list and init modules.
-    %% If init fails, leave module out of module state list
-    ModStates = lists:foldr(fun init_module/2, [], Modules),
-    {ok, #st{
-	    subscribers = [],
+    ModStates = 
+	%% Traverse list and init modules.
+	case lists:keytake(modules, 1, Opts) of
+	    {value, {modules, Modules}, _Opts1 } ->
+		lists:foldr(fun init_module/2, [], Modules);
+	    _ -> []
+	end,
+    
+    %% Dig out configured 'static' subscribers
+    SubsList = 
+	case lists:keytake(subscribers, 1, Opts) of
+	    {value, {subscribers, Subscribers}, _ } ->
+		lists:foldr(fun init_subscriber/2, [], Subscribers);
+	    _ -> []
+	end,
+    {ok, #st {
+	    subscribers = SubsList,
 	    mod_states = ModStates
-	   }}.
+      }}.
 
 init_module({Mod, Opts}, Acc) ->
     case catch Mod:init(Opts) of
@@ -128,6 +138,9 @@ init_module({Mod, Opts}, Acc) ->
 		   [Mod, Opts, Error, Reason]),
 	    Acc
     end.
+
+init_subscriber({Recipient, Probe, DataPoint, Interval}, Acc) ->
+    [ subscribe_(module, Recipient, Probe, DataPoint, Interval) | Acc ].
 
 %%--------------------------------------------------------------------
 %% @private
@@ -144,26 +157,23 @@ init_module({Mod, Opts}, Acc) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_call({subscribe, #key{type = Type,
-			     recipient = Recipient} = Key, Interval},
+			     recipient = Recipient,
+			     probe = Probe,
+			     datapoint = DataPoint} , Interval},
 	    _From, #st{subscribers = Subs} = St) ->
+
     %% FIXME: Validate Probe and datapoint
-    %% FIXME: Monitor on pids.
-    TRef = erlang:send_after(Interval, self(), {report, Key, Interval}),
-    MRef = set_monitor(Type, Recipient),
-    Sub = #subscriber{key = Key,
-		      m_ref = MRef,
-		      t_ref = TRef},
+    Sub = subscribe_(Type, Recipient, Probe, DataPoint, Interval),
     {reply, ok, St#st{subscribers = [Sub | Subs]}};
+
 %%
-handle_call({unsubscribe, #key{} = Key}, _, #st{subscribers = Subs} = St) ->
-    case lists:keytake(Key, #subscriber.key, Subs) of
-	{value, #subscriber{t_ref = TRef, m_ref = MRef}, Rem} ->
-	    cancel_timer(TRef),
-	    cancel_monitor(MRef),
-	    {reply, ok, St#st{subscribers = Rem}};
-	_ ->
-	    {reply, not_found, St }
-    end;
+handle_call({unsubscribe, #key{ type = Type,
+				recipient = Recipient,
+				probe = Probe,
+				datapoint = DataPoint }}, _, #st{subscribers = Subs} = St) ->
+    { Res, NSubs} = unsubscribe_(Type, Recipient, Probe, DataPoint, Subs),
+    {reply, Res, St#st{subscribers = NSubs}};
+
 %%
 handle_call(_Request, _From, State) ->
     {reply, {error, unknown_call}, State}.
@@ -189,8 +199,10 @@ handle_cast(_Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @endo
 %%--------------------------------------------------------------------
-handle_info({report, #key{type = Type, recipient = Recipient, probe = Probe,
-			  datapoint = DataPoint} = Key, Interval},
+handle_info({ report, #key{ type = Type, 
+			    recipient = Recipient, 
+			    probe = Probe,
+			    datapoint = DataPoint } = Key, Interval},
 	    #st{mod_states = ModStates, subscribers = Subs} = St) ->
     case lists:keyfind(Key, #subscriber.key, Subs) of
 	#subscriber{} = Sub ->
@@ -272,6 +284,38 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
+
+subscribe_(Type, Recipient, Probe, DataPoint, Interval) ->
+    Key = #key { type = Type, 
+		 recipient = Recipient,
+		 probe = Probe,
+		 datapoint = DataPoint
+	       },
+
+    %% FIXME: Validate Probe and datapoint
+    TRef = erlang:send_after(Interval, self(), 
+			     { report, Key, Interval }),
+    MRef = set_monitor(Type, Recipient),
+    #subscriber{ key = Key,
+		 m_ref = MRef,
+		 t_ref = TRef}.
+
+unsubscribe_(Type, Recipient, Probe, DataPoint, Subs) ->
+    case lists:keytake(#key { type = Type, 
+			      recipient = Recipient,
+			      probe = Probe,
+			      datapoint = DataPoint},
+		       #subscriber.key, Subs) of
+
+	{value, #subscriber{t_ref = TRef, m_ref = MRef}, Rem} ->
+	    cancel_timer(TRef),
+	    cancel_monitor(MRef),
+	    {ok, Rem};
+	_ ->
+	    {not_found, Subs }
+    end.
+
+
 recipient_type(P) when is_pid(P)  -> pid;
 recipient_type(M) when is_atom(M) -> module.
 
@@ -293,6 +337,7 @@ report_value(pid, Recipient, Probe, DataPoint, Val, ModStates) ->
     %% Send a message to the recipient process
     Recipient ! {exometer_report, os:timestamp(), Probe, DataPoint, Val},
     {true, ModStates};
+
 report_value(module, Mod, Probe, DataPoint, Val, ModStates) ->
     %% Invoke the module with probe, datapoint and current
     %% module state. New state will be saved.
