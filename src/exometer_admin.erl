@@ -5,7 +5,8 @@
 %% 	 set_default/3,
 %% 	 delete/1]).
 
--export([new_entry/3]).
+-export([new_entry/3,
+	 re_register_entry/3]).
 -export([set_default/3]).
 
 -compile(export_all).
@@ -53,7 +54,15 @@ preset_defaults() ->
     end.
 
 new_entry(Name, Type, Opts) ->
-    case gen_server:call(?MODULE, {new_entry, Name, Type, Opts}) of
+    case gen_server:call(?MODULE, {new_entry, Name, Type, Opts, false}) of
+	{error, Reason} ->
+	    error(Reason);
+	ok ->
+	    ok
+    end.
+
+re_register_entry(Name, Type, Opts) ->
+    case gen_server:call(?MODULE, {new_entry, Name, Type, Opts, true}) of
 	{error, Reason} ->
 	    error(Reason);
 	ok ->
@@ -85,15 +94,20 @@ start_link() ->
     gen_server:start_link({local,?MODULE}, ?MODULE, [], []).
 
 init(_) ->
+    io:fwrite(user, "~p init(_)~n", [?MODULE]),
     {ok, #st{}}.
 
-handle_call({new_entry, Name, Type, Opts}, _From, S) ->
+handle_call({new_entry, Name, Type, Opts, AllowExisting}, _From, S) ->
     try
 	#exometer_entry{options = OptsTemplate} = E =
 	    lookup_definition(Name, Type),
-	Res = exometer_entry:create_entry(
-		process_opts(E, OptsTemplate ++ Opts)),
-	{reply, Res, S}
+	case {ets:member(exometer:table(), Name), AllowExisting} of
+	    {[_], false} -> {reply, {error, exists}, S};
+	    _ ->
+		Res = exometer_entry:create_entry(
+			process_opts(E, OptsTemplate ++ Opts)),
+		{reply, Res, S}
+	end
     catch
 	error:Error ->
 	    {reply, {error, Error}, S}

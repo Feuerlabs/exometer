@@ -49,7 +49,7 @@
 
 -export_type([name/0, type/0, status/0, options/0, value/0, ref/0, error/0]).
 
--define(DATAPOINTS, [ ms_since_reset, counter ]).
+-define(DATAPOINTS, [counter, ms_since_reset]).
 
 -type name()     :: list().
 -type type()     :: atom().
@@ -429,7 +429,8 @@ get_datapoints_(#exometer_entry{type = T}) when T==counter; T==fast_counter ->
      ?DATAPOINTS;
 
 %% @doc Call module-specific get_datapoints
-get_datapoints_( #exometer_entry{name = Name, module = M, type = Type, ref = Ref}) ->
+get_datapoints_(#exometer_entry{name = Name, module = M,
+				type = Type, ref = Ref}) ->
     M:get_datapoints(Name, Type, Ref).
 
 -spec info(name()) -> [{info(), any()}].
@@ -573,13 +574,13 @@ update_opts(New, Old) ->
 
 %% Retrieve individual data points for the counter maintained by
 %% the exometer record itself.
-get_ctr_datapoint(#exometer_entry{ name = Name }, counter) ->
-    { counter, lists:sum([ets:lookup_element(T, Name, #exometer_entry.value)
+get_ctr_datapoint(#exometer_entry{name = Name}, counter) ->
+    {counter, lists:sum([ets:lookup_element(T, Name, #exometer_entry.value)
 			 || T <- exometer:tables()])};
-get_ctr_datapoint(#exometer_entry{timestamp = TS }, ms_since_reset) ->
-    { ms_since_reset, exometer:timestamp() - TS };
-get_ctr_datapoint(#exometer_entry{ }, Undefined) ->
-    { Undefined, { error, undefined } }.
+get_ctr_datapoint(#exometer_entry{timestamp = TS}, ms_since_reset) ->
+    {ms_since_reset, exometer:timestamp() - TS};
+get_ctr_datapoint(#exometer_entry{}, Undefined) ->
+    {Undefined, undefined}.
 
 get_fctr_datapoint(#exometer_entry{ref = Ref}, counter) ->
     case Ref of
@@ -596,7 +597,7 @@ get_fctr_datapoint(#exometer_entry{ref = Ref}, counter) ->
 get_fctr_datapoint(#exometer_entry{timestamp = TS }, ms_since_reset) ->
     {ms_since_reset, exometer:timestamp() - TS };
 get_fctr_datapoint(#exometer_entry{ }, Undefined) ->
-    {Undefined, { error, undefined } }.
+    {Undefined, undefined}.
 
 
 create_entry(#exometer_entry{module = exometer_entry,
