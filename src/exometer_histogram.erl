@@ -1,5 +1,4 @@
-%% MUST ONLY BE INVOKED THROUGH THE EXOMETER_PROBE.ERL MODULE.
-%% NOT MULTI-PROCESSS SAFE.
+%% @doc Exometer histogram probe behavior
 -module(exometer_histogram).
 -behaviour(exometer_entry).
 -behaviour(exometer_probe).
@@ -40,7 +39,7 @@
 	     percentiles = [ 99.0 ], %% Which percentages to calculate
 	     opts = []}).
 
--define(DATAPOINTS, 
+-define(DATAPOINTS,
 	[ min, max, median, mean, 50, 75, 90, 95, 99, 999 ]).
 
 
@@ -50,14 +49,21 @@
 new(Name, Type, Options) ->
     exometer_probe:new(Name, Type, [{module, ?MODULE}|Options]).
 
-probe_init(Name, _Type, Options) ->
-    St = process_opts(#st { name = Name }, [ { time_span, 60000}, 
-					     { slot_period,100 } ] ++ Options),
+probe_init(Name, Type, Options) ->
+    try probe_init_(Name, Type, Options)
+    catch
+	throw:{error,_} = E ->
+	    E
+    end.
+
+probe_init_(Name, _Type, Options) ->
+    St = process_opts(#st{name = Name}, [{time_span, 60000},
+					 {slot_period, 100}] ++ Options),
     Slide = exometer_slot_slide:new(St#st.time_span,
 				    St#st.slot_period,
-				    { ?MODULE, average_sample, []},
-				    { ?MODULE, average_transform, []}),
-    {ok, St#st{ slide = Slide }}.
+				    {?MODULE, average_sample, []},
+				    {?MODULE, average_transform, []}),
+    {ok, St#st{slide = Slide}}.
 
 delete(Name, Type, Ref) ->
     exometer_probe:delete(Name, Type, Ref).
@@ -77,7 +83,7 @@ probe_get_value(St, DataPoints) ->
     %% We need element count and sum of all elements to get mean value.
     {Length, Total, Lst }
 	= exometer_slot_slide:foldl(
-	    fun({_TS, Val}, {Length, Total, List}) -> { Length + 1, Total + Val, [ Val | List ]}  end, 
+	    fun({_TS, Val}, {Length, Total, List}) -> { Length + 1, Total + Val, [ Val | List ]}  end,
 	    {0, 0.0, []}, St#st.slide),
 
     Sorted = lists:sort(Lst),
@@ -142,7 +148,6 @@ process_opts(St, Options) ->
 	  ({time_span, Val}, St1) -> St1#st { time_span = Val };
 	  ({slot_period, Val}, St1) -> St1#st { slot_period = Val };
 	  ({percentiles, Val}, St1) -> St1#st { percentiles = Val };
-
 	  %% Unknown option, pass on to State options list, replacing
 	  %% any earlier versions of the same option.
 	  ({Opt, Val}, St1) ->
@@ -171,24 +176,19 @@ average_transform(_TS, {Count, Total}) ->
 
 get_datapoint_value(_Length, _Total, [], min) ->
     { min, 0 };
-
 get_datapoint_value(_Length, _Total, [], max) ->
     { max, 0 };
-
 get_datapoint_value(_Length, _Total, Sorted, min) ->
     [ Min | _ ] = Sorted,
     { min, Min };
-
-
 get_datapoint_value(_Length, _Total, Sorted, max) ->
     { max, lists:last(Sorted) };
-    
 get_datapoint_value(Length, _Total, Sorted, median) ->
     %% Calc median. FIXME: Can probably be made faster.
     Median = case {Length, Length rem 2} of
 	{0, _} -> %% No elements
 	    0.0;
-	
+
 	{_, 0} -> %% Even number with at least two elements. Return average of two center elements
 	    lists:sum(lists:sublist(Sorted, trunc(Length / 2), 2)) / 2.0;
 
@@ -196,21 +196,16 @@ get_datapoint_value(Length, _Total, Sorted, median) ->
 	    lists:nth(trunc(Length / 2) + 1, Sorted)
     end,
     { median, Median };
-
 get_datapoint_value(Length, Total, _Sorted, mean) ->
     Mean = case Length of
 	       0 -> 0;
 	       _ -> Total / Length
 	   end,
     { mean, Mean };
-
 get_datapoint_value(Length, Total, Sorted, arithmetic_mean) ->
     { mean, Mean } = get_datapoint_value(Length, Total, Sorted, mean),
     { arithmetic_mean, Mean };
-
 get_datapoint_value(Length, _Total, _Sorted, Perc) when is_number(Perc) ->
     {Perc , perc(Perc / 100, Length) };
-
 get_datapoint_value(_Length, _Total, _Sorted, Unknown)  ->
-    { Unknown, { error, undefined} }.
-
+    { Unknown, undefined}.
