@@ -624,16 +624,17 @@ create_entry(#exometer_entry{module = exometer_entry,
 create_entry(#exometer_entry{module = M,
 			     type = Type,
 			     name = Name, options = Opts} = E) ->
-    case Res = M:new(Name, Type, Opts) of
+    case M:new(Name, Type, Opts) of
 	ok ->
-	    [ets:insert(T, E) || T <- exometer:tables()];
+	    [ets:insert(T, E) || T <- exometer:tables()],
+	    ok;
 	{ok, Ref} ->
 	    [ets:insert(T, E#exometer_entry{ ref = Ref })
-	     || T <- exometer:tables()];
-	_ ->
-	    true
-    end,
-    Res.
+	     || T <- exometer:tables()],
+	    ok;
+	Other ->
+	    Other
+    end.
 
 set_call_count({M, F}, Bool) ->
     set_call_count(M, F, Bool).

@@ -94,7 +94,6 @@ start_link() ->
     gen_server:start_link({local,?MODULE}, ?MODULE, [], []).
 
 init(_) ->
-    io:fwrite(user, "~p init(_)~n", [?MODULE]),
     {ok, #st{}}.
 
 handle_call({new_entry, Name, Type, Opts, AllowExisting}, _From, S) ->
@@ -189,6 +188,7 @@ module(ticker  )     -> exometer_probe;
 module(uniform)      -> exometer_uniform;
 module(histogram)    -> exometer_histogram;
 module(spiral   )    -> exometer_spiral;
+module(netlink  )    -> exometer_netlink;
 module(probe)        -> exometer_probe.
 
 search_default(Name, Type) ->
