@@ -422,6 +422,7 @@ info(Name, Item) ->
 
 datapoints(default, E) ->
     get_datapoints_(E);
+
 datapoints(D, _) when is_list(D) ->
     D.
 

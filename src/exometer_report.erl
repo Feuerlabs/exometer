@@ -13,37 +13,39 @@
 %% API
 -export([start_link/0,
 	 subscribe/4,
-	 unsubscribe/3]).
-
+	 unsubscribe/3,
+	 list_metrics/1,
+	 list_metrics/0]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
 	 terminate/2, code_change/3]).
 
 -define(SERVER, ?MODULE).
--type probe() :: list().
+-type metric() :: list().
 -type datapoint() :: atom().
 -type value() :: any().
 -type mod_state() :: any().
 -type recipient() :: pid() | atom().
 -type options() :: [ { atom(), any()} ].
 
--type key() :: {pid | module, recipient(), probe(), datapoint()}.
+-type key() :: {pid | module, recipient(), metric(), datapoint()}.
 
 %% Callback for function, not cast-based, reports that
 %% are invoked in-process.
--callback report(probe(), datapoint(), value(), mod_state()) -> any().
+-callback report(metric(), datapoint(), value(), mod_state()) -> any().
 -callback init(options()) -> any().
 
 -record(key, {
 	  type,
 	  recipient,
-	  probe,
+	  metric,
 	  datapoint
 	 }).
 
 -record(subscriber, {
 	  key   :: key(),
+	  interval :: integer(), 
 	  m_ref :: reference(),
 	  t_ref :: reference()
 	 }).
@@ -76,17 +78,23 @@ start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE,  Opts, []).
 
 
-subscribe(Recipient, Probe, DataPoint, Interval) ->
+subscribe(Recipient, Metric, DataPoint, Interval) ->
     call({subscribe, #key{type = recipient_type(Recipient),
 			  recipient = Recipient,
-			  probe = Probe,
+			  metric = Metric,
 			  datapoint = DataPoint}, Interval}).
 
-unsubscribe(Recipient, Probe, DataPoint)  ->
+unsubscribe(Recipient, Metric, DataPoint)  ->
     call({unsubscribe, #key{type = recipient_type(Recipient),
 			    recipient = Recipient,
-			    probe = Probe,
+			    metric = Metric,
 			    datapoint = DataPoint}}).
+
+list_metrics()  ->
+    list_metrics([]).
+
+list_metrics(Path)  ->
+    call({list_metrics, Path}).
 
 call(Req) ->
     gen_server:call(?MODULE, Req).
@@ -139,8 +147,8 @@ init_module({Mod, Opts}, Acc) ->
 	    Acc
     end.
 
-init_subscriber({Recipient, Probe, DataPoint, Interval}, Acc) ->
-    [ subscribe_(module, Recipient, Probe, DataPoint, Interval) | Acc ].
+init_subscriber({Recipient, Metric, DataPoint, Interval}, Acc) ->
+    [ subscribe_(module, Recipient, Metric, DataPoint, Interval) | Acc ].
 
 %%--------------------------------------------------------------------
 %% @private
@@ -158,21 +166,28 @@ init_subscriber({Recipient, Probe, DataPoint, Interval}, Acc) ->
 %%--------------------------------------------------------------------
 handle_call({subscribe, #key{type = Type,
 			     recipient = Recipient,
-			     probe = Probe,
+			     metric = Metric,
 			     datapoint = DataPoint} , Interval},
 	    _From, #st{subscribers = Subs} = St) ->
 
-    %% FIXME: Validate Probe and datapoint
-    Sub = subscribe_(Type, Recipient, Probe, DataPoint, Interval),
+    %% FIXME: Validate Metric and datapoint
+    Sub = subscribe_(Type, Recipient, Metric, DataPoint, Interval),
     {reply, ok, St#st{subscribers = [Sub | Subs]}};
 
 %%
 handle_call({unsubscribe, #key{ type = Type,
 				recipient = Recipient,
-				probe = Probe,
+				metric = Metric,
 				datapoint = DataPoint }}, _, #st{subscribers = Subs} = St) ->
-    { Res, NSubs} = unsubscribe_(Type, Recipient, Probe, DataPoint, Subs),
+    { Res, NSubs} = unsubscribe_(Type, Recipient, Metric, DataPoint, Subs), 
     {reply, Res, St#st{subscribers = NSubs}};
+
+handle_call({list_metrics, Path}, _, St) ->
+    DP = lists:foldr(fun(Metric, Acc) -> 
+			     retrieve_metric(Metric, St#st.subscribers, Acc)
+		     end, [], exometer_entry:find_entries(Path)),
+    {reply, {ok, DP}, St};
+
 
 %%
 handle_call(_Request, _From, State) ->
@@ -201,19 +216,19 @@ handle_cast(_Msg, State) ->
 %%--------------------------------------------------------------------
 handle_info({ report, #key{ type = Type, 
 			    recipient = Recipient, 
-			    probe = Probe,
+			    metric = Metric,
 			    datapoint = DataPoint } = Key, Interval},
 	    #st{mod_states = ModStates, subscribers = Subs} = St) ->
     case lists:keyfind(Key, #subscriber.key, Subs) of
 	#subscriber{} = Sub ->
-	    case exometer_entry:get_value(Probe, [DataPoint]) of
+	    case exometer_entry:get_value(Metric, [DataPoint]) of
 		{ok, [{_, Val}]} ->
-		    %% Distribute probe value to pid subscriber or module,
+		    %% Distribute metric value to pid subscriber or module,
 		    %% depending on type.
 		    %% Store indication if we should re-arm the timer,
 		    %% and the new module states (for module reporting).
 		    {ReArmTimer, NewModStates} =
-			report_value(Type, Recipient, Probe,
+			report_value(Type, Recipient, Metric,
 				     DataPoint, Val, ModStates),
 
 		    %% If the reporting went well, re-arm the timer
@@ -233,8 +248,8 @@ handle_info({ report, #key{ type = Type,
 					  Sub#subscriber{t_ref = TRef})}};
 		_ ->
 		    %% Entry removed while timer in progress.
-		    ?error("Probe(~p) Datapoint(~p) not found~n",
-			   [Probe, DataPoint]),
+		    ?error("Metric(~p) Datapoint(~p) not found~n",
+			   [Metric, DataPoint]),
 		    {noreply, St}
 	    end;
 	false ->
@@ -285,14 +300,14 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 
-subscribe_(Type, Recipient, Probe, DataPoint, Interval) ->
+subscribe_(Type, Recipient, Metric, DataPoint, Interval) ->
     Key = #key { type = Type, 
 		 recipient = Recipient,
-		 probe = Probe,
+		 metric = Metric,
 		 datapoint = DataPoint
 	       },
 
-    %% FIXME: Validate Probe and datapoint
+    %% FIXME: Validate Metric and datapoint
     TRef = erlang:send_after(Interval, self(), 
 			     { report, Key, Interval }),
     MRef = set_monitor(Type, Recipient),
@@ -300,10 +315,10 @@ subscribe_(Type, Recipient, Probe, DataPoint, Interval) ->
 		 m_ref = MRef,
 		 t_ref = TRef}.
 
-unsubscribe_(Type, Recipient, Probe, DataPoint, Subs) ->
+unsubscribe_(Type, Recipient, Metric, DataPoint, Subs) ->
     case lists:keytake(#key { type = Type, 
 			      recipient = Recipient,
-			      probe = Probe,
+			      metric = Metric,
 			      datapoint = DataPoint},
 		       #subscriber.key, Subs) of
 
@@ -333,29 +348,57 @@ cancel_monitor(undefined) -> ok;
 cancel_monitor(MRef) ->
     erlang:demonitor(MRef).
 
-report_value(pid, Recipient, Probe, DataPoint, Val, ModStates) ->
+report_value(pid, Recipient, Metric, DataPoint, Val, ModStates) ->
     %% Send a message to the recipient process
-    Recipient ! {exometer_report, os:timestamp(), Probe, DataPoint, Val},
+    Recipient ! {exometer_report, os:timestamp(), Metric, DataPoint, Val},
     {true, ModStates};
 
-report_value(module, Mod, Probe, DataPoint, Val, ModStates) ->
-    %% Invoke the module with probe, datapoint and current
+report_value(module, Mod, Metric, DataPoint, Val, ModStates) ->
+    %% Invoke the module with metric, datapoint and current
     %% module state. New state will be saved.
     case lists:keyfind(Mod, 1, ModStates) of
 	{_, ModSt} ->
 	    %% Check that the reporting went well.
 	    %% If not, remove from ModState list
-	    case catch Mod:report(Probe, DataPoint, Val, ModSt) of
+	    case catch Mod:report(Metric, DataPoint, Val, ModSt) of
 		{ok, NewModSt} ->
 		    {true, lists:keyreplace(
 			     Mod, 1, ModStates, {Mod, NewModSt})};
 		{Error, Reason} ->
 		    ?error("~p:report(~p, ~p, ~p, ~p) ->"
 			   " {~p, ~p}; removing module~n",
-			   [Mod, Probe, DataPoint, Val, ModSt, Error, Reason]),
+			   [Mod, Metric, DataPoint, Val, ModSt, Error, Reason]),
 		    {false, lists:keydelete(Mod, 1, ModStates)}
 	    end;
 	false ->
 	    ?error("Cannot find module ~p~n", [Mod]),
 	    {false, ModStates}
     end.
+
+retrieve_metric({ Metric, Type, Enabled}, Subscribers, Acc) ->
+    [ { Metric, Type, exometer_entry:info(Metric, datapoints), 
+	get_subscribers(Metric, Subscribers), Enabled } | Acc ]. 
+
+get_subscribers(_Metric, []) ->
+    [];
+
+%% This subscription matches Metric
+get_subscribers(Metric, [ #subscriber { 
+			     key = #key { 
+			       recipient = SRecipient, 
+			       metric = Metric,
+			       datapoint = SDataPoint 
+			      }} | T ]) ->
+    io:format("get_subscribers(~p, ~p, ~p): match~n", [ Metric, SDataPoint, SRecipient]),
+    [ { SRecipient, SDataPoint } | get_subscribers(Metric, T) ];
+
+%% This subscription does not match Metric.
+get_subscribers(Metric, [ #subscriber { 
+			     key = #key { 
+			       recipient = SRecipient, 
+			       metric = SMetric,
+			       datapoint = SDataPoint 
+			      }} | T]) ->
+    io:format("get_subscribers(~p, ~p, ~p) nomatch(~p) ~n", 
+	      [ SMetric, SDataPoint, SRecipient, Metric]),
+    get_subscribers(Metric, T).
