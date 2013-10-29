@@ -129,7 +129,7 @@ process_opts(St, Options) ->
       end, St, Options).
 
 %% Simple sample processor that maintains a counter.
-%% of all 
+%% of all
 count_sample(_TS, Increment, undefined) ->
    Increment;
 

@@ -1,5 +1,5 @@
 %% @private
--module(exometer_test).
+-module(exometer_histogram_test).
 
 -compile(export_all).
 
