@@ -49,7 +49,7 @@
 
 -export_type([name/0, type/0, status/0, options/0, value/0, ref/0, error/0]).
 
--define(DATAPOINTS, [counter, ms_since_reset]).
+-define(DATAPOINTS, [value, ms_since_reset]).
 
 -type name()     :: list().
 -type type()     :: atom().
@@ -575,25 +575,25 @@ update_opts(New, Old) ->
 
 %% Retrieve individual data points for the counter maintained by
 %% the exometer record itself.
-get_ctr_datapoint(#exometer_entry{name = Name}, counter) ->
-    {counter, lists:sum([ets:lookup_element(T, Name, #exometer_entry.value)
+get_ctr_datapoint(#exometer_entry{name = Name}, value) ->
+    {value, lists:sum([ets:lookup_element(T, Name, #exometer_entry.value)
 			 || T <- exometer:tables()])};
 get_ctr_datapoint(#exometer_entry{timestamp = TS}, ms_since_reset) ->
     {ms_since_reset, exometer:timestamp() - TS};
 get_ctr_datapoint(#exometer_entry{}, Undefined) ->
     {Undefined, undefined}.
 
-get_fctr_datapoint(#exometer_entry{ref = Ref}, counter) ->
+get_fctr_datapoint(#exometer_entry{ref = Ref}, value) ->
     case Ref of
 	{M, F} ->
 	    {call_count, Res} = erlang:trace_info({M, F, 0}, call_count),
 	    case Res of
 		C when is_integer(C) ->
-		    {counter, C};
+		    {value, C};
 		_ ->
-		    {counter, 0}
+		    {value, 0}
 	    end;
-	_ -> {counter, 0}
+	_ -> {value, 0}
     end;
 get_fctr_datapoint(#exometer_entry{timestamp = TS }, ms_since_reset) ->
     {ms_since_reset, exometer:timestamp() - TS };
