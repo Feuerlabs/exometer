@@ -28,13 +28,22 @@
 -type mod_state() :: any().
 -type recipient() :: pid() | atom().
 -type options() :: [ { atom(), any()} ].
-
+-type callback_result() :: {ok, mod_state()} | any().
 -type key() :: {pid | module, recipient(), metric(), datapoint()}.
 
 %% Callback for function, not cast-based, reports that
 %% are invoked in-process.
--callback report(metric(), datapoint(), value(), mod_state()) -> any().
--callback init(options()) -> any().
+-callback exometer_report(metric(), datapoint(), value(), mod_state()) -> 
+    callback_result().
+									   
+-callback exometer_init(options()) -> callback_result().
+
+-callback exometer_subscribe(metric(), datapoint(), mod_state()) -> 
+    callback_result().
+
+-callback exometer_unsubscribe(metric(), datapoint(), mod_state()) -> 
+    callback_result().
+
 
 -record(key, {
 	  type,
@@ -138,7 +147,7 @@ init(Opts) ->
       }}.
 
 init_module({Mod, Opts}, Acc) ->
-    case catch Mod:init(Opts) of
+    case catch Mod:exometer_init(Opts) of
 	{ok, ModSt} ->
 	    [{Mod, ModSt} | Acc];
 	{Error, Reason} when Error == error; Error == 'EXIT' ->
@@ -164,22 +173,59 @@ init_subscriber({Recipient, Metric, DataPoint, Interval}, Acc) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_call({subscribe, #key{type = Type,
-			     recipient = Recipient,
-			     metric = Metric,
-			     datapoint = DataPoint} , Interval},
-	    _From, #st{subscribers = Subs} = St) ->
+handle_call({ subscribe, 
+	     #key{ type = module,
+		   recipient = Module,
+		   metric = Metric,
+		   datapoint = DataPoint} , Interval },
+	    _From, #st{ subscribers = Subs,
+			mod_states = ModStates} = St) ->
 
     %% FIXME: Validate Metric and datapoint
-    Sub = subscribe_(Type, Recipient, Metric, DataPoint, Interval),
-    {reply, ok, St#st{subscribers = [Sub | Subs]}};
+    NModStates = notify_module(Module, exometer_subscribe,
+			       Metric, DataPoint, ModStates),
+
+    Sub = subscribe_(module, Module, Metric, DataPoint, Interval),
+    {reply, ok, St#st{
+		  subscribers = [Sub | Subs],
+		  mod_states = NModStates
+		 }};
+
+handle_call({ subscribe, 
+	      #key{type = pid,
+		   recipient = Recipient,
+		   metric = Metric,
+		   datapoint = DataPoint} , Interval},
+	    _From, #st{subscribers = Subs } = St) ->
+
+    Sub = subscribe_(pid, Recipient, Metric, DataPoint, Interval),
+    {reply, ok, St#st{ subscribers = [Sub | Subs]}};
 
 %%
-handle_call({unsubscribe, #key{ type = Type,
-				recipient = Recipient,
-				metric = Metric,
-				datapoint = DataPoint }}, _, #st{subscribers = Subs} = St) ->
-    { Res, NSubs} = unsubscribe_(Type, Recipient, Metric, DataPoint, Subs), 
+handle_call({ unsubscribe, 
+	      #key{ type = module,
+		    recipient = Module,
+		    metric = Metric,
+		    datapoint = DataPoint }}, _, 
+	    #st{ subscribers = Subs,
+		 mod_states = ModStates} = St) ->
+
+    %% FIXME: Validate Metric and datapoint
+    NModStates = notify_module(Module, exometer_unsubscribe,
+			       Metric, DataPoint, ModStates),
+
+    { Res, NSubs} = unsubscribe_(module, Module, Metric, DataPoint, Subs), 
+    {reply, Res, St#st{ subscribers = NSubs,
+			mod_states = NModStates } };
+
+handle_call({unsubscribe, 
+	     #key{ type = pid,
+		   recipient = Recipient,
+		   metric = Metric,
+		   datapoint = DataPoint }}, _, 
+	    #st{ subscribers = Subs } = St) ->
+
+    { Res, NSubs} = unsubscribe_(pid, Recipient, Metric, DataPoint, Subs), 
     {reply, Res, St#st{subscribers = NSubs}};
 
 handle_call({list_metrics, Path}, _, St) ->
@@ -240,7 +286,7 @@ handle_info({ report, #key{ type = Type,
 			   end,
 		    %% Replace the pid_subscriber info with a record having
 		    %% the new timer ref. Replace mod states with the updates
-		    %% state returned by Recipient:report()
+		    %% state returned by Recipient:exometer_report()
 		    {noreply, St#st{mod_states = NewModStates,
 				    subscribers =
 					lists:keyreplace(
@@ -331,11 +377,37 @@ unsubscribe_(Type, Recipient, Metric, DataPoint, Subs) ->
     end.
 
 
+notify_module(Module, Function, Metric, DataPoint, ModStates) ->
+    %% Retrieve the correct module state
+    case lists:keytake(Module, 1, ModStates) of
+	{ value, {_, ModSt}, RemModState } ->
+	    %% We found a state, invoke the module.
+	    case catch Module:Function(Metric, DataPoint, ModSt) of
+		{ok, NewModSt} ->
+		    [ { Module, NewModSt }  | RemModState];
+
+		%% Exception, or just an error
+		{Error, Reason} ->
+		    io:format("~p:~p(~p, ~p, ~p) ->"
+			      " {~p, ~p}; removing module~n",
+			      [Module, Function,
+			       Metric, DataPoint, ModSt, 
+			       Error, Reason]),
+		    RemModState
+	    end;
+
+	false ->
+	    ?error("Cannot find module state ~p~n", [Module]),
+	    ModStates
+    end.
+
+    
 recipient_type(P) when is_pid(P)  -> pid;
 recipient_type(M) when is_atom(M) -> module.
 
 set_monitor(pid, P) when is_pid(P) ->
     erlang:monitor(process, P);
+
 set_monitor(_, _) ->
     undefined.
 
@@ -354,30 +426,29 @@ report_value(pid, Recipient, Metric, DataPoint, Val, ModStates) ->
     {true, ModStates};
 
 report_value(module, Mod, Metric, DataPoint, Val, ModStates) ->
-    %% Invoke the module with metric, datapoint and current
-    %% module state. New state will be saved.
-    case lists:keyfind(Mod, 1, ModStates) of
-	{_, ModSt} ->
-	    %% Check that the reporting went well.
-	    %% If not, remove from ModState list
-	    case catch Mod:report(Metric, DataPoint, Val, ModSt) of
+    case lists:keytake(Mod, 1, ModStates) of
+	{ value, {_, ModSt}, RemModState } ->
+	    case catch Mod:exometer_report(Metric, DataPoint, Val,ModSt) of
 		{ok, NewModSt} ->
-		    {true, lists:keyreplace(
-			     Mod, 1, ModStates, {Mod, NewModSt})};
+		    {true, [ { Mod, NewModSt }  | RemModState]};
 		{Error, Reason} ->
-		    ?error("~p:report(~p, ~p, ~p, ~p) ->"
-			   " {~p, ~p}; removing module~n",
-			   [Mod, Metric, DataPoint, Val, ModSt, Error, Reason]),
-		    {false, lists:keydelete(Mod, 1, ModStates)}
+		    io:format("~p:report(~p, ~p, ~p, ~p) ->"
+			      " {~p, ~p}; removing module~n",
+			      [Mod, Metric, DataPoint, Val, ModSt, Error, Reason]),
+		    {false, RemModState}
 	    end;
+
 	false ->
 	    ?error("Cannot find module ~p~n", [Mod]),
 	    {false, ModStates}
     end.
 
+	
+
 retrieve_metric({ Metric, Type, Enabled}, Subscribers, Acc) ->
     [ { Metric, Type, exometer_entry:info(Metric, datapoints), 
 	get_subscribers(Metric, Subscribers), Enabled } | Acc ]. 
+
 
 get_subscribers(_Metric, []) ->
     [];

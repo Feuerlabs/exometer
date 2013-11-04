@@ -6,7 +6,10 @@
 -module(exometer_report_graphite).
 -behaviour(exometer_report).
 
--export([init/1, report/4]).
+-export([exometer_init/1, 
+	 exometer_report/4,
+	 exometer_subscribe/3,
+	 exometer_unsubscribe/3]).
 
 -include("exometer.hrl").
 
@@ -29,7 +32,7 @@
 
 %% Probe callbacks
 
-init(Opts) ->
+exometer_init(Opts) ->
     ?info("Exometer Graphite Reporter; Opts: ~p~n", [Opts]),
     Mode = get_opt(mode, Opts, normal),
     API_key = get_opt(api_key, Opts),
@@ -46,9 +49,9 @@ init(Opts) ->
     end.
 
 
-report(Probe, DataPoint, Value, #st{socket = Sock,
-				    api_key = APIKey,
-				    prefix = Prefix} = St) ->
+exometer_report(Probe, DataPoint, Value, #st{socket = Sock,
+					     api_key = APIKey,
+					     prefix = Prefix} = St) ->
     Line = [prefix(Prefix, APIKey), ".", name(Probe, DataPoint), " ",
 	    value(Value), " ", timestamp(), $\n],
     io:fwrite("L = ~s~n", [Line]),
@@ -58,6 +61,13 @@ report(Probe, DataPoint, Value, #st{socket = Sock,
 	_ ->
 	    reconnect(St)
     end.
+
+exometer_subscribe(_Metric, _DataPoint, St) ->
+    {ok, St }.
+
+exometer_unsubscribe(_Metric, _DataPoint, St) ->
+    {ok, St }.
+
 
 %% Add prefix, if non-empty.
 prefix([]     , APIKey) -> APIKey;
