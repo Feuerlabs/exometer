@@ -4,7 +4,7 @@
 
 Copyright (c) 2013 Feurelabs, Inc. All rights reserved.
 
-__Version:__ Nov 4 2013 18:49:35
+__Version:__ Nov 4 2013 19:04:40
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -33,26 +33,12 @@ then reported to the Exometer system. An example  metric would be
 
 Metrics are identified by a list of atoms, such as given below:
 
-```
-   [ xml_front_end, parser, file_size ]
-```
+`[ xml_front_end, parser, file_size ]`
+
 A metric is created through a call by the code to be instrumented to
-
-```
-   exometer_entry:new()
-```
-. Once created. Once created, the metric can
-be updated through 
-```
-  exometer_entry:update()
-```
-, or on its own
-initiative through the 
-```
-  exometer_probe:sample
-```
-
- behavior
+`exometer_entry:new()`. Once created. Once created, the metric can
+be updated through `exometer_entry:update()`, or on its own
+initiative through the `exometer_probe:sample` behavior
 implementation.
 
 
@@ -60,32 +46,12 @@ implementation.
 
 Each metric can consist of multiple data points, where each point has
 a specific value. 
+
 A typical example of data points would be a
-
-```
-   transactions_per_second
-```
- (tps) metric, usually stored as a
+`transactions_per_second` (tps) metric, usually stored as a
 histogram overing the last couple of minutes of tps samples. Such a
-histogram would host multiple values, such as 
-```
-  min
-```
-, 
-```
-  max
-```
-,
-
-```
-   median
-```
-, 
-```
-  mean
-```
-
-, '''50_percentile''', '''75_percentile''',
+histogram would host multiple values, such as `min`, `max`,
+`median`, `mean`, `50_percentile`, `75_percentile`,
 etc.
 
 It is up to the type of the metric, and the data probe backing that
@@ -94,25 +60,13 @@ given metric.
 
 
 #### <a name="Metric_Type">Metric Type</a> ####
+
 The type of a metric, specified when the metric is created through
-
-```
-   exometer_entry:new()
-```
-, determines which 
-```
-  exometer_processor
-```
-
-
+`exometer_entry:new()`, determines which `exometer_processor`
 callback to use.
-The link between the type and the processor to use is configured
-through the 
-```
-  exomter_admin
-```
 
- module, and its associated exometer
+The link between the type and the processor to use is configured
+through the `exomter_admin` module, and its associated exometer
 defaults environment.
 
 The metric type, in other words, is only used to map a metric to a
@@ -120,60 +74,32 @@ configurable processor.
 
 
 #### <a name="Processors">Processors</a> ####
+
 A processor will receive values reported to a metric through the
-
-```
-   exometer_entry:update()
-```
- call and compile it into one or more data
+`exometer_entry:update()` call and compile it into one or more data
 points. The processor can either be a counter (implemented natively
-in 
-```
-  exometer_entry
-```
-
-), or a more complex statistical analysis such
+in `exometer_entry`), or a more complex statistical analysis such
 as a uniform distriburtion or a regular histogram. 
 
 The various outputs from these processors are reported as data points
 under the given metric.
+
 A processor can also interface external analytics
-packages. 
-```
-  exometer_folsom
-```
-, for example, integrates with the
-
-```
-   folsom_metrics
-```
-
- package found at
+packages. `exometer_folsom`, for example, integrates with the
+`folsom_metrics` package found at
 [`https://github.com/boundary/folsom`](https://github.com/boundary/folsom).
 
 
 #### <a name="Probes">Probes</a> ####
+
 Probes are a further specialization of processors that run in their
 own Erlang processes and have their own state (like a gen_server). A
-probe is implemented through the 
-```
-  exometer_probe
-```
+probe is implemented through the `exometer_probe` behavior.
 
- behavior.
 A probe is, among other things, used if independent monitoring is
-needed of, for example, 
-```
-  /proc
-```
- trees, network interfaces, and
+needed of, for example, `/proc` trees, network interfaces, and
 other sub systems that need periodic sampling. In these cases,
-the 
-```
-  exometer_probe:probe_sample
-```
-
- call is invoked regularly by
+the `exometer_probe:probe_sample` call is invoked regularly by
 exometer, as its own process, in order to extract data from
 the given subsystem and add it to the metric's data points.
 
@@ -226,6 +152,5 @@ the given subsystem and add it to the metric's data points.
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_slide.md" class="module">exometer_slide</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_slot_slide.md" class="module">exometer_slot_slide</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_spiral.md" class="module">exometer_spiral</a></td></tr>
-<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_uniform.md" class="module">exometer_uniform</a></td></tr>
-<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/xxx.md" class="module">xxx</a></td></tr></table>
+<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_uniform.md" class="module">exometer_uniform</a></td></tr></table>
 
