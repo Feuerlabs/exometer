@@ -581,7 +581,7 @@ get_fctr_datapoint(#exometer_entry{ }, Undefined) ->
     {Undefined, undefined}.
 
 
-create_entry(#exometer_entry{module = exometer_entry,
+create_entry(#exometer_entry{module = exometer,
 			     type = counter} = E) ->
     E1 = E#exometer_entry{value = 0, timestamp = exometer_util:timestamp()},
     [ets:insert(T, E1) || T <- exometer_util:tables()],
@@ -605,6 +605,7 @@ create_entry(#exometer_entry{module = exometer_entry,
 create_entry(#exometer_entry{module = M,
 			     type = Type,
 			     name = Name, options = Opts} = E) ->
+    io:format("Y~n"),
     case M:new(Name, Type, Opts) of
 	ok ->
 	    [ets:insert(T, E) || T <- exometer_util:tables()],
