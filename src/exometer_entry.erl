@@ -1,3 +1,22 @@
+%%FIXME:
+%% exometer.erl -> exometer_util.erl
+%% exometer_entry.erl -> exometer.erl
+%% exometer_processor.erl -> exometer_entry.erl
+%%
+%% Make probes 
+%%
+
+
+
+
+
+
+
+
+
+
+
+
 %% @doc API and behaviour for metrics instances
 %%
 %% <h2>Predefined templates</h2>

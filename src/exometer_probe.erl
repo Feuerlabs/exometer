@@ -63,7 +63,7 @@
 %%
 new(Name, Type, Options) ->
     %% Extract the module to use.
-    {value, {module, Module}, Opts1 } = lists:keytake(module, 1, Options), 
+    {value, { module, Module }, Opts1 } = lists:keytake(module, 1, Options), 
     {ok, Pid} = gen_server:start(?MODULE, {Name, Type, Module, Opts1},
                                  [{spawn_opt,[{min_heap_size,10000},
                                               {priority, high}]}]),

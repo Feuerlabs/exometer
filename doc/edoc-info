@@ -5,4 +5,4 @@
           exometer_function,exometer_histogram,exometer_netlink,
           exometer_probe,exometer_processor,exometer_reg,exometer_report,
           exometer_report_collectd,exometer_report_graphite,exometer_slide,
-          exometer_slot_slide,exometer_spiral,exometer_uniform,xxx]}.
+          exometer_slot_slide,exometer_spiral,exometer_uniform]}.
