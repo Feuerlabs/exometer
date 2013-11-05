@@ -1,7 +1,17 @@
 -module(exometer_folsom).
+-behaviour(exometer_processor).
 
--compile(export_all).
+-export([new/3,
+	 delete/3,
+	 get_datapoints/3,
+	 get_value/4,
+	 update/4,
+	 reset/3,
+	 sample/3,
+	 setopts/4]).
 
+-define(DATAPOINTS,
+	[ counter, histogram, duration, meter, spiral ]).
 
 new(Name, counter, _Opts) ->
     folsom_metrics:new_counter(Name);
@@ -39,6 +49,15 @@ get_value(Name, Type, Ref, DataPoints) ->
 	error:_ ->
 	    unavailable
     end.
+
+get_datapoints(_Name, _Type, _Ref) ->
+    ?DATAPOINTS.
+
+setopts(_Name, _Options, _Type, _Ref)  ->
+    { error, unsupported }.
+
+sample(_Name, _Type, _Ref) ->
+    { error, unsupported }.
 
 get_value_(Name, counter, _Ref, _DataPoints) ->
     folsom_metrics_counter:get_value(Name);

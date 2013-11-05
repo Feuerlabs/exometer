@@ -1,6 +1,6 @@
 %% @doc Exometer histogram probe behavior
 -module(exometer_histogram).
--behaviour(exometer_entry).
+-behaviour(exometer_processor).
 -behaviour(exometer_probe).
 
 %% exometer_entry callbacks
@@ -120,7 +120,6 @@ reset(Name, Type, Ref) ->
 
 probe_reset(St) ->
     { ok, St#st { slide = exometer_slot_slide:reset(St#st.slide)} }.
-
 
 sample(_Name, _Type, _Ref) ->
     { error, unsupported }.

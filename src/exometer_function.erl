@@ -1,6 +1,6 @@
 -module(exometer_function).
 
--behaviour(exometer_entry).
+-behaviour(exometer_processor).
 
 -export([new/3,
 	 update/4,

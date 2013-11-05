@@ -1,5 +1,5 @@
 -module(exometer_uniform).
--behaviour(exometer_entry).
+-behaviour(exometer_processor).
 -behaviour(exometer_probe).
 
 %% exometer_entry callbacks

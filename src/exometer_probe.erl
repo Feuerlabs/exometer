@@ -1,6 +1,6 @@
 -module(exometer_probe).
 -behaviour(gen_server).
--behaviour(exometer_entry).
+-behaviour(exometer_processor).
 
 % exometer_entry callb
 -export([new/3,

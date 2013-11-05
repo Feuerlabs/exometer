@@ -258,7 +258,7 @@ handle_cast(_Msg, State) ->
 %% @spec handle_info(Info, State) -> {noreply, State} |
 %%                                   {noreply, State, Timeout} |
 %%                                   {stop, Reason, State}
-%% @endo
+%% @end
 %%--------------------------------------------------------------------
 handle_info({ report, #key{ type = Type, 
 			    recipient = Recipient, 
