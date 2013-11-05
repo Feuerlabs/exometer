@@ -10,7 +10,7 @@
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#monitor-2">monitor/2</a></td><td></td></tr><tr><td valign="top"><a href="#set_default-3">set_default/3</a></td><td>Sets a default definition for a metric type, possibly using wildcards.</td></tr></table>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#monitor-2">monitor/2</a></td><td></td></tr><tr><td valign="top"><a href="#new_entry-3">new_entry/3</a></td><td></td></tr><tr><td valign="top"><a href="#re_register_entry-3">re_register_entry/3</a></td><td></td></tr><tr><td valign="top"><a href="#set_default-3">set_default/3</a></td><td>Sets a default definition for a metric type, possibly using wildcards.</td></tr></table>
 
 
 <a name="functions"></a>
@@ -22,6 +22,20 @@
 ### monitor/2 ###
 
 `monitor(Name, Pid) -> any()`
+
+
+<a name="new_entry-3"></a>
+
+### new_entry/3 ###
+
+`new_entry(Name, Type, Opts) -> any()`
+
+
+<a name="re_register_entry-3"></a>
+
+### re_register_entry/3 ###
+
+`re_register_entry(Name, Type, Opts) -> any()`
 
 
 <a name="set_default-3"></a>
