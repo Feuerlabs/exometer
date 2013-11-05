@@ -100,10 +100,10 @@ handle_call({new_entry, Name, Type, Opts, AllowExisting}, _From, S) ->
     try
 	#exometer_entry{options = OptsTemplate} = E =
 	    lookup_definition(Name, Type),
-	case {ets:member(exometer:table(), Name), AllowExisting} of
+	case {ets:member(exometer_util:table(), Name), AllowExisting} of
 	    {[_], false} -> {reply, {error, exists}, S};
 	    _ ->
-		Res = exometer_entry:create_entry(
+		Res = exometer:create_entry(
 			process_opts(E, OptsTemplate ++ Opts)),
 		{reply, Res, S}
 	end
@@ -127,7 +127,7 @@ handle_info({'DOWN', Ref, _, _, _}, S) ->
 	    {noreply, S};
 	Name when is_list(Name) ->
 	    erase(Ref),
-	    catch exometer_entry:delete(Name),
+	    catch exometer:delete(Name),
 	    {noreply, S}
     end;
 handle_info(_, S) ->
@@ -152,7 +152,7 @@ create_ets_tabs() ->
     end.
 
 tables() ->
-    exometer:tables().
+    exometer_util:tables().
 
 
 %% ====
@@ -181,9 +181,9 @@ default_definition(Name, Type) ->
     end.
 
 %% Be sure to specify { module, exometer_ctr } in Options when
-%% creating a ticker metrics through exometer_entry:new().
-module(counter )     -> exometer_entry;
-module(fast_counter) -> exometer_entry;
+%% creating a ticker metrics through exometer:new().
+module(counter )     -> exometer;
+module(fast_counter) -> exometer;
 module(ticker  )     -> exometer_probe;
 module(uniform)      -> exometer_uniform;
 module(histogram)    -> exometer_histogram;

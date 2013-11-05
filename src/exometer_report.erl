@@ -231,7 +231,7 @@ handle_call({unsubscribe,
 handle_call({list_metrics, Path}, _, St) ->
     DP = lists:foldr(fun(Metric, Acc) -> 
 			     retrieve_metric(Metric, St#st.subscribers, Acc)
-		     end, [], exometer_entry:find_entries(Path)),
+		     end, [], exometer:find_entries(Path)),
     {reply, {ok, DP}, St};
 
 
@@ -267,7 +267,7 @@ handle_info({ report, #key{ type = Type,
 	    #st{mod_states = ModStates, subscribers = Subs} = St) ->
     case lists:keyfind(Key, #subscriber.key, Subs) of
 	#subscriber{} = Sub ->
-	    case exometer_entry:get_value(Metric, [DataPoint]) of
+	    case exometer:get_value(Metric, [DataPoint]) of
 		{ok, [{_, Val}]} ->
 		    %% Distribute metric value to pid subscriber or module,
 		    %% depending on type.
@@ -446,7 +446,7 @@ report_value(module, Mod, Metric, DataPoint, Val, ModStates) ->
 	
 
 retrieve_metric({ Metric, Type, Enabled}, Subscribers, Acc) ->
-    [ { Metric, Type, exometer_entry:info(Metric, datapoints), 
+    [ { Metric, Type, exometer:info(Metric, datapoints), 
 	get_subscribers(Metric, Subscribers), Enabled } | Acc ]. 
 
 

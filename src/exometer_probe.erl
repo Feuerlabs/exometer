@@ -1,6 +1,6 @@
 -module(exometer_probe).
 -behaviour(gen_server).
--behaviour(exometer_processor).
+-behaviour(exometer_entry).
 
 % exometer_entry callb
 -export([new/3,
@@ -30,9 +30,9 @@
 	     sample_interval = infinity, %% msec. infinity = disable probe_sample() peridoc calls.
 	     opts = []}).
 
--type name()        :: exometer_entry:name().
--type options()     :: exometer_entry:options().
--type type()        :: exometer_entry:type().
+-type name()        :: exometer:name().
+-type options()     :: exometer:options().
+-type type()        :: exometer:type().
 -type mod_state()   :: any().
 -type from()        :: {pid(), reference()}.
 -type data_points() :: [atom()].

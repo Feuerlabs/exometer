@@ -1,6 +1,6 @@
 %% @doc Exometer histogram probe behavior
 -module(exometer_histogram).
--behaviour(exometer_processor).
+-behaviour(exometer_entry).
 -behaviour(exometer_probe).
 
 %% exometer_entry callbacks

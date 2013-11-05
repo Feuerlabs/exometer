@@ -1,7 +1,7 @@
 %% MUST ONLY BE INVOKED THROUGH THE EXOMETER_PROBE.ERL MODULE.
 %% NOT MULTI-PROCESSS SAFE.
 -module(exometer_netlink).
--behaviour(exometer_processor).
+-behaviour(exometer_entry).
 -behaviour(exometer_probe).
 
 %% exometer_entry callbacks

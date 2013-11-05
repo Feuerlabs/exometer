@@ -1,5 +1,5 @@
 -module(exometer_folsom).
--behaviour(exometer_processor).
+-behaviour(exometer_entry).
 
 -export([new/3,
 	 delete/3,
