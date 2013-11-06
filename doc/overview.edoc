@@ -14,6 +14,10 @@ be expanded with custom components to handle new types of Metrics, as
 well as integration with additional external systems such as
 databases, laod balancers, etc.
 
+This document gives a high level overview of the Exometer system. For
+details, please see the documentation for individual modules, starting
+with ``exometer''.
+
 == Concepts and Definitions ==
 
 Exometer introcuces a number of concepts and definitions used
@@ -238,6 +242,9 @@ at a configurable interval.
 
 == Instrumenting Erlang code ==
 
+The code using Exometer needs to be instrumented in order to setup and
+use metrics reporting.
+
 === Exometer Start ===
 
 The system using Exometer must start the exometer application prior to using it:
@@ -275,21 +282,73 @@ under the given metric.
 
 === Deleting metrics  ===
 
-A metric previously created with ``exometer:new()'' can be deleted by ``exometer:delete()''.
+A metric previously created with ``exometer:new()'' can be deleted by
+``exometer:delete()''.
 
 All subscriptions to the deleted metrics will be cancelled.
 
 === Setting metric values  ===
 
+A created metric can have its value updated through the ``exometer:update()'' function:
 
-DESCRIBE CALL CHAIN ALL THE WAY TO ENTRY.
+```
+exometer:update(Name, Value)
+'''
+
+The ``Name'' parameter is the same atom list provided to a previous
+``exometer:new()'' call. The ``Value'' is an arbitrarty element that is
+forwarded to the ``update()'' function of the entry/probe that the
+metric is mapped to. 
+
+The receiving entry/probe will process the provided value and modify
+its data points accordingly.
 
 === Retrieving metric values ===
+
+Exometer-using code can at any time retrieve the data point values
+associated with a previously created metric. In order to find out which data points
+are available for a metric, the following call can be used:
+
+```
+exometer:info(Name, datapoints)
+'''
+
+The ``Name'' parameter is the same atom list provided to a previous
+``exometer:new()'' call. The call will return a list of data point
+atoms that can then be provided to ``exometer:get_value()'' to
+retrieve their actual value:
+
+```
+exometer:get_value(Name, DataPoint)
+'''
+
+The ``Name'' paramer identifies the metric, and ``DataPoint''
+identifies the data point (returned from the previous ``info()'' call)
+to retrieve the value for.
+
+If no DataPoint is provided, the value of a default data point,
+determined by the backing entry / probe, will be returned.
+
+=== Setting up subscriptions ===
+
+A subscription can either be statically configured, or dynamically
+setup from within the code using Exometer. For details on statically
+configured subscriptions, please see {@section Configuring static subscriptions}.
+
+A dynamic subscription can be setup with the following call:
+
+```
+exometer_report:subscribe(Recipient, Metric, DataPoint, Inteval)
+'''
+
+``Recipient'' is the name of a reporter 
 
 === Set metric options ===
 == Configuring Exometer ==
 
 === Configuring type - entry maps ===
+
+=== Configuring static subscriptions  ===
 
 === Configuring report plugins ===
 

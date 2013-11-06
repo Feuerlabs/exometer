@@ -4,7 +4,7 @@
 
 Copyright (c) 2013 Feurelabs, Inc. All rights reserved.
 
-__Version:__ Nov 5 2013 16:43:24
+__Version:__ Nov 5 2013 17:25:51
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -17,6 +17,10 @@ Exometer comes with a set of pre-defined monitor components, and can
 be expanded with custom components to handle new types of Metrics, as
 well as integration with additional external systems such as
 databases, laod balancers, etc.
+
+This document gives a high level overview of the Exometer system. For
+details, please see the documentation for individual modules, starting
+with `exometer`.
 
 
 ### <a name="Concepts_and_Definitions">Concepts and Definitions</a> ###
@@ -270,6 +274,9 @@ at a configurable interval.
 
 ### <a name="Instrumenting_Erlang_code">Instrumenting Erlang code</a> ###
 
+The code using Exometer needs to be instrumented in order to setup and
+use metrics reporting.
+
 
 #### <a name="Exometer_Start">Exometer Start</a> ####
 
@@ -310,17 +317,69 @@ under the given metric.
 
 #### <a name="Deleting_metrics">Deleting metrics</a> ####
 
-A metric previously created with `exometer:new()` can be deleted by `exometer:delete()`.
+A metric previously created with `exometer:new()` can be deleted by
+`exometer:delete()`.
 
 All subscriptions to the deleted metrics will be cancelled.
 
 
 #### <a name="Setting_metric_values">Setting metric values</a> ####
 
-DESCRIBE CALL CHAIN ALL THE WAY TO ENTRY.
+A created metric can have its value updated through the `exometer:update()` function:
+
+```
+exometer:update(Name, Value)
+```
+
+The `Name` parameter is the same atom list provided to a previous
+`exometer:new()` call. The `Value` is an arbitrarty element that is
+forwarded to the `update()` function of the entry/probe that the
+metric is mapped to. 
+
+The receiving entry/probe will process the provided value and modify
+its data points accordingly.
 
 
 #### <a name="Retrieving_metric_values">Retrieving metric values</a> ####
+
+Exometer-using code can at any time retrieve the data point values
+associated with a previously created metric. In order to find out which data points
+are available for a metric, the following call can be used:
+
+```
+exometer:info(Name, datapoints)
+```
+
+The `Name` parameter is the same atom list provided to a previous
+`exometer:new()` call. The call will return a list of data point
+atoms that can then be provided to `exometer:get_value()` to
+retrieve their actual value:
+
+```
+exometer:get_value(Name, DataPoint)
+```
+
+The `Name` paramer identifies the metric, and `DataPoint`
+identifies the data point (returned from the previous `info()` call)
+to retrieve the value for.
+
+If no DataPoint is provided, the value of a default data point,
+determined by the backing entry / probe, will be returned.
+
+
+#### <a name="Setting_up_subscriptions">Setting up subscriptions</a> ####
+
+A subscription can either be statically configured, or dynamically
+setup from within the code using Exometer. For details on statically
+configured subscriptions, please see [Configuring static subscriptions](#Configuring_static_subscriptions).
+
+A dynamic subscription can be setup with the following call:
+
+```
+exometer_report:subscribe(Recipient, Metric, DataPoint, Inteval)
+```
+
+`Recipient` is the name of a reporter 
 
 
 #### <a name="Set_metric_options">Set metric options</a> ####
@@ -331,6 +390,9 @@ DESCRIBE CALL CHAIN ALL THE WAY TO ENTRY.
 
 
 #### <a name="Configuring_type_-_entry_maps">Configuring type - entry maps</a> ####
+
+
+#### <a name="Configuring_static_subscriptions">Configuring static subscriptions</a> ####
 
 
 #### <a name="Configuring_report_plugins">Configuring report plugins</a> ####

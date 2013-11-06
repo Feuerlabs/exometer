@@ -274,6 +274,7 @@ Supported info items:
 * `cache` - The cache lifetime
 * `status` - Operational status: `enabled` or `disabled`
 * `timestamp` - When the metric was last reset/initiated
+* `datapoitns` - Data points available for retrieval with get_value()
 * `options` - Options passed to the metric at creation (or via setopts())
 * `ref` - Instance-specific reference; usually a pid (probe) or undefined
 <a name="new-2"></a>
