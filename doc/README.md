@@ -4,7 +4,7 @@
 
 Copyright (c) 2013 Feurelabs, Inc. All rights reserved.
 
-__Version:__ Nov 6 2013 15:26:08
+__Version:__ Nov 6 2013 17:58:45
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -415,8 +415,75 @@ exometer_report:subscribe(Recipient, Metric, DataPoint, Inteval)
 
 ### <a name="Configuring_Exometer">Configuring Exometer</a> ###
 
+Exometer defaults can be changed either through OTP application environment
+variables or through the use of Basho's `cuttlefish`
+([`https://github.com/basho/cuttlefish`](https://github.com/basho/cuttlefish)).
+
 
 #### <a name="Configuring_type_-_entry_maps">Configuring type - entry maps</a> ####
+
+The dynamic method of configuring defaults for `exometer` entries is:
+
+```erlang
+
+exometer_admin:set_default(NamePattern, Type, Default)
+
+```
+
+Where `NamePattern` is a list of terms describing what is essentially
+a name prefix with optional wildcards (`'_'`). A pattern that
+matches any legal name is `['_']`.
+
+`Type` is an atom defining a type of metric. The types already known to
+`exometer`, `counter`, `fast_counter`, `ticker`, `uniform`, `histogram`,
+`spiral`, `netlink`, and `probe` may be redefined, but other types can be
+described as well.
+
+`Default` is either an `#exometer_entry{}` record (unlikely), or a list of
+`{Key, Value}` options, where the keys correspond to `#exometer_entry` record
+attribute names. The following attributes make sense to preset:
+
+```erlang
+
+{module, atom()}              % the callback module
+{status, enabled | disabled}  % operational status of the entry
+{cache, non_neg_integer()}    % cache lifetime (ms)
+{options, [{atom(), any()}]}  % entry-specific options
+
+```
+
+Here is an example, from `exometer/priv/app.config`:
+
+```erlang
+
+ {exometer, [
+             {defaults,
+              [{['_'], function , [{module, exometer_function}]},
+               {['_'], counter  , [{module, exometer}]},
+               {['_'], histogram, [{module, exometer_histogram}]},
+               {['_'], spiral   , [{module, exometer_spiral}]},
+               {['_'], duration , [{module, exometer_folsom}]},
+               {['_'], meter    , [{module, exometer_folsom}]},
+               {['_'], gauge    , [{module, exometer_folsom}]}
+              ]}
+
+```
+
+In systems that use CuttleFish, the file `exometer/priv/exometer.schema`
+contains a schema for default settings. The setup corresponding to the above
+defaults would be as follows:
+
+```ini
+
+exometer.template.function.module  = exometer_function
+exometer.template.counter.module   = exometer
+exometer.template.histogram.module = exometer_histogram
+exometer.template.spiral.module    = exometer_spiral
+exometer.template.duration.module  = exometer_folsom
+exometer.template.meter.module     = exometer_folsom
+exometer.template.gauge.module     = exometer_folsom
+
+```
 
 
 #### <a name="Configuring_static_subscriptions">Configuring static subscriptions</a> ####
