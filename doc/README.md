@@ -4,7 +4,7 @@
 
 Copyright (c) 2013 Feurelabs, Inc. All rights reserved.
 
-__Version:__ Nov 5 2013 17:25:51
+__Version:__ Nov 6 2013 15:26:08
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -16,7 +16,7 @@ exported to a wide variety of monitoring systems.
 Exometer comes with a set of pre-defined monitor components, and can
 be expanded with custom components to handle new types of Metrics, as
 well as integration with additional external systems such as
-databases, laod balancers, etc.
+databases, load balancers, etc.
 
 This document gives a high level overview of the Exometer system. For
 details, please see the documentation for individual modules, starting
@@ -32,28 +32,27 @@ throughout the documentation and the code.
 #### <a name="Metric">Metric</a> ####
 
 A metric is a specific measurement sampled inside an Erlang system and
-then reported to the Exometer system. An example  metric would be
+then reported to the Exometer system. An example metric would be
 "transactions_per_second", or "memory_usage".
 
-Metrics are identified by a list of atoms, such as given below:
+Metrics are identified by a list of terms, such as given below:
 
 `[ xml_front_end, parser, file_size ]`
 
 A metric is created through a call by the code to be instrumented to
-`exometer:new()`. Once created. Once created, the metric can
-be updated through `exometer:update()`, or on its own
-initiative through the `exometer_probe:sample` behavior
-implementation.
+`exometer:new()`. Once created, the metric can be updated through
+`exometer:update()`, or on its own initiative through the
+`exometer_probe:sample` behavior implementation.
 
 
-#### <a name="Data_point">Data point</a> ####
+#### <a name="Data_Point">Data Point</a> ####
 
 Each metric can consist of multiple data points, where each point has
-a specific value. 
+a specific value.
 
 A typical example of data points would be a
 `transactions_per_second` (tps) metric, usually stored as a
-histogram overing the last couple of minutes of tps samples. Such a
+histogram covering the last couple of minutes of tps samples. Such a
 histogram would host multiple values, such as `min`, `max`,
 `median`, `mean`, `50_percentile`, `75_percentile`,
 etc.
@@ -80,67 +79,84 @@ configurable `exometer_entry` callback.
 #### <a name="Entry_Callbacks">Entry Callbacks</a> ####
 
 An exometer entry callback will receive values reported to a metric through the
-`exometer:update()` call and compile it into one or more data
-points. The entry callback can either be a counter (implemented natively
+`exometer:update()` call and compile it into one or more data points.
+The entry callback can either be a counter (implemented natively
 in `exometer`), or a more complex statistical analysis such
-as a uniform distriburtion or a regular histogram. 
+as a uniform distribution or a regular histogram. 
 
-The various outputs from these processors are reported as data points
+The various outputs from these entries are reported as data points
 under the given metric.
 
-A processor can also interface external analytics
-packages. `exometer_folsom`, for example, integrates with the
-`folsom_metrics` package found at
-[`https://github.com/boundary/folsom`](https://github.com/boundary/folsom).
+An entry can also interface external analytics packages.
+`exometer_folsom`, for example, integrates with the
+`folsom_metrics` package found at [`https://github.com/boundary/folsom`](https://github.com/boundary/folsom).
 
 
 #### <a name="Probes">Probes</a> ####
 
-Probes are a further specialization of exometer entires that run in
+Probes are a further specialization of exometer entries that run in
 their own Erlang processes and have their own state (like a
 gen_server). A probe is implemented through the `exometer_probe`
 behavior.
 
-A probe can be used if independent monitoring is
-needed of, for example, `/proc` trees, network interfaces, and
-other sub systems that need periodic sampling. In these cases,
-the `exometer_probe:probe_sample` call is invoked regularly by
-exometer, as its own process, in order to extract data from
+A probe can be used if independent monitoring is needed of,
+for example, `/proc` trees, network interfaces, and other subsystems
+that need periodic sampling. In these cases, the
+`exometer_probe:probe_sample()` call is invoked regularly by exometer,
+in the probe's own process, in order to extract data from
 the given subsystem and add it to the metric's data points.
 
 
-#### <a name="Cachning">Cachning</a> ####
+#### <a name="Caching">Caching</a> ####
 
-ULF: Write something here!
+Metric and data point values are read with the `exometer:get_value()`
+function. In the case of counters, this operation is very fast. With probes,
+the call results in a synchronous dialog with the probe process, and the
+cost of serving the request depends on the probe implementation and the
+nature of the metric being served.
+
+If the cost of reading the value is so high that calling the function often
+would result in prohibitive load, it is possible to cache the value. This is
+done either explicitly from the probe itself (by calling
+`exometer_cache:write()`), or by specifying the option `{cache, Lifetime}`
+for the entry. If an entry has a non-zero cache lifetime specified, the
+`get_value()` call will try fetching the cached value before calling the
+actual entry and automatically caching the result.
+
+Note that if `{cache, Lifetime}` is not specified, `exometer:get_value()`
+will neither read nor write to the cache. It is possible for the probe
+to periodically cache a value regardless of how the cache lifetime is set,
+and the probe may also explicitly read from the cache if it isn't done
+automatically.
 
 
 #### <a name="Subscriptions_and_Reporters">Subscriptions and Reporters</a> ####
 
-The subscription concept, managed by `exometer_report` allows
-metrics and their datapoints to be sampled at given intervals and
-delivered to one or more receipients, which can be either an arbitrary
-process or a Reporter plugin.
+The subscription concept, managed by `exometer_report` allows metrics
+and their data points to be sampled at given intervals and delivered
+to one or more recipients, which can be either an arbitrary process
+or a Reporter plugin.
 
 Each subscription ties a specific metric-datapoint pair to a reporter
 and an interval (given in milliseconds). The reporter system will, at
-the given interval, send the current value of the datapoint to the
+the given interval, send the current value of the data point to the
 subscribing reporter. The subscription, with all its parameters,
 is setup through a call to `exometer_report:subscribe()`.
 
 In the case of processes, subscribed-to values will be delivered as a
-message.  Plugins, which implements teh `exometer_report` callback
+message. Modules, which implement the `exometer_report` callback
 behavior, will receive the plugins as a callbacks within the
 `exometer_report` process.
 
-Subscriptions can either be setup runtime, through
+Subscriptions can either be setup at runtime, through
 `exometer_report:subscribe()` calls, or statically through the
-exometer_report configuration data.
+`exometer_report` configuration data.
 
 
 ### <a name="Built-in_entries_and_probes">Built-in entries and probes</a> ###
 
 
-There are a number of built-in  entries and probes shipped
+There are a number of built-in entries and probes shipped
 with the Exometer package, as described below:
 
 
@@ -153,8 +169,8 @@ to the counter.
 
 The counter can be reset to zero through `exometer:reset()`.
 
-The single available data type under a metric using the counter entry
-is `value`.
+The available data points under a metric using the counter entry
+are `value` and `ms_since_reset`.
 
 
 #### <a name="fast_counter_(exometer_native)">fast_counter (exometer native)</a> ####
@@ -171,22 +187,22 @@ counter.
 
 The counter can be reset to zero through `exometer:reset()`.
 
-The single available data type under a metric using the fast_counter
-entry is `value`.
+The available data points under a metric using the fast_counter
+entry are `value` and `ms_since_reset`.
 
 
 #### <a name="exometer_histogram_(probe)">exometer_histogram (probe)</a> ####
 
 The histogram probe stores a given number of updates, provided through
-`exometer:update`, in a histogram. The histogram maintains a log
-over all values received during a configurable time span and provdes
-min, max, median, mean, and percentile analysis data points for the
-stored data.
+`exometer:update()`, in a histogram. The histogram maintains a log
+derived from all values received during a configurable time span and
+provides min, max, median, mean, and percentile analysis data points
+for the stored data.
 
 In order to save memory, the histogram is divided into equal-sized
 time slots, where each slot spans a settable interval. All values
 received during a time slot will be averaged into a single value to be
-stored in the histogram once the time slot expires. The avearging
+stored in the histogram once the time slot expires. The averaging
 function (which can be replaced by the caller), allows for
 high-frequency update metrics to have their resolution traded against
 resource consumption.
@@ -194,9 +210,8 @@ resource consumption.
 
 #### <a name="exometer_uniform_(probe)">exometer_uniform (probe)</a> ####
 
-
 The uniform probe provides a uniform sample over a pool of values
-provided `exometer:update`. When the pool reaches its configurable
+provided through `exometer:update()`. When the pool reaches its configurable
 max size, existing values will be replaced at random to make space for
 new values. Much like `exometer_histogram`, the uniform probe
 provides min, max, median, mean, and percentile analysis data points
@@ -207,8 +222,8 @@ for the stored data.
 
 The spiral probe maintains the total sum of all values stored in its
 histogram. The histogram has a configurable time span, all values
-provided to the probe, through `exometer:update()` within that time
-span will be summed up and reporetd. If, for example, the histogram
+provided to the probe, through `exometer:update()`, within that time
+span will be summed up and reported. If, for example, the histogram
 covers 60 seconds, the spiral probe will report the sum of all
 values reported during the last minute.
 
@@ -218,18 +233,16 @@ probe is also available.
 
 #### <a name="exometer_folsom_[entry]">exometer_folsom [entry]</a> ####
 
-
 The folsom entry integrates with the folsom metrics package provided
 by the boundary repo at github. Updated values sent to the folsom entry
 can be forwarded to folsom's counter, histogram, duration, meter,
 and spiral.
 
 Folsom integration is provided as a backup. New code using Exometer
-should use the native probes that duplicates folsom.
+should use the native probes that duplicate folsom.
 
 
 #### <a name="exometer_function_[entry]">exometer_function [entry]</a> ####
-
 
 The function entry allows for a simple caller-supplied function to be
 invoked in order to retrieve non-exometer data. The
@@ -237,15 +250,14 @@ invoked in order to retrieve non-exometer data. The
 `Module:Function(DataPoints)` call, where `Module` and
 `Function` are provided by the caller.
 
-The function entry provides an easy way of integrating an external 
+The function entry provides an easy way of integrating an external
 system without having to write a complete entry.
 
 
 ### <a name="Built_in_Reporters">Built in Reporters</a> ###
 
-
 Two reporters are shipped with Exometer to forward updated
-metrics and their datapoints to external systems. They can also
+metrics and their data points to external systems. They can also
 serve as templates for custom-developed reporters.
 
 
@@ -253,7 +265,7 @@ serve as templates for custom-developed reporters.
 
 The graphite reporter uses the TCP/IP protocol to forward
 subscribed-to metrics and data points to a graphite server, such as
-the one provided by [`http://hostedgraphiote.com`](http://hostedgraphiote.com). When the grahite
+the one provided by [`http://hostedgraphite.com`](http://hostedgraphite.com). When the graphite
 reporter receives a metric-datapoint value (subscribed to through
 `exometer_report:subscriber()`), the reporter will immediately
 forward the key-value pair to the graphite server.
@@ -261,14 +273,14 @@ forward the key-value pair to the graphite server.
 
 #### <a name="exometer_report_collectd">exometer_report_collectd</a> ####
 
-The collectd reporter uses communicate with a local collectd process
+The collectd reporter communicates with a local `collectd` process
 through its unix socket protocol. All subscribed-to metric-datapoint
 values received by the reporter are immediately forwarded to
-collectd. Once a value has been forwarded, the reporter continuously
-refreshes the value toward collecd at a configurable interval in order
-to keep it from expiring inside collectd.
+`collectd`. Once a value has been forwarded, the reporter continuously
+refreshes the value toward `collectd` at a configurable interval in order
+to keep it from expiring inside `collectd`.
 
-If the collectd connection is lost, the reporter will attempt to reconnect to it
+If the `collectd` connection is lost, the reporter will attempt to reconnect to it
 at a configurable interval.
 
 
@@ -280,17 +292,21 @@ use metrics reporting.
 
 #### <a name="Exometer_Start">Exometer Start</a> ####
 
-The system using Exometer must start the exometer application prior to using it:
+The system using Exometer must start the `exometer` application prior to using it:
 
-```
+```erlang
+
 application:start(exometer).
+
 ```
 
 Once started, the default mapping between metrics and the entries
 is loaded from the configuration data:
 
-```
+```erlang
+
 exometer_admin:preset_defaults().
+
 ```
 
 See [Configuring Exometer](#Configuring_Exometer) for details on configuration data
@@ -299,14 +315,16 @@ format.
 
 #### <a name="Creating_metrics">Creating metrics</a> ####
 
-A metric, can be created throuh a call to 
+A metric, can be created throuh a call to
 
-```
+```erlang
+
 exometer:new(Name, Type)
+
 ```
 
-`Name` is a list of atoms, uniquely identifying the metric
-created. The type of the metric, specified by `Type` will be mapped
+`Name` is a list of atoms, uniquely identifying the metric created.
+The type of the metric, specified by `Type` will be mapped
 to an exometer entry through the table maintained by
 `exometer_admin` Please see the [Configuring type - entry
 maps](#Configuring_type_-_entry_maps) for details.
@@ -325,16 +343,19 @@ All subscriptions to the deleted metrics will be cancelled.
 
 #### <a name="Setting_metric_values">Setting metric values</a> ####
 
-A created metric can have its value updated through the `exometer:update()` function:
+A created metric can have its value updated through the
+`exometer:update()` function:
 
-```
+```erlang
+
 exometer:update(Name, Value)
+
 ```
 
 The `Name` parameter is the same atom list provided to a previous
 `exometer:new()` call. The `Value` is an arbitrarty element that is
-forwarded to the `update()` function of the entry/probe that the
-metric is mapped to. 
+forwarded to the `exometer:update()` function of the entry/probe that the
+metric is mapped to.
 
 The receiving entry/probe will process the provided value and modify
 its data points accordingly.
@@ -343,11 +364,13 @@ its data points accordingly.
 #### <a name="Retrieving_metric_values">Retrieving metric values</a> ####
 
 Exometer-using code can at any time retrieve the data point values
-associated with a previously created metric. In order to find out which data points
-are available for a metric, the following call can be used:
+associated with a previously created metric. In order to find out which
+data points are available for a metric, the following call can be used:
 
-```
+```erlang
+
 exometer:info(Name, datapoints)
+
 ```
 
 The `Name` parameter is the same atom list provided to a previous
@@ -355,15 +378,17 @@ The `Name` parameter is the same atom list provided to a previous
 atoms that can then be provided to `exometer:get_value()` to
 retrieve their actual value:
 
-```
+```erlang
+
 exometer:get_value(Name, DataPoint)
+
 ```
 
-The `Name` paramer identifies the metric, and `DataPoint`
-identifies the data point (returned from the previous `info()` call)
+The `Name` paramer identifies the metric, and `DataPoints`
+identifies the data points (returned from the previous `info()` call)
 to retrieve the value for.
 
-If no DataPoint is provided, the value of a default data point,
+If no DataPoints are provided, the values of a default list of data points,
 determined by the backing entry / probe, will be returned.
 
 
@@ -375,11 +400,13 @@ configured subscriptions, please see [Configuring static subscriptions](#Configu
 
 A dynamic subscription can be setup with the following call:
 
-```
+```erlang
+
 exometer_report:subscribe(Recipient, Metric, DataPoint, Inteval)
+
 ```
 
-`Recipient` is the name of a reporter 
+`Recipient` is the name of a reporter.
 
 
 #### <a name="Set_metric_options">Set metric options</a> ####
