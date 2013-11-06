@@ -73,7 +73,6 @@ get_datapoints(_Name, _Type, _Ref) ->
     ?DATAPOINTS.
 
 
-
 probe_get_value(St, DataPoints) ->
     {Length, Total, Lst} = ets:foldl(
 	    fun(#elem { val = Val }, {Length, Total, List}) -> { Length + 1, Total + Val, [ Val | List ]}  end, 

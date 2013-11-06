@@ -3,6 +3,7 @@
 %%% @copyright (C) 2013, magnus
 %%% @doc
 %%%
+%%% @todo Remove subscriptions when an entry is deleted.
 %%% @end
 %%% Created :  8 Oct 2013 by Magnus Feuer (magnus.feuer@feuerlabs.com)
 %%%-------------------------------------------------------------------

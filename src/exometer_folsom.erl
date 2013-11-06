@@ -32,7 +32,6 @@ new(Name, duration, _Opts) ->
 delete(Name, _Type, _Ref) ->
     folsom_metrics:delete_metric(Name).
 
-
 update(Name, Value, counter, _Ref) ->
     folsom_metrics:notify_existing_metric(Name, {inc, Value}, counter);
 update(Name, Value, Type, _Ref) ->

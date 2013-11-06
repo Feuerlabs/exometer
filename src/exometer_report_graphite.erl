@@ -2,6 +2,9 @@
 %%
 %% This probe periodically samples a user-defined set of metrics, and
 %% reports them to Hosted Graphite (https://hostedgraphite.com)
+%%
+%% @todo Make graphite host and port configurable.
+%% @todo Reconnect on failed server connection (re-use collectd reporter).
 %% @end
 -module(exometer_report_graphite).
 -behaviour(exometer_report).

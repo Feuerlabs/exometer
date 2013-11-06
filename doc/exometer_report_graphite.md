@@ -14,7 +14,8 @@ __Behaviours:__ [`exometer_report`](exometer_report.md).
 
 
 This probe periodically samples a user-defined set of metrics, and
-reports them to Hosted Graphite (https://hostedgraphite.com)<a name="index"></a>
+reports them to Hosted Graphite (https://hostedgraphite.com)
+<a name="index"></a>
 
 ## Function Index ##
 
