@@ -1,12 +1,13 @@
-%%%-------------------------------------------------------------------
-%%% @author magnus <magnus@t520>
-%%% @copyright (C) 2013, magnus
-%%% @doc
-%%%
-%%% @todo Remove subscriptions when an entry is deleted.
-%%% @end
-%%% Created :  8 Oct 2013 by Magnus Feuer (magnus.feuer@feuerlabs.com)
-%%%-------------------------------------------------------------------
+%% -------------------------------------------------------------------
+%%
+%% Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved.
+%%
+%%   This Source Code Form is subject to the terms of the Mozilla Public
+%%   License, v. 2.0. If a copy of the MPL was not distributed with this
+%%   file, You can obtain one at http://mozilla.org/MPL/2.0/.
+%%
+%% -------------------------------------------------------------------
+
 -module(exometer_report).
 
 -behaviour(gen_server).

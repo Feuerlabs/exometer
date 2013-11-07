@@ -1,7 +1,13 @@
-%%% File    : exometer_ebuf.erl
-%%% Author  : Tony Rogvall <tony@rogvall.se>
-%%% Description : Double event buffering
-%%% Created : 29 Sep 2009 by Tony Rogvall <tony@rogvall.se>
+%% -------------------------------------------------------------------
+%%
+%% Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved.
+%%
+%%   This Source Code Form is subject to the terms of the Mozilla Public
+%%   License, v. 2.0. If a copy of the MPL was not distributed with this
+%%   file, You can obtain one at http://mozilla.org/MPL/2.0/.
+%%
+%% -------------------------------------------------------------------
+
 
 %% Here is a concept that Ulf and Tony should try out some day: Documentation
 %%
