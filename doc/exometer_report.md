@@ -1,21 +1,14 @@
 
 
 # Module exometer_report #
-* [Description](#description)
 * [Function Index](#index)
 * [Function Details](#functions)
-
-
-.
-Copyright (c) (C) 2013, magnus
 
 __Behaviours:__ [`gen_server`](gen_server.md).
 
 __This module defines the `exometer_report` behaviour.__
 <br></br>
  Required callback functions: `exometer_report/4`, `exometer_init/1`, `exometer_subscribe/3`, `exometer_unsubscribe/3`.
-
-__Authors:__ magnus ([`magnus@t520`](mailto:magnus@t520)).
 <a name="index"></a>
 
 ## Function Index ##
