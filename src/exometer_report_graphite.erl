@@ -1,11 +1,13 @@
-%% @doc Custom reporting probe for Hosted Graphite.
+%% -------------------------------------------------------------------
 %%
-%% This probe periodically samples a user-defined set of metrics, and
-%% reports them to Hosted Graphite (https://hostedgraphite.com)
+%% Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved.
 %%
-%% @todo Make graphite host and port configurable.
-%% @todo Reconnect on failed server connection (re-use collectd reporter).
-%% @end
+%%   This Source Code Form is subject to the terms of the Mozilla Public
+%%   License, v. 2.0. If a copy of the MPL was not distributed with this
+%%   file, You can obtain one at http://mozilla.org/MPL/2.0/.
+%%
+%% -------------------------------------------------------------------
+
 -module(exometer_report_graphite).
 -behaviour(exometer_report).
 
