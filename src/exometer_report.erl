@@ -84,7 +84,7 @@
 %% @end
 %%--------------------------------------------------------------------
 start_link() ->
-    {ok, Opts} = application:get_env(exometer, exometer_report),
+    Opts = get_env(report, []),
     gen_server:start_link({local, ?MODULE}, ?MODULE,  Opts, []).
 
 
@@ -474,3 +474,11 @@ get_subscribers(Metric, [ #subscriber {
     io:format("get_subscribers(~p, ~p, ~p) nomatch(~p) ~n", 
 	      [ SMetric, SDataPoint, SRecipient, Metric]),
     get_subscribers(Metric, T).
+
+get_env(Key, Default) ->
+    case application:get_env(exometer, Key) of
+	{ok, Value} ->
+	    Value;
+	_ ->
+	    Default
+    end.

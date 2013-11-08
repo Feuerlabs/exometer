@@ -1,33 +1,182 @@
+%% -*- mode: erlang; erlang-indent-level: 4; indent-tabs-mode: nil -*-
 %% @doc Exometer metrics
-{mapping, "exometer.template.function.module", "exometer.defaults", [
-  {default, "exometer_function"}
-]}.
-{mapping, "exometer.template.counter.module", "exometer.defaults", [
-  {default, "exometer_entry"}
-]}.
-{mapping, "exometer.template.fast_counter.module", "exometer.defaults", [
-  {default, "exometer_entry"}
-]}.
-{mapping, "exometer.template.histogram.module", "exometer.defaults", [
-  {default, "exometer_histogram"}
-]}.
-{mapping, "exometer.template.spiral.module", "exometer.defaults", [
-  {default, "exometer_spiral"}
-]}.
-{mapping, "exometer.template.duration.module", "exometer.defaults", [
-  {default, "exometer_folsom"}
-]}.
-{mapping, "exometer.template.meter.module", "exometer.defaults", [
-  {default, "exometer_folsom"}
-]}.
-{mapping, "exometer.template.gauge.module", "exometer.defaults", [
-  {default, "exometer_folsom"}
-]}.
+{mapping, "exometer.template.function.module", "exometer.defaults",
+ [{default, "exometer_function"}]
+}.
+{mapping, "exometer.template.counter.module", "exometer.defaults",
+ [{default, "exometer"}]
+}.
+{mapping, "exometer.template.fast_counter.module", "exometer.defaults",
+ [{default, "exometer"}]
+}.
+{mapping, "exometer.template.histogram.module", "exometer.defaults",
+ [{default, "exometer_histogram"}]
+}.
+{mapping, "exometer.template.spiral.module", "exometer.defaults",
+ [{default, "exometer_spiral"}]
+}.
+{mapping, "exometer.template.duration.module", "exometer.defaults",
+ [{default, "exometer_folsom"}]
+}.
+{mapping, "exometer.template.meter.module", "exometer.defaults",
+ [{default, "exometer_folsom"}]
+}.
+{mapping, "exometer.template.gauge.module", "exometer.defaults",
+ [{default, "exometer_folsom"}]
+}.
+{mapping, "exometer.template.$type.$option", "exometer.defaults",[]}.
+{mapping, "exometer.template.$pattern.$type.$option", "exometer.defaults",[]}.
+
+{mapping, "exometer.pattern.all", "exometer.defaults", [{default,"_"}]}.
+{mapping, "exometer.pattern.$name", "exometer.defaults", []}.
 
 {translation, "exometer.defaults",
  fun(Conf) ->
-	 Mods = cuttlefish_util:filter_by_variable_starts_with(
-		  ["exometer", "template"], Conf),
-	 [{['_'], list_to_atom(Type), [{module, list_to_atom(Value)}]}
-	  || {[_,_,Type,"module"],Value} <- Mods]
+         Parse = fun(X) ->
+                         case erl_scan:string(X) of
+                             {ok,Toks,_} ->
+                                 erl_parse:parse_term(
+                                   Toks ++ [{dot,1}]);
+                             ScanErr ->
+                                 ScanErr
+                         end
+                 end,
+	 MkVal = fun(X) ->
+                         case Parse(X) of
+                             {ok, Term} -> Term;
+                             {error, _} -> X
+                         end
+		 end,
+	 MkKey = fun("[" ++ _ = S) ->
+                         case Parse(S) of
+                             {ok, Term} -> Term;
+                             {error, R} -> error({parse_error, R})
+                         end;
+		    (S) ->
+			 L = string:tokens(S, "."),
+			 lists:map(fun(K) ->
+					   try list_to_integer(K)
+					   catch
+					       error:_ ->
+						   list_to_atom(K)
+					   end
+				   end, L)
+		 end,
+         Pats = [{P, MkKey(V)}
+                 || {["exometer","pattern", P], V} <- Conf],
+         Templ = [{"all", list_to_atom(Type), {list_to_atom(Opt), MkVal(V)}}
+                  || {["exometer","template",Type,Opt], V} <- Conf] ++
+             [{P, list_to_atom(Type), {list_to_atom(Opt), MkVal(V)}}
+              || {["exometer","template",P,Type,Opt], V} <- Conf],
+         Grouped = lists:foldl(
+                     fun({P,T,O}, D) ->
+                             orddict:append({P,T}, O, D)
+                     end, orddict:new(), Templ),
+         Mods = lists:map(
+                  fun({{P,T}, Opts}) ->
+                          case lists:keyfind(P,1,Pats) of
+                              {_, Pat} ->
+                                  {Pat, T, Opts};
+                              false ->
+                                  if P == "all" ->
+                                          {['_'], T, Opts};
+                                     true ->
+                                          error({unknown_exometer_pattern,P})
+                                  end
+                          end
+                  end, orddict:to_list(Grouped))
+	 %% Mods = cuttlefish_util:filter_by_variable_starts_with(
+	 %%          ["exometer", "template"], Conf),
+	 %% [{['_'], list_to_atom(Type), [{module, list_to_atom(Value)}]}
+	 %%  || {[_,_,Type,"module"],Value} <- Mods]
  end}.
+
+%% exometer.report.collectd.module = exometer_report_collectd
+%% exometer.report.collectd.option.reconnect_interval = 10
+%% exometer.report.collectd.entry.a.b.2
+%% exometer.report.module.exometer_report_collectd.reconnect_interval = 10
+%% exometer.report.module.
+{mapping, "exometer.report.module.collectd", "exometer.report",
+ [{default, "exometer_report_collectd"}]
+}.
+{mapping, "exometer.report.module.$mod", "exometer.report",[]}.
+{mapping, "exometer.report.module.option.$mod.$opt", "exometer.report",[]}.
+{mapping, "exometer.report.sub.$mod.$entry", "exometer.report",[]}.
+{mapping, "exometer.report.sub.point.$mod.$entry.$point", "exometer.report",[]}.
+{mapping, "exometer.report.sub.option.$mod.$entry.$opt", "exometer.report",[]}.
+{mapping, "exometer.report.sub.interval.$mod.$entry", "exometer.report", []}.
+
+{translation, "exometer.report",
+ fun(Conf) ->
+	 K = fun(L) -> ["exometer", "report"] ++ L end,
+         Parse = fun(X) ->
+                         case erl_scan:string(X) of
+                             {ok,Toks,_} ->
+                                 erl_parse:parse_term(
+                                   Toks ++ [{dot,1}]);
+                             ScanErr ->
+                                 ScanErr
+                         end
+                 end,
+	 MkVal = fun(X) ->
+                         case Parse(X) of
+                             {ok, Term} -> Term;
+                             {error, _} -> X
+                         end
+		 end,
+	 OptInt = fun(X) -> try list_to_integer(X)
+			    catch error:_ -> X end
+		  end,
+	 MkKey = fun("[" ++ _ = S) ->
+                         case Parse(S) of
+                             {ok, Term} -> Term;
+                             {error, R} -> error({parse_error, R})
+                         end;
+		    (S) ->
+			 L = string:tokens(S, "."),
+			 lists:map(fun(K) ->
+					   try list_to_integer(K)
+					   catch
+					       error:_ ->
+						   list_to_atom(K)
+					   end
+				   end, L)
+		 end,
+	 try
+	     ModDefs = [{A,list_to_atom(M)}
+			|| {["exometer","report","module",A], M} <- Conf],
+	     Subs = [{A, proplists:get_value(A,ModDefs), E, MkKey(K)}
+		     || {["exometer","report","sub",A,E], K} <- Conf,
+			lists:keymember(A, 1, ModDefs)],
+	     Modules = lists:map(
+			 fun({Alias, Mod}) ->
+				 Opts = [{list_to_atom(K), OptInt(V)}
+					 || {["exometer","report","module","option",
+					      Alias, K], V} <- Conf],
+				 {Mod, Opts}
+			 end, ModDefs),
+             Subscribers =
+                 lists:map(
+                   fun({Alias,Mod,E,Entry}) ->
+                           Point = case [MkVal(V)
+                                         || {["exometer","report","sub",
+                                              "point",Alias,E,P], V} <- Conf] of
+                                       [P|_] -> P;
+                                       []    -> default
+                                   end,
+                           Interval =
+                               case [MkVal(V)
+                                     || {["exometer","report","sub",
+                                          "interval",Alias,E], V} <- Conf] of
+                                   [I|_] -> I;
+                                   [] -> 1000
+                               end,
+                           {Mod, Entry, Point, Interval}
+                   end, Subs),
+	     [{modules, Modules},
+	      {subscribers, Subscribers}]
+	 catch
+	     error:R -> [{error, R}]
+	 end
+ end}.
+
