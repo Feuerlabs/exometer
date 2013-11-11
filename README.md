@@ -2,9 +2,13 @@
 
 # Exometer - Erlang instrumentation package #
 
-Copyright (c) 2013 Feurelabs, Inc. All rights reserved.
+Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved..
 
+<<<<<<< HEAD
 __Version:__ Nov 11 2013 14:19:50
+=======
+__Version:__ Nov 8 2013 17:17:55
+>>>>>>> aafd75a930d43dbbfad024e2e5f46b87cc5975d4
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 

@@ -1,6 +1,6 @@
 @author Ulf Wiger <ulf.wiger@feuerlabs.com> 
 @author Magnus Feuer <magnus.feuer@feuerlabs.com> 
-@copyright 2013 Feurelabs, Inc. All rights reserved.
+@copyright 2013 Basho Technologies, Inc.  All Rights Reserved..
 @version {@version}
 @title Exometer - Erlang instrumentation package
 
