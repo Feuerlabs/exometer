@@ -23,6 +23,8 @@ with ``exometer''.
 Exometer introcuces a number of concepts and definitions used
 throughout the documentation and the code.
 
+<img src="overview.png" alt="Overview" ></img>
+
 === Metric === 
 
 A metric is a specific measurement sampled inside an Erlang system and
