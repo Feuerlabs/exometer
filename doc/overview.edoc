@@ -23,7 +23,7 @@ with ``exometer''.
 Exometer introcuces a number of concepts and definitions used
 throughout the documentation and the code.
 
-<img src="overview.png" alt="Overview" ></img>
+<img src="{@docRoot}/overview.png" alt="Overview" ></img>
 
 === Metric === 
 
