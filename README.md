@@ -4,7 +4,7 @@
 
 Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved..
 
-__Version:__ Nov 11 2013 14:46:59
+__Version:__ Nov 11 2013 15:48:31
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -414,6 +414,21 @@ exometer_report:subscribe(Recipient, Metric, DataPoint, Inteval)
 #### <a name="Set_metric_options">Set metric options</a> ####
 
 
+Each created metric can have options setup for it through the following call:
+
+```erlang
+
+exometer:setopts(Name, Options)
+
+```
+
+The `Name` paramer identifies the metric to set the options for, and
+Options is a proplist (`[{ Key, Value },...]`) with the options to be
+set. 
+
+Exometer looks up the the backing entry that hosts the metric with the given Name, and will
+invoke the entry\'s `setopts/4` function to set the actual options. Please see the`setopts/4` function for the various entries for details.
+
 
 ### <a name="Configuring_Exometer">Configuring Exometer</a> ###
 
@@ -454,7 +469,7 @@ attribute names. The following attributes make sense to preset:
 
 ```
 
-Here is an example, from `exometer/priv/app.config`:
+Below is an example, from `exometer/priv/app.config`:
 
 ```erlang
 
@@ -491,7 +506,71 @@ exometer.template.gauge.module     = exometer_folsom
 #### <a name="Configuring_static_subscriptions">Configuring static subscriptions</a> ####
 
 
-#### <a name="Configuring_report_plugins">Configuring report plugins</a> ####
+Static subscriptions, which are automatically setup at exometer startup without having to invoke `exometer_report:subscribe()`, are configured through the report sub section under exometer.
+
+Below is an example, from `exometer/priv/app.config`:
+
+```erlang
+
+ {exometer, [
+     {report, [ 
+	{ subscribers, [ 
+	  { exometer_report_collectd, [db, cache, hits], mean, 2000 } 
+	  { exometer_report_collectd, [db, cache, hits], max, 5000 } 
+        ]}
+     ]}
+  ]}
+
+```
+
+The `report` section configures static subscriptions and reporter
+plugins. See [Configuring reporter plugins](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_reporter_plugins) for details on
+how to configure individual plugins.
+
+The `subscribers` sub-section contains all static subscriptions to be
+setup att exometer applications start. Each tuple in the prop list contains four elements:
+
+1. `receiver`
+<br></br>
+
+Specifies the reporter plugin module, such as
+`exometer_report_collectd` that is to receive updated metric's data
+points.
+
+<br></br>
+
+<br></br>
+
+2. `name`
+<br></br>
+
+Specifies the path to a metric previously created with an
+`exometer:new()` call.
+
+<br></br>
+
+<br></br>
+
+3. `datapoint`
+<br></br>
+
+Specifies the data point within the given metric to send to the
+receiver. The data point must match one of the data points returned by
+`exometer:info(Name, datapoints)` for the given metrics name.
+
+<br></br>
+
+<br></br>
+
+4. `interval`
+<br></br>
+
+Specifies the interval, in milliseconds, between each update of the
+given metric's data point. At the given interval, the data point will
+be samples, and the result will be sent to the receiver.
+
+
+#### <a name="Configuring_reporter_plugins">Configuring reporter plugins</a> ####
 
 
 #### <a name="Exporting_to_collectd">Exporting to collectd</a> ####
