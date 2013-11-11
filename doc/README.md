@@ -4,7 +4,7 @@
 
 Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved..
 
-__Version:__ Nov 11 2013 15:48:31
+__Version:__ Nov 11 2013 15:50:50
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -531,40 +531,20 @@ The `subscribers` sub-section contains all static subscriptions to be
 setup att exometer applications start. Each tuple in the prop list contains four elements:
 
 1. `receiver`
-<br></br>
-
 Specifies the reporter plugin module, such as
 `exometer_report_collectd` that is to receive updated metric's data
 points.
 
-<br></br>
-
-<br></br>
-
 2. `name`
-<br></br>
-
 Specifies the path to a metric previously created with an
 `exometer:new()` call.
 
-<br></br>
-
-<br></br>
-
 3. `datapoint`
-<br></br>
-
 Specifies the data point within the given metric to send to the
 receiver. The data point must match one of the data points returned by
 `exometer:info(Name, datapoints)` for the given metrics name.
 
-<br></br>
-
-<br></br>
-
 4. `interval`
-<br></br>
-
 Specifies the interval, in milliseconds, between each update of the
 given metric's data point. At the given interval, the data point will
 be samples, and the result will be sent to the receiver.
