@@ -530,7 +530,7 @@ how to configure individual plugins.
 The `subscribers` sub-section contains all static subscriptions to be
 setup att exometer applications start. Each tuple in the prop list contains four elements:
 
-1. `receiver`
+1. `receiver`<br/>
 Specifies the reporter plugin module, such as
 `exometer_report_collectd` that is to receive updated metric's data
 points.
