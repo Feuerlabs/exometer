@@ -4,7 +4,7 @@
 
 Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved..
 
-__Version:__ Nov 13 2013 12:03:33
+__Version:__ Nov 13 2013 12:43:40
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -741,7 +741,44 @@ Specifies the mapping between metrics/datapoints and the collectd type
     webserver, https, get_count, total ], "counter" }`.
 
 
-#### <a name="Exporting_to_Hosted_Graphite">Exporting to Hosted Graphite</a> ####
+#### <a name="Configuring_graphite_reporter">Configuring graphite reporter</a> ####
+
+
+Below is an example of the collectd reporter application environment, with
+its correct location in the hierarchy:
+
+```erlang
+
+ {exometer, [
+     {report, 
+	{ modules, [ 
+	    { exometer_report_collectd, [ 
+		{ reconnect_interval, 10 },
+		{ refresh_interval, 20 }, 
+		{ hostname, "testhost" }, 
+		{ path, "/var/run/collectd-unixsock" },
+		{ plugin_name, "testname" },
+		{ type_map, 
+		  [ { [ db, cache, hits, max ], "gauge"} ]
+		}]
+	    }]
+	}]
+     }]
+ }
+
+```
+
+The following attributes are available for configuration:
+
++ `reconnect_interval` (seconds - default: 30)
+<br></br>
+Specifies the duration between each reconnect attempt to a collectd
+server that is not available. Should the server either be unavailable
+at exometer startup, or become unavailable during exometer's
+operation, exometer will attempt to reconnect at the given number of
+seconds.
+
++ `refresh_interval` (seconds - default: 10)
 
 
 #### <a name="Exporting_to_Stackdriver">Exporting to Stackdriver</a> ####

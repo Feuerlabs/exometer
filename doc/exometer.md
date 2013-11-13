@@ -144,7 +144,7 @@ value() = any()
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#create_entry-1">create_entry/1</a></td><td></td></tr><tr><td valign="top"><a href="#delete-1">delete/1</a></td><td>Delete the metric.</td></tr><tr><td valign="top"><a href="#find_entries-1">find_entries/1</a></td><td>Find metrics based on a name prefix pattern.</td></tr><tr><td valign="top"><a href="#get_value-1">get_value/1</a></td><td>Fetch the current value of the metric.</td></tr><tr><td valign="top"><a href="#get_value-2">get_value/2</a></td><td></td></tr><tr><td valign="top"><a href="#info-1">info/1</a></td><td>Returns a list of info items for Metric, see <a href="#info-2"><code>info/2</code></a>.</td></tr><tr><td valign="top"><a href="#info-2">info/2</a></td><td>Retrieves information about a metric.</td></tr><tr><td valign="top"><a href="#new-2">new/2</a></td><td>Equivalent to <a href="#new-3"><tt>new(Name, Type, [])</tt></a>.</td></tr><tr><td valign="top"><a href="#new-3">new/3</a></td><td>Create a new metrics entry.</td></tr><tr><td valign="top"><a href="#reset-1">reset/1</a></td><td>Reset the metric.</td></tr><tr><td valign="top"><a href="#sample-1">sample/1</a></td><td>Tells the metric (mainly probes) to take a sample.</td></tr><tr><td valign="top"><a href="#select-1">select/1</a></td><td>Perform an <code>ets:select()</code> on the set of metrics.</td></tr><tr><td valign="top"><a href="#select-2">select/2</a></td><td>Perform an <code>ets:select()</code> with a Limit on the set of metrics.</td></tr><tr><td valign="top"><a href="#select_cont-1">select_cont/1</a></td><td>Equivalent to <a href="ets.md#select-1"><tt>ets:select(Cont)</tt></a>.</td></tr><tr><td valign="top"><a href="#setopts-2">setopts/2</a></td><td>Change options for the metric.</td></tr><tr><td valign="top"><a href="#update-2">update/2</a></td><td>Update the given metric with <code>Value</code>.</td></tr></table>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#create_entry-1">create_entry/1</a></td><td></td></tr><tr><td valign="top"><a href="#delete-1">delete/1</a></td><td>Delete the metric.</td></tr><tr><td valign="top"><a href="#find_entries-1">find_entries/1</a></td><td>Find metrics based on a name prefix pattern.</td></tr><tr><td valign="top"><a href="#get_value-1">get_value/1</a></td><td>Fetch the current value of the metric.</td></tr><tr><td valign="top"><a href="#get_value-2">get_value/2</a></td><td></td></tr><tr><td valign="top"><a href="#get_values-1">get_values/1</a></td><td></td></tr><tr><td valign="top"><a href="#info-1">info/1</a></td><td>Returns a list of info items for Metric, see <a href="#info-2"><code>info/2</code></a>.</td></tr><tr><td valign="top"><a href="#info-2">info/2</a></td><td>Retrieves information about a metric.</td></tr><tr><td valign="top"><a href="#new-2">new/2</a></td><td>Equivalent to <a href="#new-3"><tt>new(Name, Type, [])</tt></a>.</td></tr><tr><td valign="top"><a href="#new-3">new/3</a></td><td>Create a new metrics entry.</td></tr><tr><td valign="top"><a href="#re_register-3">re_register/3</a></td><td>Create a new metrics entry, overwrite any old entry.</td></tr><tr><td valign="top"><a href="#reset-1">reset/1</a></td><td>Reset the metric.</td></tr><tr><td valign="top"><a href="#sample-1">sample/1</a></td><td>Tells the metric (mainly probes) to take a sample.</td></tr><tr><td valign="top"><a href="#select-1">select/1</a></td><td>Perform an <code>ets:select()</code> on the set of metrics.</td></tr><tr><td valign="top"><a href="#select-2">select/2</a></td><td>Perform an <code>ets:select()</code> with a Limit on the set of metrics.</td></tr><tr><td valign="top"><a href="#select_cont-1">select_cont/1</a></td><td>Equivalent to <a href="ets.md#select-1"><tt>ets:select(Cont)</tt></a>.</td></tr><tr><td valign="top"><a href="#setopts-2">setopts/2</a></td><td>Change options for the metric.</td></tr><tr><td valign="top"><a href="#update-2">update/2</a></td><td>Update the given metric with <code>Value</code>.</td></tr></table>
 
 
 <a name="functions"></a>
@@ -232,6 +232,13 @@ get_value(Name::<a href="#type-name">name()</a>, DataPoints::[atom()]) -&gt; {ok
 
 <br></br>
 
+
+
+<a name="get_values-1"></a>
+
+### get_values/1 ###
+
+`get_values(Path) -> any()`
 
 
 <a name="info-1"></a>
@@ -327,6 +334,25 @@ caching will be performed.
 is `disabled`, calls to [`get_value/1`](#get_value-1) will return `{ok, unavailable}`,
 and calls to [`update/2`](#update-2) and [`sample/1`](#sample-1) will return `ok` but
 will do nothing.
+<a name="re_register-3"></a>
+
+### re_register/3 ###
+
+
+<pre><code>
+re_register(Name::<a href="#type-name">name()</a>, Type0::<a href="#type-type">type()</a>, Opts0::<a href="#type-options">options()</a>) -&gt; ok
+</code></pre>
+
+<br></br>
+
+
+
+Create a new metrics entry, overwrite any old entry.
+
+
+This function behaves as [`new/3`](#new-3), but will not fail if an entry
+with the same name already exists. Instead, the old entry will be replaced
+by the new.
 <a name="reset-1"></a>
 
 ### reset/1 ###

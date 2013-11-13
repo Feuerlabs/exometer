@@ -172,7 +172,7 @@
 -compile(export_all).
 
 -import(lists, [reverse/1, sublist/3]).
--import(exometer, [timestamp/0]).
+-import(exometer_util, [timestamp/0]).
 
 
 
