@@ -4,7 +4,7 @@
 
 Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved..
 
-__Version:__ Nov 12 2013 16:34:15
+__Version:__ Nov 13 2013 11:44:40
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -298,20 +298,17 @@ HostName/PluginName-PluginInstance/Type-Metric_DataPoint
 Host name of the entry. 
 Configurable through the `hostname` application environment parameter. 
 Default is the value returned by `netadm:localhost()`.
-
 2. `PluginName`
 
 The collectd plugin name.
 Configurable through the `plugin_name` application environment parameter. 
 Default is `exometer`.
-
 3. `PluginInstance`
 
 The instance ID to use for the plugin.
 Configurable through the `plugin_instance` application environment parameter.
 Default is the erlang node name in the left hand side of the value
 returned by `node()`.
-
 4. `Type`
 
 Type assigned to the reported value.
@@ -322,13 +319,11 @@ the metric/data point will be used as the `Type` component in the
 collectd identifier. Please see types.db(5) for a list of available
 collectd types.
 Default for `Type` is 'gauge'.
-
 5. `Metric`
 
 The name of the metric. The atoms in the metric list will be converted
 to a string separated by `_`. Thus `[ db, cache, hits ]` will be converted
 to `db_cache_hits`.
-
 6. `DataPoint`
 
 The data point of the given metric.
