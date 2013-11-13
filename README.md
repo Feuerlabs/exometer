@@ -4,7 +4,7 @@
 
 Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved..
 
-__Version:__ Nov 13 2013 11:56:33
+__Version:__ Nov 13 2013 11:57:33
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -293,8 +293,9 @@ HostName/PluginName-PluginInstance/Type-Metric_DataPoint
 
 ```
 
-+ `HostName` 
-    Host name of the entry. 
++ `HostName`
+<br></br>
+Host name of the entry. 
     Configurable through the `hostname` application environment parameter. 
     Default is the value returned by `netadm:localhost()`.
 
