@@ -43,6 +43,7 @@
 -define(RECONNECT_INTERVAL, 30). %% seconds
 -define(READ_TIMEOUT, 5000).
 -define(REFRESH_INTERVAL, 10). %% seconds
+-define(DEFAULT_PATH, "/var/run/collectd-unixsock").
 
 -record(st, {
 	  hostname = undefined,
@@ -92,7 +93,7 @@ exometer_unsubscribe(Metric, DataPoint, St) ->
 
 init(Opts) ->
     io:format("Exometer exometer Reporter: Opts: ~p~n", [Opts]),
-    SockPath = get_opt(path, Opts),
+    SockPath = get_opt(path, Opts, ?DEFAULT_PATH),
     ConnectTimeout = get_opt(connect_timeout, Opts, ?CONNECT_TIMEOUT),
     ReconnectInterval = get_opt(reconnect_interval, Opts, ?RECONNECT_INTERVAL) * 1000,
 
@@ -215,7 +216,7 @@ report_exometer_(Metric, DataPoint, Value, #st{
 				     type_spec = TypeSpec} = St) ->
     io:format("report~n"),
 
-    Type = find_type(TypeSpec, name(Metric, DataPoint)),
+    Type = find_type(TypeSpec, ets_key(Metric, DataPoint)),
     Request = "PUTVAL " ++ HostName ++ "/" ++  
 	PluginName ++ "-" ++ PluginInstance ++ "/" ++
 	Type ++ "-" ++ name(Metric, DataPoint) ++ " " ++
@@ -302,12 +303,6 @@ unix_time() ->
 
 datetime_to_unix_time({{_,_,_},{_,_,_}} = DateTime) ->
     calendar:datetime_to_gregorian_seconds(DateTime) - ?UNIX_EPOCH.
-
-get_opt(K, Opts) ->
-    case lists:keyfind(K, 1, Opts) of
-	{_, V} -> V;
-	false  -> error({required, K})
-    end.
 
 get_opt(K, Opts, Default) ->
     case lists:keyfind(K, 1, Opts) of
