@@ -4,7 +4,7 @@
 
 Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved..
 
-__Version:__ Nov 12 2013 16:26:17
+__Version:__ Nov 12 2013 16:31:07
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -293,8 +293,6 @@ HostName/PluginName-PluginInstance/Type-Metric_DataPoint
 
 ```
 
-p
-
 1. `HostName` 
 Host name of the entry. 
 
@@ -304,16 +302,12 @@ Default is the value returned by `netadm:localhost()`.
 
 2. `PluginName`
 The collectd plugin name.
-
 Configurable through the `plugin_name` application environment parameter. 
-
 Default is `exometer`.
 
 3. `PluginInstance`
 The instance ID to use for the plugin.
-
 Configurable through the `plugin_instance` application environment parameter.
-
 Default is the erlang node name in the left hand side of the value
 returned by `node()`.
 
@@ -325,7 +319,6 @@ such as `[ db, cache, hits, median ]`. The type that is resolved from
 the metric/data point will be used as the `Type` component in the
 collectd identifier. Please see types.db(5) for a list of available
 collectd types.
-
 Default for `Type` is 'gauge'.
 
 5. `Metric`
@@ -587,21 +580,29 @@ The `subscribers` sub-section contains all static subscriptions to be
 setup att exometer applications start. Each tuple in the prop list
 contains four elements:
 
-1. `receiver`
+1. `receiver` (module name atom)
+<br></br>
+
 Specifies the reporter plugin module, such as
 `exometer_report_collectd` that is to receive updated metric's data
 points.
 
-2. `name`
+2. `name` (list of atoms)
+<br></br>
+
 Specifies the path to a metric previously created with an
 `exometer:new()` call.
 
-3. `datapoint`
+3. `datapoint` (atom)
+<br></br>
+
 Specifies the data point within the given metric to send to the
 receiver. The data point must match one of the data points returned by
 `exometer:info(Name, datapoints)` for the given metrics name.
 
-4. `interval`
+4. `interval` (milliseconds)
+<br></br>
+
 Specifies the interval, in milliseconds, between each update of the
 given metric's data point. At the given interval, the data point will
 be samples, and the result will be sent to the receiver.
@@ -649,9 +650,13 @@ its correct location in the hierarchy:
 The following attributes are available for configuration:
 
 1. `reconnect_interval` (seconds - default: 30)
+<br></br>
+
 Specifies the duration between each reconnect attempt to a collectd server that is not available. Should the server either be unavailable at exometer startup, or become unavailable during exometer's operation, exometer will attempt to reconnect at the given number of seconds.
 
 2. `refresh_interval` (seconds - default: 10)
+<br></br>
+
 Specifies how often a value, which has not been updated by exometer,
 is to be resent with its current value to collectd. If collectd does
 not see an identifier updated at a given number of seconds (see
@@ -659,6 +664,8 @@ Timeout in collectd.conf(5)), it will be removed from the list of
 maintained identifiers.
 
 3. `read_timeout` (milliseconds - default: 5000)
+<br></br>
+
 Specifies how long the collectd reporter plugin shall wait for an
 acknowledgement from collectd after sending it an updated value.  If
 an acknowledgment is not received within the given interval, the
@@ -666,6 +673,8 @@ plugin will disconnect from the collectd server and reconnect to it
 after the given reconnect interval (see item one above).
 
 4. `connect_timeout` (milliseconds - default: 5000)
+<br></br>
+
 Specifies how long the collectd reporter plugin shall wait for a unix
 socket connection to complete before timing out. A timed out
 connection attempt will be retried after the reconnect interval has
@@ -677,22 +686,32 @@ on. When exometer starts and loads the collectd reporter plugin, the
 plugin will connect to the given socket.
 
 6. `plugin_name` (string - default: "exometer")
+<br></br>
+
 Specifies the plugin name to use when constructing an collectd identifier.
 Please see [Configuring collectd reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_collectd_reporter) for details.
 
 7. `plugin_instance` (string - default: left hand side of `node()`)
+<br></br>
+
 Specifies the plugin instance id to use when constructing an collectd identifier.
 Please see [Configuring collectd reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_collectd_reporter) for details.
 
 8. `plugin_instance` (string - default: left hand side of `node()`)
+<br></br>
+
 Specifies the plugin instance id to use when constructing an collectd identifier.
 Please see [Configuring collectd reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_collectd_reporter) for details.
 
 9. `hostname` (string - default: `net_adm:localhost()`)
+<br></br>
+
 Specifies the host name to use when constructing an collectd identifier.
 Please see [Configuring collectd reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_collectd_reporter) for details.
 
 9. `type_map` (prop list - default: n/a)
+<br></br>
+
 Specifies the mapping between metrics/datapoints and the collectd type
 to use when sending an updated metric value. See below.
 
