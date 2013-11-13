@@ -4,7 +4,7 @@
 
 Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved..
 
-__Version:__ Nov 13 2013 12:01:00
+__Version:__ Nov 13 2013 12:03:33
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -295,33 +295,42 @@ HostName/PluginName-PluginInstance/Type-Metric_DataPoint
 
 + `HostName`
 <br></br>
-Host name of the entry. 
-    Configurable through the `hostname` application environment parameter. 
-    Default is the value returned by `netadm:localhost()`.
+Host name of the entry.
+<br></br>
+Configurable through the `hostname` application environment parameter.
+<br></br>
+Default is the value returned by `netadm:localhost()`.
 
 + `PluginName`
 <br></br>
 The collectd plugin name.
-    Configurable through the `plugin_name` application environment parameter. 
-    Default is `exometer`.
+<br></br>
+Configurable through the `plugin_name` application environment parameter.
+<br></br>
+Default is `exometer`.
 
 + `PluginInstance`
 <br></br>
 The instance ID to use for the plugin.
-    Configurable through the `plugin_instance` application environment parameter.
-    Default is the erlang node name in the left hand side of the value
+<br></br>
+Configurable through the `plugin_instance` application environment parameter.
+<br></br>
+Default is the erlang node name in the left hand side of the value
     returned by `node()`.
 
 + `Type`
 <br></br>
 Type assigned to the reported value.
-    The type is looked up through the `type_map` .
-    The given metric and data points are used as a key in a list format,
+<br></br>
+The type is looked up through the `type_map`.
+<br></br>
+The given metric and data points are used as a key in a list format,
     such as `[ db, cache, hits, median ]`. The type that is resolved from
     the metric/data point will be used as the `Type` component in the
     collectd identifier. Please see types.db(5) for a list of available
     collectd types.
-    Default for `Type` is 'gauge'.
+<br></br>
+Default for `Type` is 'gauge'.
 
 + `Metric`
 <br></br>
@@ -707,23 +716,29 @@ Specifies the host name to use when constructing an collectd identifier.
 + `type_map` (prop list - default: n/a)
 <br></br>
 Specifies the mapping between metrics/datapoints and the collectd type
-to use when sending an updated metric value. See below.
+    to use when sending an updated metric value. See below.
+<br></br>
 
-Type maps must be provided since there is no natural connection
-between the type of a metric/datapoint pair and an identifier in
-collectd. The `type_map` consists of a prop list that converts a path
-to a metric/datapoint to a string that can be used as a type when
-reporting to collectd.
+<br></br>
 
-The key part of each element in the list consists of a list of atoms
-that matches the name of the metrics, with the name of the data point
-added as a final element. If the metric is identified as `[ webserver,
-https, get_count ]`, and the data point is called `total`, the key in
-the type_map would be `[ webserver, https, get_count, total ]`, The
-value part of a property is the type string to use when reporting to
-collectd. Please see types.db(5) for a list of available collectd
-types.  A complete entry in the `type_map` list would be: `{ [
-webserver, https, get_count, total ], "counter" }`.
+    Type maps must be provided since there is no natural connection
+    between the type of a metric/datapoint pair and an identifier in
+    collectd. The `type_map` consists of a prop list that converts a path
+    to a metric/datapoint to a string that can be used as a type when
+    reporting to collectd.
+<br></br>
+
+<br></br>
+
+    The key part of each element in the list consists of a list of atoms
+    that matches the name of the metrics, with the name of the data point
+    added as a final element. If the metric is identified as `[ webserver,
+    https, get_count ]`, and the data point is called `total`, the key in
+    the type_map would be `[ webserver, https, get_count, total ]`, The
+    value part of a property is the type string to use when reporting to
+    collectd. Please see types.db(5) for a list of available collectd
+    types.  A complete entry in the `type_map` list would be: `{ [
+    webserver, https, get_count, total ], "counter" }`.
 
 
 #### <a name="Exporting_to_Hosted_Graphite">Exporting to Hosted Graphite</a> ####
