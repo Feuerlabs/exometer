@@ -41,6 +41,7 @@
 
 -export([new/2,
 	 new/3,
+	 re_register/3,
 	 update/2,
 	 get_value/1,
 	 get_value/2,
@@ -49,6 +50,7 @@
 	 reset/1,
 	 setopts/2,
 	 find_entries/1,
+	 get_values/1,
 	 select/1, select/2, select_cont/1,
 	 info/1,
 	 info/2]).
@@ -99,6 +101,19 @@ new(Name, Type0, Opts0) when is_list(Name), is_list(Opts0) ->
 		  end,
     exometer_admin:new_entry(Name, Type, Opts).
 
+-spec re_register(name(), type(), options()) -> ok.
+%% @doc Create a new metrics entry, overwrite any old entry.
+%%
+%% This function behaves as {@link new/3}, but will not fail if an entry
+%% with the same name already exists. Instead, the old entry will be replaced
+%% by the new.
+%% @end
+re_register(Name, Type0, Opts0) when is_list(Name), is_list(Opts0) ->
+    {Type,Opts} = if is_tuple(Type0) -> {element(1,Type0),
+					 [{type_arg, Type0}|Opts0]};
+		     true -> {Type0, Opts0}
+		  end,
+    exometer_admin:re_register_entry(Name, Type, Opts).
 
 
 -spec update(name(), value()) -> ok | error().
@@ -181,12 +196,7 @@ get_value_(#exometer_entry{status = Status, cache = Cache,
 	   DataPoints) ->
     if Status == enabled ->
 	    if Cache > 0 ->
-		    case exometer_cache:read(Name) of
-			{ok, Value} -> Value;
-			error ->
-			    cache(Cache, Name,
-				  M:get_value(Name, Type, Ref, DataPoints))
-		    end;
+		    exometer_cache:read(Name, M, Type, Ref, DataPoints);
 	       Cache == 0 ->
 		    M:get_value(Name, Type, Ref, DataPoints)
 	    end;
@@ -459,6 +469,18 @@ find_entries(Path) ->
 		   [{{ {element, #exometer_entry.name, '$_'},
 		       {element, #exometer_entry.type, '$_'},
 		       {element, #exometer_entry.status, '$_'} }}] } ]).
+
+get_values(Path) ->
+    Entries = find_entries(Path),
+    lists:foldr(
+      fun({Name, _Type, enabled}, Acc) ->
+	      case get_value(Name) of
+		  {ok, V} ->
+		      [{Name, V}|Acc];
+		  {error,not_found} ->
+		      Acc
+	      end
+      end, [], Entries).
 
 -spec select(ets:match_spec()) ->
 		    '$end_of_table' | [{name(), type(), status()}].
