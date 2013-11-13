@@ -4,7 +4,7 @@
 
 Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved..
 
-__Version:__ Nov 12 2013 16:31:07
+__Version:__ Nov 12 2013 16:32:15
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -650,12 +650,16 @@ its correct location in the hierarchy:
 The following attributes are available for configuration:
 
 1. `reconnect_interval` (seconds - default: 30)
-<br></br>
 
-Specifies the duration between each reconnect attempt to a collectd server that is not available. Should the server either be unavailable at exometer startup, or become unavailable during exometer's operation, exometer will attempt to reconnect at the given number of seconds.
+Specifies the duration between each reconnect attempt to a collectd
+server that is not available. Should the server either be unavailable
+at exometer startup, or become unavailable during exometer's
+operation, exometer will attempt to reconnect at the given number of
+seconds.
 
 2. `refresh_interval` (seconds - default: 10)
 <br></br>
+
 
 Specifies how often a value, which has not been updated by exometer,
 is to be resent with its current value to collectd. If collectd does
@@ -709,7 +713,7 @@ Please see [Configuring collectd reporter](https://github.com/Feuerlabs/exometer
 Specifies the host name to use when constructing an collectd identifier.
 Please see [Configuring collectd reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_collectd_reporter) for details.
 
-9. `type_map` (prop list - default: n/a)
+10. `type_map` (prop list - default: n/a)
 <br></br>
 
 Specifies the mapping between metrics/datapoints and the collectd type
