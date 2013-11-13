@@ -5,10 +5,6 @@
 * [Function Details](#functions)
 
 __Behaviours:__ [`exometer_entry`](exometer_entry.md), [`gen_server`](gen_server.md).
-
-__This module defines the `exometer_probe` behaviour.__
-<br></br>
- Required callback functions: `probe_init/3`, `probe_terminate/1`, `probe_setopts/2`, `probe_update/2`, `probe_get_value/2`, `probe_get_datapoints/1`, `probe_reset/1`, `probe_sample/1`, `probe_handle_call/3`, `probe_handle_cast/2`, `probe_handle_info/2`, `probe_code_change/3`.
 <a name="index"></a>
 
 ## Function Index ##
