@@ -4,7 +4,7 @@
 
 Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved..
 
-__Version:__ Nov 11 2013 15:50:50
+__Version:__ Nov 12 2013 16:26:17
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -285,6 +285,60 @@ to keep it from expiring inside `collectd`.
 If the `collectd` connection is lost, the reporter will attempt to reconnect to it
 at a configurable interval.
 
+All metrics reported to collectd will be have identifiers formatted as follows:
+
+```
+
+HostName/PluginName-PluginInstance/Type-Metric_DataPoint
+
+```
+
+p
+
+1. `HostName` 
+Host name of the entry. 
+
+Configurable through the `hostname` application environment parameter. 
+
+Default is the value returned by `netadm:localhost()`.
+
+2. `PluginName`
+The collectd plugin name.
+
+Configurable through the `plugin_name` application environment parameter. 
+
+Default is `exometer`.
+
+3. `PluginInstance`
+The instance ID to use for the plugin.
+
+Configurable through the `plugin_instance` application environment parameter.
+
+Default is the erlang node name in the left hand side of the value
+returned by `node()`.
+
+4. `Type`
+Type assigned to the reported value.
+The type is looked up through the `type_map` .
+The given metric and data points are used as a key in a list format,
+such as `[ db, cache, hits, median ]`. The type that is resolved from
+the metric/data point will be used as the `Type` component in the
+collectd identifier. Please see types.db(5) for a list of available
+collectd types.
+
+Default for `Type` is 'gauge'.
+
+5. `Metric`
+The name of the metric. The atoms in the metric list will be converted
+to a string separated by `_`. Thus `[ db, cache, hits ]` will be converted
+to `db_cache_hits`.
+
+6. `DataPoint`
+The data point of the given metric.
+
+Please see [Configuring collectd reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_collectd_reporter) for details on the
+application environment parameters listed above.
+
 
 ### <a name="Instrumenting_Erlang_code">Instrumenting Erlang code</a> ###
 
@@ -506,7 +560,9 @@ exometer.template.gauge.module     = exometer_folsom
 #### <a name="Configuring_static_subscriptions">Configuring static subscriptions</a> ####
 
 
-Static subscriptions, which are automatically setup at exometer startup without having to invoke `exometer_report:subscribe()`, are configured through the report sub section under exometer.
+Static subscriptions, which are automatically setup at exometer
+startup without having to invoke `exometer_report:subscribe()`, are
+configured through the report sub section under exometer.
 
 Below is an example, from `exometer/priv/app.config`:
 
@@ -528,9 +584,10 @@ plugins. See [Configuring reporter plugins](https://github.com/Feuerlabs/exomete
 how to configure individual plugins.
 
 The `subscribers` sub-section contains all static subscriptions to be
-setup att exometer applications start. Each tuple in the prop list contains four elements:
+setup att exometer applications start. Each tuple in the prop list
+contains four elements:
 
-1. `receiver`<br/>
+1. `receiver`
 Specifies the reporter plugin module, such as
 `exometer_report_collectd` that is to receive updated metric's data
 points.
@@ -553,7 +610,107 @@ be samples, and the result will be sent to the receiver.
 #### <a name="Configuring_reporter_plugins">Configuring reporter plugins</a> ####
 
 
-#### <a name="Exporting_to_collectd">Exporting to collectd</a> ####
+The various reporter plugins to be loaded by exometer are configured
+in the `report` section under `modules`
+
+Each reporter has an entry named after its module, and the content of
+that entry is dependent on the reporter itself. The following chapters
+specifies the configuration parameters for the reporters shipped with
+exometer.
+
+
+#### <a name="Configuring_collectd_reporter">Configuring collectd reporter</a> ####
+
+
+Below is an example of the collectd reporter application environment, with
+its correct location in the hierarchy:
+
+```erlang
+
+ {exometer, [
+     {report, 
+	{ modules, [ 
+	    { exometer_report_collectd, [ 
+		{ reconnect_interval, 10 },
+		{ refresh_interval, 20 }, 
+		{ hostname, "testhost" }, 
+		{ path, "/var/run/collectd-unixsock" },
+		{ plugin_name, "testname" },
+		{ type_map, 
+		  [ { [ db, cache, hits, max ], "gauge"} ]
+		}]
+	    }]
+	}]
+     }]
+ }
+
+```
+
+The following attributes are available for configuration:
+
+1. `reconnect_interval` (seconds - default: 30)
+Specifies the duration between each reconnect attempt to a collectd server that is not available. Should the server either be unavailable at exometer startup, or become unavailable during exometer's operation, exometer will attempt to reconnect at the given number of seconds.
+
+2. `refresh_interval` (seconds - default: 10)
+Specifies how often a value, which has not been updated by exometer,
+is to be resent with its current value to collectd. If collectd does
+not see an identifier updated at a given number of seconds (see
+Timeout in collectd.conf(5)), it will be removed from the list of
+maintained identifiers.
+
+3. `read_timeout` (milliseconds - default: 5000)
+Specifies how long the collectd reporter plugin shall wait for an
+acknowledgement from collectd after sending it an updated value.  If
+an acknowledgment is not received within the given interval, the
+plugin will disconnect from the collectd server and reconnect to it
+after the given reconnect interval (see item one above).
+
+4. `connect_timeout` (milliseconds - default: 5000)
+Specifies how long the collectd reporter plugin shall wait for a unix
+socket connection to complete before timing out. A timed out
+connection attempt will be retried after the reconnect interval has
+passed see item 1 above).
+
+5. `socket_path` (path - default: "/var/run/collectd-unixsock")
+Specifies the path to the named unix socket that collectd is listening
+on. When exometer starts and loads the collectd reporter plugin, the
+plugin will connect to the given socket.
+
+6. `plugin_name` (string - default: "exometer")
+Specifies the plugin name to use when constructing an collectd identifier.
+Please see [Configuring collectd reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_collectd_reporter) for details.
+
+7. `plugin_instance` (string - default: left hand side of `node()`)
+Specifies the plugin instance id to use when constructing an collectd identifier.
+Please see [Configuring collectd reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_collectd_reporter) for details.
+
+8. `plugin_instance` (string - default: left hand side of `node()`)
+Specifies the plugin instance id to use when constructing an collectd identifier.
+Please see [Configuring collectd reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_collectd_reporter) for details.
+
+9. `hostname` (string - default: `net_adm:localhost()`)
+Specifies the host name to use when constructing an collectd identifier.
+Please see [Configuring collectd reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_collectd_reporter) for details.
+
+9. `type_map` (prop list - default: n/a)
+Specifies the mapping between metrics/datapoints and the collectd type
+to use when sending an updated metric value. See below.
+
+Type maps must be provided since there is no natural connection
+between the type of a metric/datapoint pair and an identifier in
+collectd. The `type_map` consists of a prop list that converts a path
+to a metric/datapoint to a string that can be used as a type when
+reporting to collectd.
+
+The key part of each element in the list consists of a list of atoms
+that matches the name of the metrics, with the name of the data point
+added as a final element. If the metric is identified as `[ webserver,
+https, get_count ]`, and the data point is called `total`, the key in
+the type_map would be `[ webserver, https, get_count, total ]`, The
+value part of a property is the type string to use when reporting to
+collectd. Please see types.db(5) for a list of available collectd
+types.  A complete entry in the `type_map` list would be: `{ [
+webserver, https, get_count, total ], "counter" }`.
 
 
 #### <a name="Exporting_to_Hosted_Graphite">Exporting to Hosted Graphite</a> ####
