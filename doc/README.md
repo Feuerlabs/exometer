@@ -4,7 +4,7 @@
 
 Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved..
 
-__Version:__ Nov 13 2013 19:32:03
+__Version:__ Nov 14 2013 09:56:24
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -1077,17 +1077,10 @@ options.
 
 
 ### <a name="Creating_custom_probes">Creating custom probes</a> ###
-
 Probes are exometer entries running in their own processes, allowing
 them to have their own state. Most custom probes implements the
 `exometer_probe` behavior together with `gen_server`.
 
-PROBES WILL BE UPDATED SOON WITH A NEW STRUCTURE - DOCUMENTATION TO FOLLOW.
-
-
-### <a name="Creating_custom_report_plugins">Creating custom report plugins</a> ###
-
-Plugins
 
 ## Modules ##
 
