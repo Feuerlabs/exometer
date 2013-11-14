@@ -4,7 +4,7 @@
 
 Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved..
 
-__Version:__ Nov 13 2013 17:05:40
+__Version:__ Nov 13 2013 17:07:36
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -723,8 +723,7 @@ Specifies the mapping between metrics/datapoints and the collectd type
 <br></br>
 
 <br></br>
-
-    Type maps must be provided since there is no natural connection
+Type maps must be provided since there is no natural connection
     between the type of a metric/datapoint pair and an identifier in
     collectd. The `type_map` consists of a prop list that converts a path
     to a metric/datapoint to a string that can be used as a type when
@@ -732,8 +731,7 @@ Specifies the mapping between metrics/datapoints and the collectd type
 <br></br>
 
 <br></br>
-
-    The key part of each element in the list consists of a list of atoms
+The key part of each element in the list consists of a list of atoms
     that matches the name of the metrics, with the name of the data point
     added as a final element. If the metric is identified as `[ webserver,
     https, get_count ]`, and the data point is called `total`, the key in
