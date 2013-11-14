@@ -18,6 +18,56 @@ This document gives a high level overview of the Exometer system. For
 details, please see the documentation for individual modules, starting
 with ``exometer''.
 
+== Table of Content ==
+<br/>1\. {@section Concept and definitions}
+<br/>1.1 {@section Metric}
+<br/>1.2 {@section Data Point}
+<br/>1.3 {@section Metric Type}
+<br/>1.4 {@section Entry Callback}
+<br/>1.5 {@section Probe}
+<br/>1.6 {@section Caching}
+<br/>1.7 {@section Subscriptions and Reporters}
+<br/>2\. {@section Built-in entries and probes}
+<br/>2.1 {@section counter (exometer native)}
+<br/>2.2 {@section fast_counter (exometer native)}
+<br/>2.3 {@section exometer_histogram (probe)}
+<br/>2.4 {@section exometer_uniform (probe)}
+<br/>2.5 {@section exometer_spiral (probe)}
+<br/>2.6 {@section exometer_folsom [entry]}
+<br/>2.7 {@section exometer_function [entry]}
+<br/>3\. {@section Built in Reporters}
+<br/>3.1 {@section exometer_report_graphite}
+<br/>3.2 {@section exometer_report_collectd}
+<br/>4\. {@section Instrumenting Erlang code}
+<br/>4.1 {@section Exometer Start}
+<br/>4.2 {@section Creating metrics }
+<br/>4.3 {@section Deleting metrics }
+<br/>4.4 {@section Setting metric values }
+<br/>4.5 {@section Retrieving metric values}
+<br/>4.6 {@section Setting up subscriptions}
+<br/>4.7 {@section Set metric options}
+<br/>5\. {@section Configuring Exometer}
+<br/>5.1 {@section Configuring type - entry maps}
+<br/>5.2 {@section Configuring static subscriptions }
+<br/>5.3 {@section Configuring reporter plugins}
+<br/>5.4 {@section Configuring collectd reporter}
+<br/>5.5 {@section Configuring graphite reporter}
+<br/>6\. {@section Creating custom exometer entries}
+<br/>6.1 {@section new/3}
+<br/>6.2 {@section delete/3}
+<br/>6.3 {@section get_value/4}
+<br/>6.4 {@section update/4}
+<br/>6.5 {@section reset/3}
+<br/>6.6 {@section sample/3}
+<br/>6.7 {@section get_datapoints/3}
+<br/>6.8 {@section setopts/4}
+<br/>7\. {@section Creating custom probes}
+<br/>8\. {@section Creating custom reporter plugins}
+<br/>8.1. {@section exometer_init/1}
+<br/>8.2 {@section exometer_subscribe/3}
+<br/>8.3 {@section exometer_report/4}
+<br/>8.4 {@section exometer_unsubscribe/3}
+
 == Concepts and Definitions ==
 
 Exometer introcuces a number of concepts and definitions used
@@ -70,7 +120,7 @@ defaults configuration data.
 The metric type, in other words, is only used to map a metric to a
 configurable ``exometer_entry'' callback.
 
-=== Entry Callbacks ===
+=== Entry Callback ===
 
 An exometer entry callback will receive values reported to a metric through the
 `exometer:update()' call and compile it into one or more data points.
@@ -85,7 +135,7 @@ An entry can also interface external analytics packages.
 `exometer_folsom', for example, integrates with the
 `folsom_metrics' package found at [https://github.com/boundary/folsom].
 
-=== Probes ===
+=== Probe ===
 
 Probes are a further specialization of exometer entries that run in
 their own Erlang processes and have their own state (like a
