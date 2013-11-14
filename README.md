@@ -4,7 +4,7 @@
 
 Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved..
 
-__Version:__ Nov 13 2013 17:09:19
+__Version:__ Nov 13 2013 17:10:21
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -816,6 +816,11 @@ in the exometer_entry behavior.
 #### <a name="new/3">new/3</a> ####
 
 The `new()` function is invoked as follows:
+
+```
+   erlang
+     new(Name, Type, Options)
+```
 
 ```erlang
 
