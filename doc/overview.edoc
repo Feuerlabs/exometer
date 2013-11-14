@@ -925,12 +925,11 @@ Probes are exometer entries running in their own processes, allowing
 them to have their own state. Most custom probes implements the
 `exometer_probe' behavior together with `gen_server'.
 
-@TODO: PROBES WILL BE UPDATED SOON WITH A NEW STRUCTURE -
-       DOCUMENTATION TO FOLLOW.
+** PROBES WILL BE UPDATED SOON WITH A NEW STRUCTURE -  DOCUMENTATION TO FOLLOW. **
 
 == Creating custom reporter plugins ==
-@todo: Move plugins into their own gen_serv processes to avoid having
-       them blocking the rest of the reporting system on delays.
+*Move plugins into their own gen_serv processes to avoid having
+       them blocking the rest of the reporting system on delays.*
 
 A custom reporter plugin can receive updated metric values by having
 its module referenced in an `exometer_report:subscribe()' call.
