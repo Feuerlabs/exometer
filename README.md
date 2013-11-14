@@ -27,7 +27,9 @@ with `exometer`.
 
 
 1\. [Concept and definitions](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Concept_and_definitions)
+
 1.1 [Metric](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Metric)
+
 1.2 [Data Point](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Data_Point)
 1.3 [Metric Type](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Metric_Type)
 1.4 [Entry Callback](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Entry_Callback)
