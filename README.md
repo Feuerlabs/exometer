@@ -4,7 +4,7 @@
 
 Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved..
 
-__Version:__ Nov 13 2013 17:07:36
+__Version:__ Nov 13 2013 17:09:19
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -290,7 +290,6 @@ All metrics reported to collectd will be have identifiers formatted as follows:
 ```
 
 HostName/PluginName-PluginInstance/Type-Metric_DataPoint
-
 ```
 
 + `HostName`
@@ -360,7 +359,6 @@ The system using Exometer must start the `exometer` application prior to using i
 ```erlang
 
 application:start(exometer).
-
 ```
 
 Once started, the default mapping between metrics and the entries
@@ -369,7 +367,6 @@ is loaded from the configuration data:
 ```erlang
 
 exometer_admin:preset_defaults().
-
 ```
 
 See [Configuring Exometer](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_Exometer) for details on configuration data
@@ -383,7 +380,6 @@ A metric, can be created throuh a call to
 ```erlang
 
 exometer:new(Name, Type)
-
 ```
 
 `Name` is a list of atoms, uniquely identifying the metric created.
@@ -412,7 +408,6 @@ A created metric can have its value updated through the
 ```erlang
 
 exometer:update(Name, Value)
-
 ```
 
 The `Name` parameter is the same atom list provided to a previous
@@ -433,7 +428,6 @@ data points are available for a metric, the following call can be used:
 ```erlang
 
 exometer:info(Name, datapoints)
-
 ```
 
 The `Name` parameter is the same atom list provided to a previous
@@ -444,7 +438,6 @@ retrieve their actual value:
 ```erlang
 
 exometer:get_value(Name, DataPoint)
-
 ```
 
 The `Name` paramer identifies the metric, and `DataPoints`
@@ -466,7 +459,6 @@ A dynamic subscription can be setup with the following call:
 ```erlang
 
 exometer_report:subscribe(Recipient, Metric, DataPoint, Inteval)
-
 ```
 
 `Recipient` is the name of a reporter.
@@ -480,7 +472,6 @@ Each created metric can have options setup for it through the following call:
 ```erlang
 
 exometer:setopts(Name, Options)
-
 ```
 
 The `Name` paramer identifies the metric to set the options for, and
@@ -505,7 +496,6 @@ The dynamic method of configuring defaults for `exometer` entries is:
 ```erlang
 
 exometer_admin:set_default(NamePattern, Type, Default)
-
 ```
 
 Where `NamePattern` is a list of terms describing what is essentially
@@ -527,7 +517,6 @@ attribute names. The following attributes make sense to preset:
 {status, enabled | disabled}  % operational status of the entry
 {cache, non_neg_integer()}    % cache lifetime (ms)
 {options, [{atom(), any()}]}  % entry-specific options
-
 ```
 
 Below is an example, from `exometer/priv/app.config`:
@@ -544,7 +533,6 @@ Below is an example, from `exometer/priv/app.config`:
                {['_'], meter    , [{module, exometer_folsom}]},
                {['_'], gauge    , [{module, exometer_folsom}]}
               ]}
-
 ```
 
 In systems that use CuttleFish, the file `exometer/priv/exometer.schema`
@@ -560,7 +548,6 @@ exometer.template.spiral.module    = exometer_spiral
 exometer.template.duration.module  = exometer_folsom
 exometer.template.meter.module     = exometer_folsom
 exometer.template.gauge.module     = exometer_folsom
-
 ```
 
 
@@ -583,7 +570,6 @@ Below is an example, from `exometer/priv/app.config`:
         ]}
      ]}
   ]}
-
 ```
 
 The `report` section configures static subscriptions and reporter
@@ -654,7 +640,6 @@ its correct location in the hierarchy:
 	}]
      }]
  }
-
 ```
 
 The following attributes are available for configuration:
@@ -719,27 +704,23 @@ Specifies the host name to use when constructing an collectd identifier.
 + `type_map` (prop list - default: n/a)
 <br></br>
 Specifies the mapping between metrics/datapoints and the collectd type
-    to use when sending an updated metric value. See below.
-<br></br>
+to use when sending an updated metric value. See below.
 
-<br></br>
 Type maps must be provided since there is no natural connection
-    between the type of a metric/datapoint pair and an identifier in
-    collectd. The `type_map` consists of a prop list that converts a path
-    to a metric/datapoint to a string that can be used as a type when
-    reporting to collectd.
-<br></br>
+between the type of a metric/datapoint pair and an identifier in
+collectd. The `type_map` consists of a prop list that converts a path
+to a metric/datapoint to a string that can be used as a type when
+reporting to collectd.
 
-<br></br>
 The key part of each element in the list consists of a list of atoms
-    that matches the name of the metrics, with the name of the data point
-    added as a final element. If the metric is identified as `[ webserver,
-    https, get_count ]`, and the data point is called `total`, the key in
-    the type_map would be `[ webserver, https, get_count, total ]`, The
-    value part of a property is the type string to use when reporting to
-    collectd. Please see types.db(5) for a list of available collectd
-    types.  A complete entry in the `type_map` list would be: `{ [
-    webserver, https, get_count, total ], "counter" }`.
+that matches the name of the metrics, with the name of the data point
+added as a final element. If the metric is identified as `[ webserver,
+https, get_count ]`, and the data point is called `total`, the key in
+the type_map would be `[ webserver, https, get_count, total ]`, The
+value part of a property is the type string to use when reporting to
+collectd. Please see types.db(5) for a list of available collectd
+types.  A complete entry in the `type_map` list would be: `{ [
+webserver, https, get_count, total ], "counter" }`.
 
 
 #### <a name="Configuring_graphite_reporter">Configuring graphite reporter</a> ####
@@ -763,7 +744,6 @@ its correct location in the hierarchy:
 	}]
      }]
  }
-
 ```
 
 The following attributes are available for configuration:
@@ -840,7 +820,6 @@ The `new()` function is invoked as follows:
 ```erlang
 
      new(Name, Type, Options)
-
 ```
 
 The custom entry should create the necessary state for the new metric and store
@@ -874,7 +853,6 @@ The `delete()` function is invoked as follows:
 ```erlang
 
      delete(Name, Type, Ref)
-
 ```
 
 The custom entry should free all resources associated with the given name.
@@ -902,7 +880,6 @@ The `get_value()` function is invoked as follows:
 ```erlang
 
      get_value(Name, Type, Ref, DataPoints)
-
 ```
 
 The custom entry should retrieve the metric with the given name and
@@ -936,7 +913,6 @@ The return format shall be:
 ```erlang
 
      {ok, [ { DataPoint, Value }, ...]}
-
 ```
 
 Each `{ DataPoint, Value }` tuple shall contain the name and value of
@@ -954,7 +930,6 @@ The `update()` function is invoked as follows:
 ```erlang
 
      update(Name, Value, Type, Ref)
-
 ```
 
 + `Name`
@@ -987,7 +962,6 @@ The `reset()` function is invoked as follows:
 ```erlang
 
      reset(Name, Type, Ref)
-
 ```
 
 + `Name`
@@ -1017,7 +991,6 @@ The `sample()` function is invoked as follows:
 ```erlang
 
      sample(Name, Type, Ref)
-
 ```
 
 + `Name`
@@ -1048,7 +1021,6 @@ The `get_datapoints()` function is invoked as follows:
 ```erlang
 
      get_datapoints(Name, Type, Ref)
-
 ```
 
 + `Name`
@@ -1076,7 +1048,6 @@ The `setopts()` function is invoked as follows:
 ```erlang
 
      setopts(Name, Options, Type, Ref)
-
 ```
 
 + `Name`
