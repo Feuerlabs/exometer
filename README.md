@@ -4,7 +4,7 @@
 
 Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved..
 
-__Version:__ Nov 14 2013 13:20:33
+__Version:__ Nov 14 2013 13:21:47
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -26,149 +26,53 @@ with `exometer`.
 ### <a name="Table_of_Content">Table of Content</a> ###
 
 
-
-<br></br>
 1\. [Concept and definitions](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Concept_and_definitions)
-
-<br></br>
 1.1 [Metric](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Metric)
-
-<br></br>
 1.2 [Data Point](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Data_Point)
-
-<br></br>
 1.3 [Metric Type](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Metric_Type)
-
-<br></br>
 1.4 [Entry Callback](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Entry_Callback)
-
-<br></br>
 1.5 [Probe](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Probe)
-
-<br></br>
 1.6 [Caching](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Caching)
-
-<br></br>
 1.7 [Subscriptions and Reporters](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Subscriptions_and_Reporters)
-
-<br></br>
 2\. [Built-in entries and probes](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Built-in_entries_and_probes)
-
-<br></br>
 2.1 [counter (exometer native)](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#counter_(exometer_native))
-
-<br></br>
 2.2 [fast_counter (exometer native)](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#fast_counter_(exometer_native))
-
-<br></br>
 2.3 [exometer_histogram (probe)](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_histogram_(probe))
-
-<br></br>
 2.4 [exometer_uniform (probe)](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_uniform_(probe))
-
-<br></br>
 2.5 [exometer_spiral (probe)](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_spiral_(probe))
-
-<br></br>
 2.6 [exometer_folsom [entry]](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_folsom_[entry])
-
-<br></br>
 2.7 [exometer_function [entry]](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_function_[entry])
-
-<br></br>
 3\. [Built in Reporters](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Built_in_Reporters)
-
-<br></br>
 3.1 [exometer_report_graphite](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_report_graphite)
-
-<br></br>
 3.2 [exometer_report_collectd](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_report_collectd)
-
-<br></br>
 4\. [Instrumenting Erlang code](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Instrumenting_Erlang_code)
-
-<br></br>
 4.1 [Exometer Start](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Exometer_Start)
-
-<br></br>
 4.2 [Creating metrics](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Creating_metrics)
-
-<br></br>
 4.3 [Deleting metrics](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Deleting_metrics)
-
-<br></br>
 4.4 [Setting metric values](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Setting_metric_values)
-
-<br></br>
 4.5 [Retrieving metric values](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Retrieving_metric_values)
-
-<br></br>
 4.6 [Setting up subscriptions](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Setting_up_subscriptions)
-
-<br></br>
 4.7 [Set metric options](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Set_metric_options)
-
-<br></br>
 5\. [Configuring Exometer](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_Exometer)
-
-<br></br>
 5.1 [Configuring type - entry maps](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_type_-_entry_maps)
-
-<br></br>
 5.2 [Configuring static subscriptions](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_static_subscriptions)
-
-<br></br>
 5.3 [Configuring reporter plugins](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_reporter_plugins)
-
-<br></br>
 5.4 [Configuring collectd reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_collectd_reporter)
-
-<br></br>
 5.5 [Configuring graphite reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_graphite_reporter)
-
-<br></br>
 6\. [Creating custom exometer entries](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Creating_custom_exometer_entries)
-
-<br></br>
 6.1 [new/3](https://github.com/Feuerlabs/exometer/blob/master/README.md#new/3)
-
-<br></br>
 6.2 [delete/3](https://github.com/Feuerlabs/exometer/blob/master/README.md#delete/3)
-
-<br></br>
 6.3 [get_value/4](https://github.com/Feuerlabs/exometer/blob/master/README.md#get_value/4)
-
-<br></br>
 6.4 [update/4](https://github.com/Feuerlabs/exometer/blob/master/README.md#update/4)
-
-<br></br>
 6.5 [reset/3](https://github.com/Feuerlabs/exometer/blob/master/README.md#reset/3)
-
-<br></br>
 6.6 [sample/3](https://github.com/Feuerlabs/exometer/blob/master/README.md#sample/3)
-
-<br></br>
 6.7 [get_datapoints/3](https://github.com/Feuerlabs/exometer/blob/master/README.md#get_datapoints/3)
-
-<br></br>
 6.8 [setopts/4](https://github.com/Feuerlabs/exometer/blob/master/README.md#setopts/4)
-
-<br></br>
 7\. [Creating custom probes](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Creating_custom_probes)
-
-<br></br>
 8\. [Creating custom reporter plugins](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Creating_custom_reporter_plugins)
-
-<br></br>
 8.1. [exometer_init/1](https://github.com/Feuerlabs/exometer/blob/master/README.md#exometer_init/1)
-
-<br></br>
 8.2 [exometer_subscribe/3](https://github.com/Feuerlabs/exometer/blob/master/README.md#exometer_subscribe/3)
-
-<br></br>
 8.3 [exometer_report/4](https://github.com/Feuerlabs/exometer/blob/master/README.md#exometer_report/4)
-
-<br></br>
 8.4 [exometer_unsubscribe/3](https://github.com/Feuerlabs/exometer/blob/master/README.md#exometer_unsubscribe/3)
 
 
