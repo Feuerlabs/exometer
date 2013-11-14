@@ -18,17 +18,19 @@
 
 -include("exometer.hrl").
 
--define(HOST, "carbon.hostedgraphite.com").
--define(PORT, 2003).
--define(CONNECT_TIMEOUT, 5000).
+-define(DEFAULT_HOST, "carbon.hostedgraphite.com").
+-define(DEFAULT_PORT, 2003).
+-define(DEFAULT_CONNECT_TIMEOUT, 5000).
 
 -record(st, {
+	  host = ?DEFAULT_HOST,
+	  port = ?DEFAULT_PORT,
+	  connect_timeout = ?DEFAULT_CONNECT_TIMEOUT,
 	  name,
 	  namespace = [],
 	  prefix = [],
 	  api_key = "",
-	  socket = undefined,
-	  mode}).
+	  socket = undefined}).
 
 %% calendar:datetime_to_gregorian_seconds({{1970,1,1},{0,0,0}}).
 -define(UNIX_EPOCH, 62167219200).
@@ -39,16 +41,20 @@
 
 exometer_init(Opts) ->
     ?info("Exometer Graphite Reporter; Opts: ~p~n", [Opts]),
-    Mode = get_opt(mode, Opts, normal),
     API_key = get_opt(api_key, Opts),
     Prefix = get_opt(prefix, Opts, []),
+    Host = get_opt(host, Opts, ?DEFAULT_HOST),
+    Port = get_opt(port, Opts, ?DEFAULT_PORT),
+    ConnectTimeout = get_opt(connect_timeout, Opts, ?DEFAULT_CONNECT_TIMEOUT),
 
-    case gen_tcp:connect(?HOST, ?PORT,  [{mode, list}], ?CONNECT_TIMEOUT) of
+    case gen_tcp:connect(Host, Port,  [{mode, list}], ConnectTimeout) of
 	{ok, Sock} ->
 	    {ok, #st{prefix = Prefix,
 		     api_key = API_key,
 		     socket = Sock,
-		     mode = Mode}};
+		     host = Host,
+		     port = Port,
+		     connect_timeout = ConnectTimeout }};
 	{error, _} = Error ->
 	    Error
     end.
@@ -74,10 +80,12 @@ exometer_unsubscribe(_Metric, _DataPoint, St) ->
     {ok, St }.
 
 
-%% Add prefix, if non-empty.
+%% Add prefix and API key, if non-empty.
+prefix([], []) -> [];
+prefix(Prefix , []) -> Prefix;
 prefix([]     , APIKey) -> APIKey;
 prefix(Prefix , APIKey) -> [APIKey, ".", Prefix].
-
+    
 %% Add probe and datapoint within probe
 name(Probe, DataPoint) -> [Probe, ".", atom_to_list(DataPoint)].
 
@@ -91,7 +99,7 @@ timestamp() ->
 
 
 reconnect(St) ->
-    case gen_tcp:connect(?HOST, ?PORT,  [{mode, list}], ?CONNECT_TIMEOUT) of
+    case gen_tcp:connect(St#st.host, St#st.port,  [{mode, list}], St#st.connect_timeout) of
 	{ok, Sock} ->
 	    {ok, St#st{socket = Sock}};
 	{error, _} = Error ->

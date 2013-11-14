@@ -37,5 +37,3 @@
 
 -callback setopts(name(), options(), type(), ref()) ->
     ok | error().
-
-

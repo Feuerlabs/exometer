@@ -4,7 +4,7 @@
 
 Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved..
 
-__Version:__ Nov 13 2013 12:43:40
+__Version:__ Nov 13 2013 19:32:03
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -290,7 +290,6 @@ All metrics reported to collectd will be have identifiers formatted as follows:
 ```
 
 HostName/PluginName-PluginInstance/Type-Metric_DataPoint
-
 ```
 
 + `HostName`
@@ -360,7 +359,6 @@ The system using Exometer must start the `exometer` application prior to using i
 ```erlang
 
 application:start(exometer).
-
 ```
 
 Once started, the default mapping between metrics and the entries
@@ -369,7 +367,6 @@ is loaded from the configuration data:
 ```erlang
 
 exometer_admin:preset_defaults().
-
 ```
 
 See [Configuring Exometer](#Configuring_Exometer) for details on configuration data
@@ -383,7 +380,6 @@ A metric, can be created throuh a call to
 ```erlang
 
 exometer:new(Name, Type)
-
 ```
 
 `Name` is a list of atoms, uniquely identifying the metric created.
@@ -412,7 +408,6 @@ A created metric can have its value updated through the
 ```erlang
 
 exometer:update(Name, Value)
-
 ```
 
 The `Name` parameter is the same atom list provided to a previous
@@ -433,7 +428,6 @@ data points are available for a metric, the following call can be used:
 ```erlang
 
 exometer:info(Name, datapoints)
-
 ```
 
 The `Name` parameter is the same atom list provided to a previous
@@ -444,7 +438,6 @@ retrieve their actual value:
 ```erlang
 
 exometer:get_value(Name, DataPoint)
-
 ```
 
 The `Name` paramer identifies the metric, and `DataPoints`
@@ -466,7 +459,6 @@ A dynamic subscription can be setup with the following call:
 ```erlang
 
 exometer_report:subscribe(Recipient, Metric, DataPoint, Inteval)
-
 ```
 
 `Recipient` is the name of a reporter.
@@ -480,7 +472,6 @@ Each created metric can have options setup for it through the following call:
 ```erlang
 
 exometer:setopts(Name, Options)
-
 ```
 
 The `Name` paramer identifies the metric to set the options for, and
@@ -505,7 +496,6 @@ The dynamic method of configuring defaults for `exometer` entries is:
 ```erlang
 
 exometer_admin:set_default(NamePattern, Type, Default)
-
 ```
 
 Where `NamePattern` is a list of terms describing what is essentially
@@ -527,7 +517,6 @@ attribute names. The following attributes make sense to preset:
 {status, enabled | disabled}  % operational status of the entry
 {cache, non_neg_integer()}    % cache lifetime (ms)
 {options, [{atom(), any()}]}  % entry-specific options
-
 ```
 
 Below is an example, from `exometer/priv/app.config`:
@@ -544,7 +533,6 @@ Below is an example, from `exometer/priv/app.config`:
                {['_'], meter    , [{module, exometer_folsom}]},
                {['_'], gauge    , [{module, exometer_folsom}]}
               ]}
-
 ```
 
 In systems that use CuttleFish, the file `exometer/priv/exometer.schema`
@@ -560,7 +548,6 @@ exometer.template.spiral.module    = exometer_spiral
 exometer.template.duration.module  = exometer_folsom
 exometer.template.meter.module     = exometer_folsom
 exometer.template.gauge.module     = exometer_folsom
-
 ```
 
 
@@ -583,7 +570,6 @@ Below is an example, from `exometer/priv/app.config`:
         ]}
      ]}
   ]}
-
 ```
 
 The `report` section configures static subscriptions and reporter
@@ -641,9 +627,12 @@ its correct location in the hierarchy:
 	    { exometer_report_collectd, [ 
 		{ reconnect_interval, 10 },
 		{ refresh_interval, 20 }, 
+		{ read_timeout, 5000 }, 
+		{ connect_timeout, 8000 }, 
 		{ hostname, "testhost" }, 
 		{ path, "/var/run/collectd-unixsock" },
 		{ plugin_name, "testname" },
+		{ plugin_instance, "testnode" },
 		{ type_map, 
 		  [ { [ db, cache, hits, max ], "gauge"} ]
 		}]
@@ -651,7 +640,6 @@ its correct location in the hierarchy:
 	}]
      }]
  }
-
 ```
 
 The following attributes are available for configuration:
@@ -687,7 +675,7 @@ socket connection to complete before timing out. A timed out
 connection attempt will be retried after the reconnect interval has
 passed see item 1 above).
 
-+ `socket_path` (path - default: "/var/run/collectd-unixsock")
++ `path` (file path - default: "/var/run/collectd-unixsock")
 <br></br>
 Specifies the path to the named unix socket that collectd is listening
 on. When exometer starts and loads the collectd reporter plugin, the
@@ -716,35 +704,29 @@ Specifies the host name to use when constructing an collectd identifier.
 + `type_map` (prop list - default: n/a)
 <br></br>
 Specifies the mapping between metrics/datapoints and the collectd type
-    to use when sending an updated metric value. See below.
-<br></br>
+to use when sending an updated metric value. See below.
 
-<br></br>
+Type maps must be provided since there is no natural connection
+between the type of a metric/datapoint pair and an identifier in
+collectd. The `type_map` consists of a prop list that converts a path
+to a metric/datapoint to a string that can be used as a type when
+reporting to collectd.
 
-    Type maps must be provided since there is no natural connection
-    between the type of a metric/datapoint pair and an identifier in
-    collectd. The `type_map` consists of a prop list that converts a path
-    to a metric/datapoint to a string that can be used as a type when
-    reporting to collectd.
-<br></br>
-
-<br></br>
-
-    The key part of each element in the list consists of a list of atoms
-    that matches the name of the metrics, with the name of the data point
-    added as a final element. If the metric is identified as `[ webserver,
-    https, get_count ]`, and the data point is called `total`, the key in
-    the type_map would be `[ webserver, https, get_count, total ]`, The
-    value part of a property is the type string to use when reporting to
-    collectd. Please see types.db(5) for a list of available collectd
-    types.  A complete entry in the `type_map` list would be: `{ [
-    webserver, https, get_count, total ], "counter" }`.
+The key part of each element in the list consists of a list of atoms
+that matches the name of the metrics, with the name of the data point
+added as a final element. If the metric is identified as `[ webserver,
+https, get_count ]`, and the data point is called `total`, the key in
+the type_map would be `[ webserver, https, get_count, total ]`, The
+value part of a property is the type string to use when reporting to
+collectd. Please see types.db(5) for a list of available collectd
+types.  A complete entry in the `type_map` list would be: `{ [
+webserver, https, get_count, total ], "counter" }`.
 
 
 #### <a name="Configuring_graphite_reporter">Configuring graphite reporter</a> ####
 
 
-Below is an example of the collectd reporter application environment, with
+Below is an example of the a graphite reporter application environment, with
 its correct location in the hierarchy:
 
 ```erlang
@@ -752,47 +734,360 @@ its correct location in the hierarchy:
  {exometer, [
      {report, 
 	{ modules, [ 
-	    { exometer_report_collectd, [ 
-		{ reconnect_interval, 10 },
-		{ refresh_interval, 20 }, 
-		{ hostname, "testhost" }, 
-		{ path, "/var/run/collectd-unixsock" },
-		{ plugin_name, "testname" },
-		{ type_map, 
-		  [ { [ db, cache, hits, max ], "gauge"} ]
-		}]
+	    { exometer_report_graphite, [ 
+		{ connect_timeout, 5000 },
+		{ prefix, "web_stats" }, 
+		{ host, "carbon.hostedgraphite.com" }, 
+		{ port, 2003 }, 
+		{ api_key, "267d121c-8387-459a-9326-000000000000" }
 	    }]
 	}]
      }]
  }
-
 ```
 
 The following attributes are available for configuration:
 
-+ `reconnect_interval` (seconds - default: 30)
++ `connect_timeout` (milliseconds - default: 5000)
 <br></br>
-Specifies the duration between each reconnect attempt to a collectd
-server that is not available. Should the server either be unavailable
-at exometer startup, or become unavailable during exometer's
-operation, exometer will attempt to reconnect at the given number of
-seconds.
+Specifies how long the graphie reporter plugin shall wait for a tcp
+connection to complete before timing out. A timed out connection will
+not be reconnected to automatically. (To be fixed.)
 
-+ `refresh_interval` (seconds - default: 10)
++ `prefix` (string - default: "")
+<br></br>
+Specifies an optional prefix to prepend all metric names with before
+they are sent to the graphite server.
 
++ `host` (string - default: "carbon.hostedgraphite.com")
+<br></br>
+Specifies the name (or IP address) of the graphite server to report to.
 
-#### <a name="Exporting_to_Stackdriver">Exporting to Stackdriver</a> ####
++ `port` (integer - default: 2003)
+<br></br>
+Specifies the TCP port on the given graphite server to connect to.
+
++ `api_key` (string - default: n/a)
+<br></br>
+Specifies the api key to use when reporting to a hosted graphite server.
+
+If `prefix` is not specified, but `api_key` is, each metrics will be reported as `ApiKey.Metric`.
+
+If `prefix` is specified, but `api_key` is not, each metrics will be reported as `Prefix.Metric`.
+
+if neither `prefix` or `api_key` is specified, each metric will be reported simply as `Metric`.
 
 
 ### <a name="Creating_custom_exometer_entries">Creating custom exometer entries</a> ###
 
+An exometer_entry behavior implementation can be created when custom
+processing of various metrics is needed.
+
+A custom exometer entry is invoked by mapping a type to the module
+name of the custom exometer entry module. All metrics created with the
+given type will trigger the invocation of the new entry module. See
+[Configuring type - entry maps](#Configuring_type_-_entry_maps) for details on how to setup
+such maps.
+
+The life cycle of a an exometer entry consists of the following steps.
+
++ Metrics Creation
+<br></br>
+`new/3` is invoked by exometer to signal that a new metrics
+should be created. The name of the new metric will be provided as
+a list of atoms.
+
++ Update Data
+<br></br>
+Values will be sent to the entry through the `update/4`
+function. The custom entry should store this value for the given
+metric and break it down into data points that can be reported for
+the metric.
+
++ Retrieve Value
+<br></br>
+`get_value/4` will be invoked by exometer to retrieve specific
+data points from a given metric. 
+
+The following chapters details each of the callbacks to be implemented
+in the exometer_entry behavior.
+
+
+#### <a name="new/3">new/3</a> ####
+
+The `new()` function is invoked as follows:
+
+```erlang
+
+     new(Name, Type, Options)
+```
+
+The custom entry should create the necessary state for the new metric and store
+it for furure access through `update()` and `get_value()` calls. 
+
++ `Name`
+<br></br>
+Specifies the name of the metric to be created as a list of atoms. 
+
++ `Type`
+<br></br>
+Specifies the type provided to the `exometer:new()` call (before it
+was translated by the type - exometer entry map). It can be used if several
+different types are mapped to the same entry module.
+
++ `Options`
+<br></br>
+Specifies an option list that contains additional setup directives to
+the entry. The actual options to support are implementation dependent.
+
+The `new()` function should return `{ok, Ref}` where Ref is a
+tuple that will be provided as a reference argument to other calls
+made into the module. Any other return formats will cancel the
+creation of the new metric.
+
+
+#### <a name="delete/3">delete/3</a> ####
+
+The `delete()` function is invoked as follows:
+
+```erlang
+
+     delete(Name, Type, Ref)
+```
+
+The custom entry should free all resources associated with the given name.
+
++ `Name`
+<br></br>
+Specifies the name of the metric to be deleted as a list of atoms. 
+
++ `Type`
+<br></br>
+Specifies the type provided to the `exometer:new()` call (before it
+was translated by the type - exometer entry map). 
+
++ `Ref`
+<br></br>
+Will contain the same tuple returned as `Ref` by the module's `new()` function.
+
+The `delete()` function shall return `ok`.
+
+
+#### <a name="get_value/4">get_value/4</a> ####
+
+The `get_value()` function is invoked as follows:
+
+```erlang
+
+     get_value(Name, Type, Ref, DataPoints)
+```
+
+The custom entry should retrieve the metric with the given name and
+return the values of the specified data points. Data points can be
+expected to be one or more of those returned by the entry's
+`get_datapoints()` function.
+
++ `Name`
+<br></br>
+Specifies the name of the metric to update with a value. 
+
++ `Type`
+<br></br>
+Specifies the type provided to the `exometer:new()` call (before it
+was translated by the type - exometer entry map). 
+
++ `Ref`
+<br></br>
+Will contain the same tuple returned as `Ref` by the module's `new()` function.
+
++ `DataPoints`
+<br></br>
+Will contain a list of data points, each picked from the list returned by
+    the module's `get_datapoints()` function. 
+
+The `get_value()` function should calculate the values of the given
+data points based on previous calls to `update()` and return them to the caller.
+
+The return format shall be:
+
+```erlang
+
+     {ok, [ { DataPoint, Value }, ...]}
+```
+
+Each `{ DataPoint, Value }` tuple shall contain the name and value of
+one of the data points provided as arguments to `get_value()`.
+
+If a data point is not valid (i.e. not in the list returned by
+`get_datapoints()`), the returned tuple should be `{ DataPoint,
+undefined }`.
+
+
+#### <a name="update/4">update/4</a> ####
+
+The `update()` function is invoked as follows:
+
+```erlang
+
+     update(Name, Value, Type, Ref)
+```
+
++ `Name`
+<br></br>
+Specifies the name of the metric to update. 
+
++ `Value`
+<br></br>
+Specifies the new value to integrate into the given metric. 
+
++ `Type`
+<br></br>
+Specifies the type provided to the `exometer:new()` call (before it
+was translated by the type - exometer entry map). 
+
++ `Ref`
+<br></br>
+Will contain the same tuple returned as `Ref` by the module's `new()` function.
+
+The `update()` function should update the data points for the metric with the
+given name in preparation for future calls to `get_value()`.
+
+The return format shall be `ok`.
+
+
+#### <a name="reset/3">reset/3</a> ####
+
+The `reset()` function is invoked as follows:
+
+```erlang
+
+     reset(Name, Type, Ref)
+```
+
++ `Name`
+<br></br>
+Specifies the name of the metric to reset. 
+
++ `Type`
+<br></br>
+Specifies the type provided to the `exometer:new()` call (before it
+was translated by the type - exometer entry map). 
+
++ `Ref`
+<br></br>
+Will contain the same tuple returned as `Ref` by the module's `new()` function.
+
+The `reset()` function should revert the metric with the given name to
+its original state. A counter, for example, should be reset to 0 while
+histograms should be emptied.
+
+The return format shall be `ok`.
+
+
+#### <a name="sample/3">sample/3</a> ####
+
+The `sample()` function is invoked as follows:
+
+```erlang
+
+     sample(Name, Type, Ref)
+```
+
++ `Name`
+<br></br>
+Specifies the name of the metric to run the sample. 
+
++ `Type`
+<br></br>
+Specifies the type provided to the `exometer:new()` call (before it
+was translated by the type - exometer entry map). 
+
++ `Ref`
+<br></br>
+Will contain the same tuple returned as `Ref` by the module's`new()` function.
+
+This function is only used by probes, where it is periodically called
+to sample a local sub system such as /proc or netlink in order to
+update its data points.
+
+Any exometer entry-based implementation should do nothing and return
+`ok`.
+
+
+#### <a name="get_datapoints/3">get_datapoints/3</a> ####
+
+The `get_datapoints()` function is invoked as follows:
+
+```erlang
+
+     get_datapoints(Name, Type, Ref)
+```
+
++ `Name`
+<br></br>
+Specifies the name of the metric to return available datapoints for.
+
++ `Type`
+<br></br>
+Specifies the type provided to the `exometer:new()` call (before it
+was translated by the type - exometer entry map). 
+
++ `Ref`
+<br></br>
+Will contain the same tuple returned as `Ref` by the module's`new()` function.
+
+This function should return a list of all data points supported by 
+the exometer entry implementation. The returned data points shall
+be supported by the module's `get_value()` function.
+
+
+#### <a name="setopts/4">setopts/4</a> ####
+
+The `setopts()` function is invoked as follows:
+
+```erlang
+
+     setopts(Name, Options, Type, Ref)
+```
+
++ `Name`
+<br></br>
+Specifies the name of the metric to return available datapoints for.
+
++ `Options`
+<br></br>
+Specifies an option list that contains additional setup directives to
+the entry. The actual options to support are implementation dependent.
+
++ `Type`
+<br></br>
+Specifies the type provided to the `exometer:new()` call (before it
+was translated by the type - exometer entry map). 
+
++ `Ref`
+<br></br>
+Will contain the same tuple returned as `Ref` by the module's`new()` function.
+
+This function should modify the behavior of the given metric by the
+options provided in the `Options` property list.
+
+The function should return either `ok` or `{error, Reason}`, where
+`Reason` contins a descriptive reason for a failure to set one or more
+options.
+
 
 ### <a name="Creating_custom_probes">Creating custom probes</a> ###
+
+Probes are exometer entries running in their own processes, allowing
+them to have their own state. Most custom probes implements the
+`exometer_probe` behavior together with `gen_server`.
+
+PROBES WILL BE UPDATED SOON WITH A NEW STRUCTURE - DOCUMENTATION TO FOLLOW.
 
 
 ### <a name="Creating_custom_report_plugins">Creating custom report plugins</a> ###
 
-
+Plugins
 
 ## Modules ##
 
