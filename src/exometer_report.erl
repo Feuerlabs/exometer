@@ -8,6 +8,147 @@
 %%
 %% -------------------------------------------------------------------
 
+%% @todo Move plugins into their own gen_serv processes to avoid having
+%%        them blocking the rest of the reporting system on delays.
+%% 
+%% A custom reporter plugin can receive updated metric values by having
+%% its module referenced in an `exometer_report:subscribe()' call.
+%% 
+%% The module, once it is setup as a subscription destination, will
+%% receive periodic calls with updated metrics and data points to be
+%% reported.
+%% 
+%% Each custom plugin implements the exometer_report behavior.
+%% 
+%% The life cycle of a a custom reporter consists of the following steps.
+%% 
+%% + Plugin creation 
+%%     <br/>`exometer_init/1' is invoked by exometer when
+%%     the plugin is configured in the reporter application
+%%     environment. See {@section Configuring reporter plugins} for
+%%     details.
+%% 
+%% + Setup subscription
+%%     <br/>When `exometer_report:subscribe()' is called, targeting the
+%%     custom report plugin, the module's `exometer_subscribe()' function
+%%     will be invoked to notify the plugin of the new metrics subscription.
+%% 
+%% + Report Metrics
+%%     <br/>Updated metrics are sent by exometer to the
+%%     `exometer_report/4'. All reported metrics will have been notified
+%%     to the module through a previous `exometer_report()' function.
+%% 
+%% + Tear down subscription
+%%     <br/>When `exometer_report:unsubscribe()' is called, addressing the
+%%     custom report plugin, the module's `exometer_unsubscribe()' function
+%%     will be invoked to notify the plugin of the deleted subscription.
+%% 
+%% 
+%% The following chapters details each of the callbacks to be implemented
+%% in the exometer_report behavior.
+%% 
+%% === exometer_init/1 ===
+%% 
+%% The `exometer_init()' function is invoked as follows:
+%% 
+%% <pre lang="erlang">
+%%      exometer_init(Options)</pre>
+%% 
+%% The custom reporter plugin should create the necessary state for the
+%% new plugin and return a state to be used in future plugin calls.
+%% 
+%% + `Options'
+%%     <br/>Provides the prop list with attributes from the application environment
+%%     for the cusom module. See {@section Configuring reporter plugins} for
+%% 
+%% The `exomoeter_init()' function should return `{ok, State}' where
+%% State is a tuple that will be provided as a reference argument to
+%% future calls made into the plugin. Any other return formats will
+%% cancel the creation of the custom reporting plugin.
+%% 
+%% 
+%% === exometer_subscribe/3 ===
+%% 
+%% The `exometer_subscribe()' function is invoked as follows:
+%% 
+%% <pre lang="erlang">
+%%      exometer_subscribe(Metric, DataPoint, State)</pre>
+%% 
+%% The custom plugin can use this notification to modify and return its
+%% state in order to prepare for future calls to `exometer_report()' with
+%% the given meteric and data point.
+%% 
+%% + `Metric'
+%%     <br/>Specifies the metric that is now subscribed to by the plugin
+%%     as a list of atoms.
+%% 
+%% + `DataPoint'
+%%     <br/>Specifies the data point within the subscribed-to metric as an atom.
+%%     
+%% + `State'
+%%     <br/>Contains the state returned by the last called plugin function.
+%% 
+%% The `exomoeter_subscribe()' function should return `{ok, State}' where
+%% State is a tuple that will be provided as a reference argument to
+%% future calls made into the plugin. Any other return formats will
+%% generate an error log message by exometer.
+%% 
+%% 
+%% === exometer_report/4 ===
+%% 
+%% The `exometer_report()' function is invoked as follows:
+%% 
+%% <pre lang="erlang">
+%%      exometer_report(Metric, DataPoint, State)</pre>
+%% 
+%% The custom plugin will receive this call when a periodic subscription
+%% triggers and wants to report its current value through the plugin.
+%% The plugin should export the value to the external system it interfaces and
+%% return its possibly modified state.
+%% 
+%% + `Metric'
+%%     <br/>Specifies the metric that is to be reported.
+%% 
+%% + `DataPoint'
+%%     <br/>Specifies the data point within the metric that is to be reported.
+%%     
+%% + `State'
+%%     <br/>Contains the state returned by the last called plugin function.
+%% 
+%% The `exomoeter_report()' function should return `{ok, State}' where
+%% State is a tuple that will be provided as a reference argument to
+%% future calls made into the plugin. Any other return formats will
+%% generate an error log message by exometer.
+%% 
+%% 
+%% === exometer_unsubscribe/3 ===
+%% 
+%% The `exometer_unsubscribe()' function is invoked as follows:
+%% 
+%% <pre lang="erlang">
+%%      exometer_unsubscribe(Metric, DataPoint, State)</pre>
+%% 
+%% The custom plugin can use this notification to modify and return its
+%% state in order to free resources used to maintain the now de-activated
+%% subscription. When this call returns, the given metric / data point
+%% will not be present in future calls to `exometer_report()'.
+%% 
+%% + `Metric'
+%%     <br/>Specifies the metric that is now subscribed to by the plugin
+%%     as a list of atoms.
+%% 
+%% + `DataPoint'
+%%     <br/>Specifies the data point within the subscribed-to metric as an atom.
+%%     
+%% + `State'
+%%     <br/>Contains the state returned by the last called plugin function.
+%% 
+%% The `exomoeter_unsubscribe()' function should return `{ok, State}' where
+%% State is a tuple that will be provided as a reference argument to
+%% future calls made into the plugin. Any other return formats will
+%% generate an error log message by exometer.
+%% 
+%% @end
 -module(exometer_report).
 
 -behaviour(gen_server).

@@ -1,9 +1,12 @@
 
 
 # Module exometer_probe #
+* [Description](#description)
 * [Function Index](#index)
 * [Function Details](#functions)
 
+
+.
 __Behaviours:__ [`exometer_entry`](exometer_entry.md), [`gen_server`](gen_server.md).
 <a name="index"></a>
 

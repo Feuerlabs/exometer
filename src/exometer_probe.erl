@@ -7,7 +7,10 @@
 %%   file, You can obtain one at http://mozilla.org/MPL/2.0/.
 %%
 %% -------------------------------------------------------------------
-
+%% @doc
+%%
+%% @todo Clean up and document 
+%%
 -module(exometer_probe).
 -behaviour(gen_server).
 -behaviour(exometer_entry).
