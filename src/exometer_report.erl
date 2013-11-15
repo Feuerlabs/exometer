@@ -8,6 +8,7 @@
 %%
 %% -------------------------------------------------------------------
 
+%% @doc
 %% @todo Move plugins into their own gen_serv processes to avoid having
 %%        them blocking the rest of the reporting system on delays.
 %% 
