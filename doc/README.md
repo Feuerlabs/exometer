@@ -4,7 +4,7 @@
 
 Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved..
 
-__Version:__ Nov 14 2013 13:21:47
+__Version:__ Nov 15 2013 07:47:49
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -26,54 +26,7 @@ with `exometer`.
 ### <a name="Table_of_Content">Table of Content</a> ###
 
 
-1\. [Concept and definitions](#Concept_and_definitions)
-1.1 [Metric](#Metric)
-1.2 [Data Point](#Data_Point)
-1.3 [Metric Type](#Metric_Type)
-1.4 [Entry Callback](#Entry_Callback)
-1.5 [Probe](#Probe)
-1.6 [Caching](#Caching)
-1.7 [Subscriptions and Reporters](#Subscriptions_and_Reporters)
-2\. [Built-in entries and probes](#Built-in_entries_and_probes)
-2.1 [counter (exometer native)](#counter_(exometer_native))
-2.2 [fast_counter (exometer native)](#fast_counter_(exometer_native))
-2.3 [exometer_histogram (probe)](#exometer_histogram_(probe))
-2.4 [exometer_uniform (probe)](#exometer_uniform_(probe))
-2.5 [exometer_spiral (probe)](#exometer_spiral_(probe))
-2.6 [exometer_folsom [entry]](#exometer_folsom_[entry])
-2.7 [exometer_function [entry]](#exometer_function_[entry])
-3\. [Built in Reporters](#Built_in_Reporters)
-3.1 [exometer_report_graphite](#exometer_report_graphite)
-3.2 [exometer_report_collectd](#exometer_report_collectd)
-4\. [Instrumenting Erlang code](#Instrumenting_Erlang_code)
-4.1 [Exometer Start](#Exometer_Start)
-4.2 [Creating metrics](#Creating_metrics)
-4.3 [Deleting metrics](#Deleting_metrics)
-4.4 [Setting metric values](#Setting_metric_values)
-4.5 [Retrieving metric values](#Retrieving_metric_values)
-4.6 [Setting up subscriptions](#Setting_up_subscriptions)
-4.7 [Set metric options](#Set_metric_options)
-5\. [Configuring Exometer](#Configuring_Exometer)
-5.1 [Configuring type - entry maps](#Configuring_type_-_entry_maps)
-5.2 [Configuring static subscriptions](#Configuring_static_subscriptions)
-5.3 [Configuring reporter plugins](#Configuring_reporter_plugins)
-5.4 [Configuring collectd reporter](#Configuring_collectd_reporter)
-5.5 [Configuring graphite reporter](#Configuring_graphite_reporter)
-6\. [Creating custom exometer entries](#Creating_custom_exometer_entries)
-6.1 [new/3](#new/3)
-6.2 [delete/3](#delete/3)
-6.3 [get_value/4](#get_value/4)
-6.4 [update/4](#update/4)
-6.5 [reset/3](#reset/3)
-6.6 [sample/3](#sample/3)
-6.7 [get_datapoints/3](#get_datapoints/3)
-6.8 [setopts/4](#setopts/4)
-7\. [Creating custom probes](#Creating_custom_probes)
-8\. [Creating custom reporter plugins](#Creating_custom_reporter_plugins)
-8.1. [exometer_init/1](#exometer_init/1)
-8.2 [exometer_subscribe/3](#exometer_subscribe/3)
-8.3 [exometer_report/4](#exometer_report/4)
-8.4 [exometer_unsubscribe/3](#exometer_unsubscribe/3)
+__1\. [Concept and definitions](#Concept_and_definitions)<br></br>1.1 [Metric](#Metric)<br></br>1.2 [Data Point](#Data_Point)<br></br>1.3 [Metric Type](#Metric_Type)<br></br>1.4 [Entry Callback](#Entry_Callback)<br></br>1.5 [Probe](#Probe)<br></br>1.6 [Caching](#Caching)<br></br>1.7 [Subscriptions and Reporters](#Subscriptions_and_Reporters)<br></br>2\. [Built-in entries and probes](#Built-in_entries_and_probes)<br></br>2.1 [counter (exometer native)](#counter_(exometer_native))<br></br>2.2 [fast_counter (exometer native)](#fast_counter_(exometer_native))<br></br>2.3 [exometer_histogram (probe)](#exometer_histogram_(probe))<br></br>2.4 [exometer_uniform (probe)](#exometer_uniform_(probe))<br></br>2.5 [exometer_spiral (probe)](#exometer_spiral_(probe))<br></br>2.6 [exometer_folsom [entry]](#exometer_folsom_[entry])<br></br>2.7 [exometer_function [entry]](#exometer_function_[entry])<br></br>3\. [Built in Reporters](#Built_in_Reporters)<br></br>3.1 [exometer_report_graphite](#exometer_report_graphite)<br></br>3.2 [exometer_report_collectd](#exometer_report_collectd)<br></br>4\. [Instrumenting Erlang code](#Instrumenting_Erlang_code)<br></br>4.1 [Exometer Start](#Exometer_Start)<br></br>4.2 [Creating metrics](#Creating_metrics)<br></br>4.3 [Deleting metrics](#Deleting_metrics)<br></br>4.4 [Setting metric values](#Setting_metric_values)<br></br>4.5 [Retrieving metric values](#Retrieving_metric_values)<br></br>4.6 [Setting up subscriptions](#Setting_up_subscriptions)<br></br>4.7 [Set metric options](#Set_metric_options)<br></br>5\. [Configuring Exometer](#Configuring_Exometer)<br></br>5.1 [Configuring type - entry maps](#Configuring_type_-_entry_maps)<br></br>5.2 [Configuring static subscriptions](#Configuring_static_subscriptions)<br></br>5.3 [Configuring reporter plugins](#Configuring_reporter_plugins)<br></br>5.4 [Configuring collectd reporter](#Configuring_collectd_reporter)<br></br>5.5 [Configuring graphite reporter](#Configuring_graphite_reporter)<br></br>6\. [Creating custom exometer entries](#Creating_custom_exometer_entries)<br></br>6.1 [new/3](#new/3)<br></br>6.2 [delete/3](#delete/3)<br></br>6.3 [get_value/4](#get_value/4)<br></br>6.4 [update/4](#update/4)<br></br>6.5 [reset/3](#reset/3)<br></br>6.6 [sample/3](#sample/3)<br></br>6.7 [get_datapoints/3](#get_datapoints/3)<br></br>6.8 [setopts/4](#setopts/4)<br></br>7\. [Creating custom probes](#Creating_custom_probes)<br></br>8\. [Creating custom reporter plugins](#Creating_custom_reporter_plugins)<br></br>8.1. [exometer_init/1](#exometer_init/1)<br></br>8.2 [exometer_subscribe/3](#exometer_subscribe/3)<br></br>8.3 [exometer_report/4](#exometer_report/4)<br></br>8.4 [exometer_unsubscribe/3](#exometer_unsubscribe/3)__
 
 
 ### <a name="Concepts_and_Definitions">Concepts and Definitions</a> ###
