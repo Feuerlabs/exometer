@@ -112,7 +112,6 @@ msec slot period and a simple average value):
 ```erlang
 
       [ { 1400, 23.2 }, { 1300, 23.1 }, { 1200, 22.8 }, { 1100, 23.0 } ]
-$ 
 ```
 
 
@@ -126,7 +125,6 @@ following list:
 ```erlang
 
       [ { 1400, 23.2 }, { 1300, 23.1 }, { 1100, 23.0 } ]
-$ 
 ```
 
 
@@ -139,6 +137,117 @@ if it always covers the same time span into the past.
 
 ### <a name="SLOT_LISTS">SLOT LISTS</a> ###
 
+
+
+The slotted slider stores its slots in two lists, list1, and list2.
+list1 contains the newest slots. Once the oldest element in list1
+is older than the time span covered by the histogram, the entire
+content of list1 is shifted into list2, and list1 is set to [].
+The old content of list2, if any, is discarded during the shift.
+
+
+
+When the content of the histogram is to be retrieved (through
+fold{l,r}(), or to_list()), the entire content of list1 is prepended to
+the part of list2 that is within than the time span covered by the
+histogram.
+
+
+
+If the time span of the histogram is 5 seconds, with a 1 second
+slot period, list1 looks can like this :
+
+
+
+```erlang
+
+      list1 = [ {5000, 1.2}, {4000, 2.1}, {3000, 2.0}, {2000, 2.3}, {1000, 2.8} ]
+```
+
+
+
+When the next slot is stored in the list, add_slot() will detect
+that the list is full since the oldest element ({1000, 20.8}) will
+fall outside the time span covered by the histogram.  List1 will
+shifted to List2, and List1 will be set to the single new slot that
+is to be stored:
+
+
+
+```erlang
+
+      list1 = [ {6000, 1.8} ]
+      list2 = [ {5000, 1.2}, {4000, 2.1}, {3000, 2.0}, {2000, 2.3}, {1000, 2.8} ]
+```
+
+
+
+To_list() and fold{l,r}() will return list1, and the first four elements
+of list2 in order to get a complete histogram covering the entire
+time span:
+
+
+
+```erlang
+
+      [ {6000, 1.8}, {5000, 1.2}, {4000, 2.1}, {3000, 2.0}, {2000, 2.3} ]
+```
+
+
+### <a name="SAMPLE_PROCESSING_AND_TRANSFORMATION_MFA">SAMPLE PROCESSING AND TRANSFORMATION MFA</a> ###
+
+
+
+Two MFAs are provided to the new() function of the slotted slide
+histogram. The processing function is called by add_element() and
+will take the same sample value provided to that function together
+with the current timestamp and slot state as arguments. The
+function will return the new current slot state.
+
+
+
+```erlang
+
+      M:F(TimeStamp, Value, State) -> NewState
+```
+
+
+
+The first call to the sample processing MFA when the current slot
+is newly reset (just after a slot has been added to the histogram),
+state will be set to 'undefined'
+
+
+
+```erlang
+
+      M:F(TimeStamp, Value, undefined) -> NewState
+```
+
+
+
+The transformation MFA is called when the current slot has expired
+and is to be stored in the histogram. It will receive the current
+timestamp and slot state as arguments and returns the element to
+be stored (together with a slot timestamp) in the slot histogram.
+
+
+
+```erlang
+
+      M:F(TimeStamp, State) -> Element
+```
+
+
+
+Element will present in the lists returned by to_list() and fold{l,r}().
+If the transformation MFA cannot do its job, for example because
+no samples have been processed by the sample processing MFA,
+the transformation MFA should return 'undefined'
+
+
+See new/2 and its avg_sample() and avg_transform() functions for an
+example of a simple average value implementation.
 <a name="index"></a>
 
 ## Function Index ##

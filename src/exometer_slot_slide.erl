@@ -81,7 +81,7 @@
 %% 
 %% <pre lang="erlang">
 %%     [ { 1400, 23.2 }, { 1300, 23.1 }, { 1200, 22.8 }, { 1100, 23.0 } ]
-%$ </pre>
+%% </pre>
 %%
 %% If no samples were received during the period between 1200 and 1300
 %% (ms), no slot would be stored at that time stamp, yielding the
@@ -89,14 +89,13 @@
 %%
 %% <pre lang="erlang">
 %%     [ { 1400, 23.2 }, { 1300, 23.1 }, { 1100, 23.0 } ]
-%$ </pre>
+%% </pre>
 %%
 %% This means that the total length of the slot list may vary, even
 %% if it always covers the same time span into the past.
 %%
 %% == SLOT LISTS ==
 %% 
-
 %% The slotted slider stores its slots in two lists, list1, and list2.
 %% list1 contains the newest slots. Once the oldest element in list1
 %% is older than the time span covered by the histogram, the entire
@@ -113,7 +112,7 @@
 %% 
 %% <pre lang="erlang">
 %%     list1 = [ {5000, 1.2}, {4000, 2.1}, {3000, 2.0}, {2000, 2.3}, {1000, 2.8} ]
-%$ </pre>
+%% </pre>
 %% 
 %% When the next slot is stored in the list, add_slot() will detect
 %% that the list is full since the oldest element ({1000, 20.8}) will
@@ -124,7 +123,7 @@
 %% <pre lang="erlang">
 %%     list1 = [ {6000, 1.8} ]
 %%     list2 = [ {5000, 1.2}, {4000, 2.1}, {3000, 2.0}, {2000, 2.3}, {1000, 2.8} ]
-%$ </pre>
+%% </pre>
 %%     
 %% To_list() and fold{l,r}() will return list1, and the first four elements
 %% of list2 in order to get a complete histogram covering the entire
@@ -132,7 +131,7 @@
 %%
 %% <pre lang="erlang">
 %%     [ {6000, 1.8}, {5000, 1.2}, {4000, 2.1}, {3000, 2.0}, {2000, 2.3} ]
-%$ </pre>
+%% </pre>
 %%
 %%
 %% == SAMPLE PROCESSING AND TRANSFORMATION MFA ==
@@ -145,7 +144,7 @@
 %%
 %% <pre lang="erlang">
 %%     M:F(TimeStamp, Value, State) -> NewState
-%$ </pre>
+%% </pre>
 %%
 %% The first call to the sample processing MFA when the current slot
 %% is newly reset (just after a slot has been added to the histogram),
@@ -153,7 +152,7 @@
 %%
 %% <pre lang="erlang">
 %%     M:F(TimeStamp, Value, undefined) -> NewState
-%$ </pre>
+%% </pre>
 %%
 %% The transformation MFA is called when the current slot has expired
 %% and is to be stored in the histogram. It will receive the current
@@ -162,7 +161,7 @@
 %% 
 %% <pre lang="erlang">
 %%     M:F(TimeStamp, State) -> Element
-%$ </pre>
+%% </pre>
 %%
 %% Element will present in the lists returned by to_list() and fold{l,r}().
 %% If the transformation MFA cannot do its job, for example because
