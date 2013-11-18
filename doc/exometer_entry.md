@@ -33,6 +33,8 @@ The life cycle of a an exometer entry consists of the following steps.
 
 
 + Metrics Creation
+
+<br></br>
 `new/3` is invoked by exometer to signal that a new metrics
 should be created. The name of the new metric will be provided as
 a list of atoms.

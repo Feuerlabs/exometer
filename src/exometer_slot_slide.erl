@@ -9,8 +9,9 @@
 %% -------------------------------------------------------------------
 
 
-%% Here is a concept that Ulf and Tony should try out some day: Documentation
+%% @doc
 %%
+%% == Introduction ==
 %% This module defines a sliding time-window histogram with execution
 %% cost control.  
 %%
@@ -63,7 +64,7 @@
 %% the resolution of that analysis.
 %%
 %%
-%% ** SLOT HISTOGRAM MANAGEMENT **
+%% == SLOT HISTOGRAM MANAGEMENT ==
 %%
 %% The slide state has maintains a list of { TimeStamp, SlotElem }
 %% slot tuples. TimeStamp is the time period (in monotonic ms),
@@ -78,19 +79,24 @@
 %% list.  Normally, the the slot list would look like this (with a 100
 %% msec slot period and a simple average value):
 %% 
+%% <pre lang="erlang">
 %%     [ { 1400, 23.2 }, { 1300, 23.1 }, { 1200, 22.8 }, { 1100, 23.0 } ]
+%$ </pre>
 %%
 %% If no samples were received during the period between 1200 and 1300
 %% (ms), no slot would be stored at that time stamp, yielding the
 %% following list:
 %%
+%% <pre lang="erlang">
 %%     [ { 1400, 23.2 }, { 1300, 23.1 }, { 1100, 23.0 } ]
+%$ </pre>
 %%
 %% This means that the total length of the slot list may vary, even
 %% if it always covers the same time span into the past.
 %%
-%% ** SLOT LISTS (Ulf's design) **
+%% == SLOT LISTS ==
 %% 
+
 %% The slotted slider stores its slots in two lists, list1, and list2.
 %% list1 contains the newest slots. Once the oldest element in list1
 %% is older than the time span covered by the histogram, the entire
@@ -105,7 +111,9 @@
 %% If the time span of the histogram is 5 seconds, with a 1 second
 %% slot period, list1 looks can like this :
 %% 
+%% <pre lang="erlang">
 %%     list1 = [ {5000, 1.2}, {4000, 2.1}, {3000, 2.0}, {2000, 2.3}, {1000, 2.8} ]
+%$ </pre>
 %% 
 %% When the next slot is stored in the list, add_slot() will detect
 %% that the list is full since the oldest element ({1000, 20.8}) will
@@ -113,17 +121,21 @@
 %% shifted to List2, and List1 will be set to the single new slot that
 %% is to be stored:
 %%
+%% <pre lang="erlang">
 %%     list1 = [ {6000, 1.8} ]
 %%     list2 = [ {5000, 1.2}, {4000, 2.1}, {3000, 2.0}, {2000, 2.3}, {1000, 2.8} ]
+%$ </pre>
 %%     
 %% To_list() and fold{l,r}() will return list1, and the first four elements
 %% of list2 in order to get a complete histogram covering the entire
 %% time span:
 %%
+%% <pre lang="erlang">
 %%     [ {6000, 1.8}, {5000, 1.2}, {4000, 2.1}, {3000, 2.0}, {2000, 2.3} ]
+%$ </pre>
 %%
 %%
-%% ** SAMPLE PROCESSING AND TRANSFORMATION MFA **
+%% == SAMPLE PROCESSING AND TRANSFORMATION MFA ==
 %%
 %% Two MFAs are provided to the new() function of the slotted slide
 %% histogram. The processing function is called by add_element() and
@@ -131,20 +143,26 @@
 %% with the current timestamp and slot state as arguments. The
 %% function will return the new current slot state.
 %%
+%% <pre lang="erlang">
 %%     M:F(TimeStamp, Value, State) -> NewState
+%$ </pre>
 %%
 %% The first call to the sample processing MFA when the current slot
 %% is newly reset (just after a slot has been added to the histogram),
 %% state will be set to 'undefined'
 %%
+%% <pre lang="erlang">
 %%     M:F(TimeStamp, Value, undefined) -> NewState
+%$ </pre>
 %%
 %% The transformation MFA is called when the current slot has expired
 %% and is to be stored in the histogram. It will receive the current
 %% timestamp and slot state as arguments and returns the element to
 %% be stored (together with a slot timestamp) in the slot histogram.
 %% 
+%% <pre lang="erlang">
 %%     M:F(TimeStamp, State) -> Element
+%$ </pre>
 %%
 %% Element will present in the lists returned by to_list() and fold{l,r}().
 %% If the transformation MFA cannot do its job, for example because
@@ -154,6 +172,8 @@
 %% See new/2 and its avg_sample() and avg_transform() functions for an
 %% example of a simple average value implementation.
 %%
+%% @end
+
 -module(exometer_slot_slide).
 
 
