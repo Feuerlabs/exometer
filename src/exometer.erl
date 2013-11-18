@@ -638,7 +638,6 @@ create_entry(#exometer_entry{module = exometer_entry,
 create_entry(#exometer_entry{module = M,
 			     type = Type,
 			     name = Name, options = Opts} = E) ->
-    io:format("Y~n"),
     case M:new(Name, Type, Opts) of
 	ok ->
 	    [ets:insert(T, E) || T <- exometer_util:tables()],

@@ -1,7 +1,7 @@
 %% -*- erlang -*-
 {application, exometer,
  [
-  {description, "Real-time metrics"},
+  {description, "Code instrumentation and metrics collection package."},
   {vsn, git},
   {registered, []},
   {applications, [

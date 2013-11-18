@@ -115,7 +115,6 @@ update(Name, Increment, Type, Ref) ->
     exometer_probe:update(Name, Increment, Type, Ref).
 
 probe_update(Increment, St) ->
-    io:format("exometer_spiral:probe_update(): Increment:~p~n", [Increment ]),
     Slide = exometer_slot_slide:add_element(Increment, St#st.slide),
     Total = St#st.total + Increment,
     {ok, ok, St#st { slide = Slide, total = Total}}.
@@ -167,7 +166,6 @@ count_sample(_TS, Increment, undefined) ->
    Increment;
 
 count_sample(_TS, Increment, Total) ->
-    io:format("count_sample: Inc:~p Tot:~p ~n", [ Increment, Total]),
     Total + Increment.
 
 %% If count_sample() has not been called for the current time slot,

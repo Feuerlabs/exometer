@@ -457,7 +457,7 @@ handle_info({'DOWN', _, _, Pid, _}, #st{subscribers = Subs} = St) ->
 	    {noreply, St}
     end;
 handle_info(_Info, State) ->
-    io:format("exometer_report:info(??): ~p~n", [ _Info ]),
+    ?warning("exometer_report:info(??): ~p~n", [ _Info ]),
     {noreply, State}.
 
 %%--------------------------------------------------------------------
@@ -532,7 +532,7 @@ notify_module(Module, Function, Metric, DataPoint, ModStates) ->
 
 		%% Exception, or just an error
 		{Error, Reason} ->
-		    io:format("~p:~p(~p, ~p, ~p) ->"
+		    ?error("Failed to notify module ~p:~p(~p, ~p, ~p) ->"
 			      " {~p, ~p}; removing module~n",
 			      [Module, Function,
 			       Metric, DataPoint, ModSt, 
@@ -576,7 +576,7 @@ report_value(module, Mod, Metric, DataPoint, Val, ModStates) ->
 		{ok, NewModSt} ->
 		    {true, [ { Mod, NewModSt }  | RemModState]};
 		{Error, Reason} ->
-		    io:format("~p:report(~p, ~p, ~p, ~p) ->"
+		    ?error("Reporting to ~p:report(~p, ~p, ~p, ~p) failed ->"
 			      " {~p, ~p}; removing module~n",
 			      [Mod, Metric, DataPoint, Val, ModSt, Error, Reason]),
 		    {false, RemModState}
@@ -604,7 +604,7 @@ get_subscribers(Metric, [ #subscriber {
 			       metric = Metric,
 			       datapoint = SDataPoint 
 			      }} | T ]) ->
-    io:format("get_subscribers(~p, ~p, ~p): match~n", [ Metric, SDataPoint, SRecipient]),
+    ?debug("get_subscribers(~p, ~p, ~p): match~n", [ Metric, SDataPoint, SRecipient]),
     [ { SRecipient, SDataPoint } | get_subscribers(Metric, T) ];
 
 %% This subscription does not match Metric.
@@ -614,7 +614,7 @@ get_subscribers(Metric, [ #subscriber {
 			       metric = SMetric,
 			       datapoint = SDataPoint 
 			      }} | T]) ->
-    io:format("get_subscribers(~p, ~p, ~p) nomatch(~p) ~n", 
+    ?debug("get_subscribers(~p, ~p, ~p) nomatch(~p) ~n", 
 	      [ SMetric, SDataPoint, SRecipient, Metric]),
     get_subscribers(Metric, T).
 
