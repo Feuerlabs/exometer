@@ -85,7 +85,8 @@ get_datapoints(_Name, _Type, _Ref) ->
 
 probe_get_value(St, DataPoints) ->
     {Length, Total, Lst} = ets:foldl(
-	    fun(#elem { val = Val }, {Length, Total, List}) -> { Length + 1, Total + Val, [ Val | List ]}  end, 
+	    fun(#elem { val = Val }, {Length, Total, List}) -> 
+		    { Length + 1, Total + Val, [ Val | List ]}  end, 
 	    {0, 0.0, []}, St#st.ets_ref),
 
     Sorted = lists:sort(Lst),

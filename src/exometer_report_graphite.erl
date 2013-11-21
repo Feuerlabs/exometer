@@ -11,6 +11,7 @@
 -module(exometer_report_graphite).
 -behaviour(exometer_report).
 
+%% gen_server callbacks
 -export([exometer_init/1, 
 	 exometer_report/4,
 	 exometer_subscribe/3,

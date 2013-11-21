@@ -12,10 +12,11 @@
 %% @todo Move plugins into their own gen_serv processes to avoid having
 %%        them blocking the rest of the reporting system on delays.
 %% 
-%% A custom reporter plugin can receive updated metric values by having
-%% its module referenced in an `exometer_report:subscribe()' call.
+%% A custom reporter plugin, executing in its own process, can receive
+%% updated metric values by having its module referenced in an
+%% `exometer_report:subscribe()' call.
 %% 
-%% The module, once it is setup as a subscription destination, will
+%% The reporter, once it is setup as a subscription destination, will
 %% receive periodic calls with updated metrics and data points to be
 %% reported.
 %% 
@@ -23,25 +24,25 @@
 %% 
 %% The life cycle of a a custom reporter consists of the following steps.
 %% 
-%% + Plugin creation 
+%% + Reporter creation 
 %%     <br/>`exometer_init/1' is invoked by exometer when
-%%     the plugin is configured in the reporter application
+%%     the reporter is configured in the reporter application
 %%     environment. See {@section Configuring reporter plugins} for
-%%     details.
+%%     details. 
 %% 
 %% + Setup subscription
 %%     <br/>When `exometer_report:subscribe()' is called, targeting the
-%%     custom report plugin, the module's `exometer_subscribe()' function
+%%     custom report plugin, the gen_serve's `exometer_subscribe()' function
 %%     will be invoked to notify the plugin of the new metrics subscription.
 %% 
 %% + Report Metrics
 %%     <br/>Updated metrics are sent by exometer to the
 %%     `exometer_report/4'. All reported metrics will have been notified
-%%     to the module through a previous `exometer_report()' function.
+%%     to the recipient through a previous `exometer_report()' function.
 %% 
 %% + Tear down subscription
 %%     <br/>When `exometer_report:unsubscribe()' is called, addressing the
-%%     custom report plugin, the module's `exometer_unsubscribe()' function
+%%     custom report plugin, the recipient's `exometer_unsubscribe()' function
 %%     will be invoked to notify the plugin of the deleted subscription.
 %% 
 %% 
@@ -60,7 +61,7 @@
 %% 
 %% + `Options'
 %%     <br/>Provides the prop list with attributes from the application environment
-%%     for the cusom module. See {@section Configuring reporter plugins} for
+%%     for the cusom recipient. See {@section Configuring reporter plugins} for
 %% 
 %% The `exomoeter_init()' function should return `{ok, State}' where
 %% State is a tuple that will be provided as a reference argument to
@@ -168,52 +169,54 @@
 -define(SERVER, ?MODULE).
 -type metric() :: list().
 -type datapoint() :: atom().
--type value() :: any().
--type mod_state() :: any().
--type recipient() :: pid() | atom().
 -type options() :: [ { atom(), any()} ].
+-type mod_state() :: any().
+-type value() :: any().
 -type callback_result() :: {ok, mod_state()} | any().
--type key() :: {pid | module, recipient(), metric(), datapoint()}.
+-type key() :: {module(), metric(), datapoint()}.
 
 %% Callback for function, not cast-based, reports that
 %% are invoked in-process.
--callback exometer_report(metric(), datapoint(), value(), mod_state()) -> 
-    callback_result().
-									   
 -callback exometer_init(options()) -> callback_result().
 
+-callback exometer_report(metric(), datapoint(), value(), mod_state()) -> 
+    callback_result().
+                                                                           
 -callback exometer_subscribe(metric(), datapoint(), mod_state()) -> 
     callback_result().
 
 -callback exometer_unsubscribe(metric(), datapoint(), mod_state()) -> 
     callback_result().
 
-
 -record(key, {
-	  type,
-	  recipient,
-	  metric,
-	  datapoint
+	  reporter :: module(),
+	  metric :: metric(),
+	  datapoint :: datapoint()
 	 }).
 
 -record(subscriber, {
 	  key   :: key(),
 	  interval :: integer(), 
-	  m_ref :: reference(),
 	  t_ref :: reference()
 	 }).
 
--record(mod_state, {
-	  module :: atom(),
-	  state  :: any()
+-record(reporter, {
+	  pid   :: pid(),
+	  mref :: reference(), 
+	  module :: module()
 	 }).
+
 
 -record(st, {
 	  subscribers:: [ #subscriber{} ],
-	  mod_states :: [ #mod_state{}  ]
+	  reporters:: [ #reporter{} ]
 	 }).
 
 -include("log.hrl").
+
+%% Helper macro for declaring children of supervisor
+%% Used to start reporters, which are a part of the supervisor tree.
+-define(CHILD(I, Type, OIpt), {I, {I, start_link, Opt}, permanent, 5000, Type, [I]}).
 
 %%%===================================================================
 %%% API
@@ -227,19 +230,17 @@
 %% @end
 %%--------------------------------------------------------------------
 start_link() ->
+    %% Launch the main server.
     Opts = get_env(report, []),
     gen_server:start_link({local, ?MODULE}, ?MODULE,  Opts, []).
 
-
-subscribe(Recipient, Metric, DataPoint, Interval) ->
-    call({subscribe, #key{type = recipient_type(Recipient),
-			  recipient = Recipient,
+subscribe(Reporter, Metric, DataPoint, Interval) ->
+    call({subscribe, #key{reporter = Reporter,
 			  metric = Metric,
 			  datapoint = DataPoint}, Interval}).
 
-unsubscribe(Recipient, Metric, DataPoint)  ->
-    call({unsubscribe, #key{type = recipient_type(Recipient),
-			    recipient = Recipient,
+unsubscribe(Reporter, Metric, DataPoint) ->
+    call({unsubscribe, #key{reporter = Reporter,
 			    metric = Metric,
 			    datapoint = DataPoint}}).
 
@@ -268,17 +269,29 @@ call(Req) ->
 %% @end
 %%--------------------------------------------------------------------
 init(Opts) ->
+    %% Dig out configured 'static' subscribers
+    Opts = get_env(report, []),
     %% Dig out the mod opts.
-    %% { modules, [ {module1, [{opt1, val}, ...]}, {module2, [...]}]}
-    ModStates = 
-	%% Traverse list and init modules.
-	case lists:keytake(modules, 1, Opts) of
-	    {value, {modules, Modules}, _Opts1 } ->
-		lists:foldr(fun init_module/2, [], Modules);
+    %% { reporters, [ {reporter1, [{opt1, val}, ...]}, {reporter2, [...]}]}
+    %% Traverse list of reporter and launch reporter gen servers as dynamic
+    %% supervisor children.
+    Reporters = 
+	case lists:keytake(reporters, 1, Opts) of
+	    {value, { reporters, ReporterList }, _Opts1 } ->
+		lists:foldr(
+		      fun({Reporter, Opt}, Acc) -> 
+			      {Pid, MRef} = 
+				  spawn_monitor(fun() ->
+							reporter_launch(Reporter, Opt)
+						end),
+			      register(Reporter, Pid),
+			      [ #reporter { module = Reporter, 
+					    pid = Pid, 
+					    mref = MRef} | Acc]
+		      end, [], ReporterList);
 	    _ -> []
 	end,
-    
-    %% Dig out configured 'static' subscribers
+
     SubsList = 
 	case lists:keytake(subscribers, 1, Opts) of
 	    {value, {subscribers, Subscribers}, _ } ->
@@ -286,22 +299,12 @@ init(Opts) ->
 	    _ -> []
 	end,
     {ok, #st {
-	    subscribers = SubsList,
-	    mod_states = ModStates
+       reporters = Reporters,
+       subscribers = SubsList
       }}.
 
-init_module({Mod, Opts}, Acc) ->
-    case catch Mod:exometer_init(Opts) of
-	{ok, ModSt} ->
-	    [{Mod, ModSt} | Acc];
-	{Error, Reason} when Error == error; Error == 'EXIT' ->
-	    ?error("~p:init(~p) -> {~p, ~p}; skipping module~n",
-		   [Mod, Opts, Error, Reason]),
-	    Acc
-    end.
-
-init_subscriber({Recipient, Metric, DataPoint, Interval}, Acc) ->
-    [ subscribe_(module, Recipient, Metric, DataPoint, Interval) | Acc ].
+init_subscriber({Reporter, Metric, DataPoint, Interval}, Acc) ->
+    [ subscribe_(Reporter, Metric, DataPoint, Interval) | Acc ].
 
 %%--------------------------------------------------------------------
 %% @private
@@ -318,59 +321,25 @@ init_subscriber({Recipient, Metric, DataPoint, Interval}, Acc) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_call({ subscribe, 
-	     #key{ type = module,
-		   recipient = Module,
+	     #key{ reporter = Reporter,
 		   metric = Metric,
 		   datapoint = DataPoint} , Interval },
-	    _From, #st{ subscribers = Subs,
-			mod_states = ModStates} = St) ->
+	    _From, #st{ subscribers = Subs} = St) ->
 
     %% FIXME: Validate Metric and datapoint
-    NModStates = notify_module(Module, exometer_subscribe,
-			       Metric, DataPoint, ModStates),
-
-    Sub = subscribe_(module, Module, Metric, DataPoint, Interval),
-    {reply, ok, St#st{
-		  subscribers = [Sub | Subs],
-		  mod_states = NModStates
-		 }};
-
-handle_call({ subscribe, 
-	      #key{type = pid,
-		   recipient = Recipient,
-		   metric = Metric,
-		   datapoint = DataPoint} , Interval},
-	    _From, #st{subscribers = Subs } = St) ->
-
-    Sub = subscribe_(pid, Recipient, Metric, DataPoint, Interval),
-    {reply, ok, St#st{ subscribers = [Sub | Subs]}};
+    Reporter ! { exometer_subscribe, Metric, DataPoint, Interval },
+    Sub = subscribe_(Reporter, Metric, DataPoint, Interval),
+    {reply, ok, St#st{ subscribers = [Sub | Subs] }};
 
 %%
 handle_call({ unsubscribe, 
-	      #key{ type = module,
-		    recipient = Module,
+	      #key{ reporter = Reporter,
 		    metric = Metric,
 		    datapoint = DataPoint }}, _, 
-	    #st{ subscribers = Subs,
-		 mod_states = ModStates} = St) ->
+	    #st{ subscribers = Subs} = St) ->
 
-    %% FIXME: Validate Metric and datapoint
-    NModStates = notify_module(Module, exometer_unsubscribe,
-			       Metric, DataPoint, ModStates),
-
-    { Res, NSubs} = unsubscribe_(module, Module, Metric, DataPoint, Subs), 
-    {reply, Res, St#st{ subscribers = NSubs,
-			mod_states = NModStates } };
-
-handle_call({unsubscribe, 
-	     #key{ type = pid,
-		   recipient = Recipient,
-		   metric = Metric,
-		   datapoint = DataPoint }}, _, 
-	    #st{ subscribers = Subs } = St) ->
-
-    { Res, NSubs} = unsubscribe_(pid, Recipient, Metric, DataPoint, Subs), 
-    {reply, Res, St#st{subscribers = NSubs}};
+    { Res, NSubs} = unsubscribe_(Reporter, Metric, DataPoint, Subs), 
+    {reply, Res, St#st{ subscribers = NSubs } };
 
 handle_call({list_metrics, Path}, _, St) ->
     DP = lists:foldr(fun(Metric, Acc) -> 
@@ -404,38 +373,30 @@ handle_cast(_Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_info({ report, #key{ type = Type, 
-			    recipient = Recipient, 
+handle_info({ report, #key{ reporter = Reporter, 
 			    metric = Metric,
 			    datapoint = DataPoint } = Key, Interval},
-	    #st{mod_states = ModStates, subscribers = Subs} = St) ->
+	    #st{subscribers = Subs} = St) ->
     case lists:keyfind(Key, #subscriber.key, Subs) of
 	#subscriber{} = Sub ->
 	    case exometer:get_value(Metric, [DataPoint]) of
 		{ok, [{_, Val}]} ->
-		    %% Distribute metric value to pid subscriber or module,
-		    %% depending on type.
-		    %% Store indication if we should re-arm the timer,
-		    %% and the new module states (for module reporting).
-		    {ReArmTimer, NewModStates} =
-			report_value(Type, Recipient, Metric,
-				     DataPoint, Val, ModStates),
+		    %% Distribute metric value to the correct process
+		    report_value(Reporter, Metric, DataPoint, Val),
 
-		    %% If the reporting went well, re-arm the timer
-		    %% for next round
-		    TRef = if ReArmTimer ->
-				   erlang:send_after(
-				     Interval, self(), {report, Key, Interval});
-			      true -> undefined
-			   end,
+		    %% Re-arm the timer for next round
+		    TRef = erlang:send_after(Interval, self(), 
+					     {report, Key, Interval}),
+
 		    %% Replace the pid_subscriber info with a record having
-		    %% the new timer ref. Replace mod states with the updates
-		    %% state returned by Recipient:exometer_report()
-		    {noreply, St#st{mod_states = NewModStates,
-				    subscribers =
+		    %% the new timer ref. 
+		    {noreply, St#st{subscribers =
 					lists:keyreplace(
 					  Key, #subscriber.key, Subs,
-					  Sub#subscriber{t_ref = TRef})}};
+					  Sub#subscriber{ t_ref = TRef }
+					 )
+				   }
+		    };
 		_ ->
 		    %% Entry removed while timer in progress.
 		    ?error("Metric(~p) Datapoint(~p) not found~n",
@@ -447,15 +408,16 @@ handle_info({ report, #key{ type = Type,
 	    ?error("No such subscriber (Key=~p)~n", [Key]),
 	    {noreply, St}
     end;
-%%
-handle_info({'DOWN', _, _, Pid, _}, #st{subscribers = Subs} = St) ->
-    case [S || #subscriber{key = #key{recipient = P}} = S <- Subs, P==Pid] of
-	[#subscriber{t_ref = TRef} = Subscriber] ->
-	    cancel_timer(TRef),
-	    {noreply, St#st{subscribers = Subs -- [Subscriber]}};
-	[] ->
-	    {noreply, St}
-    end;
+
+handle_info({'DOWN', Ref, process, _Pid, _Reason}, S) ->
+    Subs = 
+	case lists:keytake(Ref, #reporter.mref, S#st.reporters) of
+	    #reporter {module = Module} ->
+		purge_subscribtions(Module, S#st.subscribers);
+	    _ -> S#st.subscribers
+	end,
+    {noreply, S#st { subscribers = Subs }};
+
 handle_info(_Info, State) ->
     ?warning("exometer_report:info(??): ~p~n", [ _Info ]),
     {noreply, State}.
@@ -464,7 +426,7 @@ handle_info(_Info, State) ->
 %% @private
 %% @doc
 %% This function is called by a gen_server when it is about to
-%% terminate. It should be the opposite of Module:init/1 and do any
+%% terminate. It should be the opposite of Reporter:init/1 and do any
 %% necessary cleaning up. When it returns, the gen_server terminates
 %% with Reason. The return value is ignored.
 %%
@@ -490,9 +452,8 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 
-subscribe_(Type, Recipient, Metric, DataPoint, Interval) ->
-    Key = #key { type = Type, 
-		 recipient = Recipient,
+subscribe_( Reporter, Metric, DataPoint, Interval) ->
+    Key = #key { reporter = Reporter,
 		 metric = Metric,
 		 datapoint = DataPoint
 	       },
@@ -500,97 +461,37 @@ subscribe_(Type, Recipient, Metric, DataPoint, Interval) ->
     %% FIXME: Validate Metric and datapoint
     TRef = erlang:send_after(Interval, self(), 
 			     { report, Key, Interval }),
-    MRef = set_monitor(Type, Recipient),
     #subscriber{ key = Key,
-		 m_ref = MRef,
 		 t_ref = TRef}.
 
-unsubscribe_(Type, Recipient, Metric, DataPoint, Subs) ->
-    case lists:keytake(#key { type = Type, 
-			      recipient = Recipient,
+unsubscribe_(Reporter, Metric, DataPoint, Subs) ->
+
+    case lists:keytake(#key { reporter = Reporter,
 			      metric = Metric,
 			      datapoint = DataPoint},
 		       #subscriber.key, Subs) of
 
-	{value, #subscriber{t_ref = TRef, m_ref = MRef}, Rem} ->
+	{value, #subscriber{t_ref = TRef}, Rem} ->
+	    %% FIXME: Validate Metric and datapoint
+	    Reporter ! { exometer_unsubscribe, Metric, DataPoint },
 	    cancel_timer(TRef),
-	    cancel_monitor(MRef),
 	    {ok, Rem};
 	_ ->
 	    {not_found, Subs }
     end.
 
 
-notify_module(Module, Function, Metric, DataPoint, ModStates) ->
-    %% Retrieve the correct module state
-    case lists:keytake(Module, 1, ModStates) of
-	{ value, {_, ModSt}, RemModState } ->
-	    %% We found a state, invoke the module.
-	    case catch Module:Function(Metric, DataPoint, ModSt) of
-		{ok, NewModSt} ->
-		    [ { Module, NewModSt }  | RemModState];
-
-		%% Exception, or just an error
-		{Error, Reason} ->
-		    ?error("Failed to notify module ~p:~p(~p, ~p, ~p) ->"
-			      " {~p, ~p}; removing module~n",
-			      [Module, Function,
-			       Metric, DataPoint, ModSt, 
-			       Error, Reason]),
-		    RemModState
-	    end;
-
-	false ->
-	    ?error("Cannot find module state ~p~n", [Module]),
-	    ModStates
-    end.
-
-    
-recipient_type(P) when is_pid(P)  -> pid;
-recipient_type(M) when is_atom(M) -> module.
-
-set_monitor(pid, P) when is_pid(P) ->
-    erlang:monitor(process, P);
-
-set_monitor(_, _) ->
-    undefined.
-
-
 cancel_timer(undefined) -> ok;
 cancel_timer(TRef) ->
     erlang:cancel_timer(TRef).
 
-cancel_monitor(undefined) -> ok;
-cancel_monitor(MRef) ->
-    erlang:demonitor(MRef).
 
-report_value(pid, Recipient, Metric, DataPoint, Val, ModStates) ->
-    %% Send a message to the recipient process
-    Recipient ! {exometer_report, os:timestamp(), Metric, DataPoint, Val},
-    {true, ModStates};
+report_value(Reporter, Metric, DataPoint, Val) ->
+    Reporter ! {exometer_report, Metric, DataPoint, Val},
+    true.
 
-report_value(module, Mod, Metric, DataPoint, Val, ModStates) ->
-    case lists:keytake(Mod, 1, ModStates) of
-	{ value, {_, ModSt}, RemModState } ->
-	    case catch Mod:exometer_report(Metric, DataPoint, Val,ModSt) of
-		{ok, NewModSt} ->
-		    {true, [ { Mod, NewModSt }  | RemModState]};
-		{Error, Reason} ->
-		    ?error("Reporting to ~p:report(~p, ~p, ~p, ~p) failed ->"
-			      " {~p, ~p}; removing module~n",
-			      [Mod, Metric, DataPoint, Val, ModSt, Error, Reason]),
-		    {false, RemModState}
-	    end;
-
-	false ->
-	    ?error("Cannot find module ~p~n", [Mod]),
-	    {false, ModStates}
-    end.
-
-	
-
-retrieve_metric({ Metric, Type, Enabled}, Subscribers, Acc) ->
-    [ { Metric, Type, exometer:info(Metric, datapoints), 
+retrieve_metric({ Metric, Enabled}, Subscribers, Acc) ->
+    [ { Metric, exometer:info(Metric, datapoints), 
 	get_subscribers(Metric, Subscribers), Enabled } | Acc ]. 
 
 
@@ -600,22 +501,22 @@ get_subscribers(_Metric, []) ->
 %% This subscription matches Metric
 get_subscribers(Metric, [ #subscriber { 
 			     key = #key { 
-			       recipient = SRecipient, 
+			       reporter = SReporter, 
 			       metric = Metric,
 			       datapoint = SDataPoint 
 			      }} | T ]) ->
-    ?debug("get_subscribers(~p, ~p, ~p): match~n", [ Metric, SDataPoint, SRecipient]),
-    [ { SRecipient, SDataPoint } | get_subscribers(Metric, T) ];
+    ?debug("get_subscribers(~p, ~p, ~p): match~n", [ Metric, SDataPoint, SReporter]),
+    [ { SReporter, SDataPoint } | get_subscribers(Metric, T) ];
 
 %% This subscription does not match Metric.
 get_subscribers(Metric, [ #subscriber { 
 			     key = #key { 
-			       recipient = SRecipient, 
+			       reporter = SReporter, 
 			       metric = SMetric,
 			       datapoint = SDataPoint 
 			      }} | T]) ->
     ?debug("get_subscribers(~p, ~p, ~p) nomatch(~p) ~n", 
-	      [ SMetric, SDataPoint, SRecipient, Metric]),
+	      [ SMetric, SDataPoint, SReporter, Metric]),
     get_subscribers(Metric, T).
 
 get_env(Key, Default) ->
@@ -625,3 +526,58 @@ get_env(Key, Default) ->
 	_ ->
 	    Default
     end.
+
+%% Purge all subscriptions associated with a specific reporter 
+%% (that just went down).
+purge_subscribtions(Module, Subs) ->
+    %% Go through all #subscriber elements in Subs and
+    %% cancel the timer of those who match the provided module
+    %%
+    %% Return new #subscriber list with all original subscribers
+    %% that do not reference Module
+    lists:foldr(fun(#subscriber { key = #key {reporter = Mod},
+				  t_ref = TRef}, Acc) when Mod =:= Module->
+			cancel_timer(TRef),
+			Acc;
+		   (Subscriber, Acc) ->
+			[ Subscriber | Acc ]
+		end, [], Subs).
+
+%% Called by the spawn_monitor() call in init
+%% Loop and run reporters.
+%% Module is expected to implement exometer_report behavior
+reporter_launch(Module, Opts) ->
+    case  Module:exometer_init(Opts) of
+	{ok, St } -> reporter_loop(Module, St);
+	{error, Reason} -> 
+	    ?error("Failed to start reporter ~p: ~p~n", [ Module, Reason ]),
+	    exit(Reason)
+    end.
+
+reporter_loop(Module, St) ->
+    NSt = 
+	receive 
+	    { exometer_report, Metric, DataPoint, Value } ->
+		case Module:exometer_report(Metric, DataPoint, Value, St) of
+		    { ok, St1 } -> St1;
+		    _ -> St
+		end;
+
+	    { exometer_unsubscribe, Metric, DataPoint } ->
+		case Module:exometer_unsubscribe(Metric, DataPoint, St) of
+		    { ok, St1 } -> St1;
+		    _ -> St
+		end;
+
+	    { exometer_subscribe, Metric, DataPoint, Interval } ->
+		case caseModule:exometer_subscribe(Metric, DataPoint, Interval, St) of
+		    { ok, St1 } -> St1;
+		    _ -> St
+		end;
+
+	    %% Allow reporters to generate their own callbacks.
+	    { Fun, Arg } ->
+		?info("Custom invocation: ~p:~p(~p)~n", [ Module, Fun, Arg]),
+		Module:Fun(Arg, St) %% Fun() is expected to return new state.
+	end,
+    reporter_loop(Module, NSt).
