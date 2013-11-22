@@ -80,26 +80,26 @@
 %%
 %%
 %% + `[hostid]'
-%%    <br/>Specifies the hostid that should be used when reporting this metric
+%%    Specifies the hostid that should be used when reporting this metric
 %%    This allows for multiple riak reporters to send metric data to
 %%    to a single server, thus allowing the server to distinguish between
 %%    different reporters through their individual host ids.
 %%
 %% + `[metric]'
-%%    <br/>Identifies the metric that is to be sampled and delivered.
+%%    Identifies the metric that is to be sampled and delivered.
 %%    Each element in the atom list is separated by a slash (`/').
 %%    <br/>Thus `[db, cache, hits]' is identified as 'db/cache/hits'.
 %% 
 %% + `[datapoint]'
-%%    <br/>Identifies the data point within the metric 
+%%    Identifies the data point within the metric 
 %%    that is to be sampled and delivered.
 %%
 %% + `[interval]'
-%%    <br/>Specifies the interval, in milliseconds, that should
+%%    Specifies the interval, in milliseconds, that should
 %%    elapse between each metric/data point delivery.
 %%   
 %% + `[socket]
-%%    <br/>Specifies the unix socket file path that
+%%    Specifies the unix socket file path that
 %%    the given metric/data point should be delivered to.
 %%
 %% === Reply Format ===
