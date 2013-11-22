@@ -75,15 +75,15 @@
 %% with different `[socket]' paths.
 %%
 %% === Request Format ===
-%% <pre>
-%%      subscribe [hostid] [metric]/[datapoint] [interval] [socket]</pre>
+%%
+%% <pre>subscribe [hostid] [metric]/[datapoint] [interval] [socket]</pre>
 %%
 %%
 %% + `[hostid]'
-%%    Specifies the hostid that should be used when reporting this metric
-%%    This allows for multiple riak reporters to send metric data to
-%%    to a single server, thus allowing the server to distinguish between
-%%    different reporters through their individual host ids.
+%%      Specifies the hostid that should be used when reporting this metric
+%%      This allows for multiple riak reporters to send metric data to
+%%      to a single server, thus allowing the server to distinguish between
+%%      different reporters through their individual host ids.
 %%
 %% + `[metric]'
 %%    Identifies the metric that is to be sampled and delivered.
