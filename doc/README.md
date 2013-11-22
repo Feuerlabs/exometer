@@ -4,7 +4,7 @@
 
 Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved..
 
-__Version:__ Nov 18 2013 15:17:13
+__Version:__ Nov 22 2013 15:18:25
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -611,7 +611,7 @@ be samples, and the result will be sent to the receiver.
 
 
 The various reporter plugins to be loaded by exometer are configured
-in the `report` section under `modules`
+in the `report` section under `reporters`
 
 Each reporter has an entry named after its module, and the content of
 that entry is dependent on the reporter itself. The following chapters
@@ -629,7 +629,7 @@ its correct location in the hierarchy:
 
  {exometer, [
      {report, 
-	{ modules, [ 
+	{ reporters, [ 
 	    { exometer_report_collectd, [ 
 		{ reconnect_interval, 10 },
 		{ refresh_interval, 20 }, 
@@ -739,7 +739,7 @@ its correct location in the hierarchy:
 
  {exometer, [
      {report, 
-	{ modules, [ 
+	{ reporters, [ 
 	    { exometer_report_graphite, [ 
 		{ connect_timeout, 5000 },
 		{ prefix, "web_stats" }, 
@@ -821,6 +821,7 @@ Please see @see exometer_report documentation for details.
 <tr><td><a href="exometer_report.md" class="module">exometer_report</a></td></tr>
 <tr><td><a href="exometer_report_collectd.md" class="module">exometer_report_collectd</a></td></tr>
 <tr><td><a href="exometer_report_graphite.md" class="module">exometer_report_graphite</a></td></tr>
+<tr><td><a href="exometer_report_riak.md" class="module">exometer_report_riak</a></td></tr>
 <tr><td><a href="exometer_slide.md" class="module">exometer_slide</a></td></tr>
 <tr><td><a href="exometer_slot_slide.md" class="module">exometer_slot_slide</a></td></tr>
 <tr><td><a href="exometer_spiral.md" class="module">exometer_spiral</a></td></tr>

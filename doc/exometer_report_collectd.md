@@ -7,7 +7,7 @@
 
 
 Custom reporting probe for Hosted Graphite.
-__Behaviours:__ [`exometer_report`](exometer_report.md), [`gen_server`](gen_server.md).
+__Behaviours:__ [`exometer_report`](exometer_report.md).
 <a name="description"></a>
 
 ## Description ##
@@ -20,19 +20,12 @@ will be reported to collectd.<a name="index"></a>
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#code_change-3">code_change/3</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_init-1">exometer_init/1</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_report-4">exometer_report/4</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_subscribe-3">exometer_subscribe/3</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_unsubscribe-3">exometer_unsubscribe/3</a></td><td></td></tr><tr><td valign="top"><a href="#handle_call-3">handle_call/3</a></td><td></td></tr><tr><td valign="top"><a href="#handle_cast-2">handle_cast/2</a></td><td></td></tr><tr><td valign="top"><a href="#handle_info-2">handle_info/2</a></td><td></td></tr><tr><td valign="top"><a href="#init-1">init/1</a></td><td></td></tr><tr><td valign="top"><a href="#terminate-2">terminate/2</a></td><td></td></tr></table>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#exometer_init-1">exometer_init/1</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_report-4">exometer_report/4</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_subscribe-4">exometer_subscribe/4</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_unsubscribe-3">exometer_unsubscribe/3</a></td><td></td></tr><tr><td valign="top"><a href="#reconnect-2">reconnect/2</a></td><td></td></tr><tr><td valign="top"><a href="#refresh_metric-2">refresh_metric/2</a></td><td></td></tr></table>
 
 
 <a name="functions"></a>
 
 ## Function Details ##
-
-<a name="code_change-3"></a>
-
-### code_change/3 ###
-
-`code_change(OldVsn, State, Extra) -> any()`
-
 
 <a name="exometer_init-1"></a>
 
@@ -48,11 +41,11 @@ will be reported to collectd.<a name="index"></a>
 `exometer_report(Metric, DataPoint, Value, St) -> any()`
 
 
-<a name="exometer_subscribe-3"></a>
+<a name="exometer_subscribe-4"></a>
 
-### exometer_subscribe/3 ###
+### exometer_subscribe/4 ###
 
-`exometer_subscribe(Metric, DataPoint, St) -> any()`
+`exometer_subscribe(Metric, DataPoint, Interval, St) -> any()`
 
 
 <a name="exometer_unsubscribe-3"></a>
@@ -62,38 +55,17 @@ will be reported to collectd.<a name="index"></a>
 `exometer_unsubscribe(Metric, DataPoint, St) -> any()`
 
 
-<a name="handle_call-3"></a>
+<a name="reconnect-2"></a>
 
-### handle_call/3 ###
+### reconnect/2 ###
 
-`handle_call(Request, From, State) -> any()`
-
-
-<a name="handle_cast-2"></a>
-
-### handle_cast/2 ###
-
-`handle_cast(Msg, State) -> any()`
+`reconnect(X1, St) -> any()`
 
 
-<a name="handle_info-2"></a>
+<a name="refresh_metric-2"></a>
 
-### handle_info/2 ###
+### refresh_metric/2 ###
 
-`handle_info(Msg, St) -> any()`
-
-
-<a name="init-1"></a>
-
-### init/1 ###
-
-`init(Opts) -> any()`
-
-
-<a name="terminate-2"></a>
-
-### terminate/2 ###
-
-`terminate(Reason, State) -> any()`
+`refresh_metric(X1, St) -> any()`
 
 

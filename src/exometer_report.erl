@@ -9,9 +9,7 @@
 %% -------------------------------------------------------------------
 
 %% @doc
-%% @todo Move plugins into their own gen_serv processes to avoid having
-%%        them blocking the rest of the reporting system on delays.
-%% 
+%%
 %% A custom reporter plugin, executing in its own process, can receive
 %% updated metric values by having its module referenced in an
 %% `exometer_report:subscribe()' call.

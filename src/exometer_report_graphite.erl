@@ -14,7 +14,7 @@
 %% gen_server callbacks
 -export([exometer_init/1, 
 	 exometer_report/4,
-	 exometer_subscribe/3,
+	 exometer_subscribe/4,
 	 exometer_unsubscribe/3]).
 
 -include("exometer.hrl").
@@ -74,7 +74,7 @@ exometer_report(Probe, DataPoint, Value, #st{socket = Sock,
 	    reconnect(St)
     end.
 
-exometer_subscribe(_Metric, _DataPoint, St) ->
+exometer_subscribe(_Metric, _DataPoint, _Interval,St) ->
     {ok, St }.
 
 exometer_unsubscribe(_Metric, _DataPoint, St) ->
