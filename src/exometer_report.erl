@@ -69,12 +69,12 @@
 %% cancel the creation of the custom reporting plugin.
 %% 
 %% 
-%% === exometer_subscribe/3 ===
+%% === exometer_subscribe/4 ===
 %% 
 %% The `exometer_subscribe()' function is invoked as follows:
 %% 
 %% <pre lang="erlang">
-%%      exometer_subscribe(Metric, DataPoint, State)</pre>
+%%      exometer_subscribe(Metric, DataPoint, Interval State)</pre>
 %% 
 %% The custom plugin can use this notification to modify and return its
 %% state in order to prepare for future calls to `exometer_report()' with
@@ -87,6 +87,10 @@
 %% + `DataPoint'
 %%     <br/>Specifies the data point within the subscribed-to metric as an atom.
 %%     
+%% + `Interval'
+%%     <br/>Specifies the interval, in milliseconds, that the subscribed-to 
+%%     value will be reported at.
+%%
 %% + `State'
 %%     <br/>Contains the state returned by the last called plugin function.
 %% 
@@ -166,12 +170,14 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
 	 terminate/2, code_change/3]).
 
+
 -define(SERVER, ?MODULE).
 -type metric() :: list().
 -type datapoint() :: atom().
 -type options() :: [ { atom(), any()} ].
 -type mod_state() :: any().
 -type value() :: any().
+-type interval() :: integer().
 -type callback_result() :: {ok, mod_state()} | any().
 -type key() :: {module(), metric(), datapoint()}.
 
@@ -182,7 +188,7 @@
 -callback exometer_report(metric(), datapoint(), value(), mod_state()) -> 
     callback_result().
                                                                            
--callback exometer_subscribe(metric(), datapoint(), mod_state()) -> 
+-callback exometer_subscribe(metric(), datapoint(), interval(), mod_state()) -> 
     callback_result().
 
 -callback exometer_unsubscribe(metric(), datapoint(), mod_state()) -> 
@@ -282,9 +288,9 @@ init(Opts) ->
 		      fun({Reporter, Opt}, Acc) -> 
 			      {Pid, MRef} = 
 				  spawn_monitor(fun() ->
+							register(Reporter, self()),
 							reporter_launch(Reporter, Opt)
 						end),
-			      register(Reporter, Pid),
 			      [ #reporter { module = Reporter, 
 					    pid = Pid, 
 					    mref = MRef} | Acc]
@@ -570,14 +576,18 @@ reporter_loop(Module, St) ->
 		end;
 
 	    { exometer_subscribe, Metric, DataPoint, Interval } ->
-		case caseModule:exometer_subscribe(Metric, DataPoint, Interval, St) of
+		case Module:exometer_subscribe(Metric, DataPoint, Interval, St) of
 		    { ok, St1 } -> St1;
 		    _ -> St
 		end;
 
 	    %% Allow reporters to generate their own callbacks.
-	    { Fun, Arg } ->
+	    { exometer_callback, Fun, Arg } ->
 		?info("Custom invocation: ~p:~p(~p)~n", [ Module, Fun, Arg]),
-		Module:Fun(Arg, St) %% Fun() is expected to return new state.
+		Module:Fun(Arg, St); %% Fun() is expected to return new state.
+	    Other -> 
+		?warning("Got unknown message: ~p~n", [ Other]),
+		St
+		    
 	end,
     reporter_loop(Module, NSt).

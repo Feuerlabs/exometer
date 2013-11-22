@@ -28,7 +28,7 @@
 
 -export([exometer_init/1, 
 	 exometer_report/4,
-	 exometer_subscribe/3,
+	 exometer_subscribe/4,
 	 exometer_unsubscribe/3]).
 
 %% Extra functions involved by exometer_report:reporter_loop().
@@ -107,8 +107,7 @@ exometer_init(Opts) ->
 	    }
     end.
 
-
-exometer_subscribe(_Metric, _DataPoint, St) ->
+exometer_subscribe(_Metric, _DataPoint, _Interval, St) ->
     {ok, St }.
 
 exometer_unsubscribe(Metric, DataPoint, St) ->
@@ -350,12 +349,12 @@ reconnect_after(Socket, ReconnectInterval) ->
     reconnect_after(ReconnectInterval).
 
 reconnect_after(ReconnectInterval) ->
-   erlang:send_after(ReconnectInterval, self(), {reconnect, nil}).
+   erlang:send_after(ReconnectInterval, self(), {exometer_callback, reconnect, nil}).
 
 setup_refresh(RefreshInterval, Metric, DataPoint, Value) ->
     ?debug("Will refresh after ~p~n", [ RefreshInterval ]),
     TRef = erlang:send_after(RefreshInterval, self(), 
-			     { refresh_metric, {Metric, DataPoint, Value}}),
+			     { exometer_callback, refresh_metric, {Metric, DataPoint, Value}}),
 
     ets:insert(exometer_collectd, { ets_key(Metric, DataPoint), TRef}),
     ok.
