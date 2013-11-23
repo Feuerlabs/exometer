@@ -77,8 +77,7 @@
 %% === Request Format ===
 %% <pre>subscribe [hostid] [metric]/[datapoint] [interval] [socket]</pre>
 %%
-%%+ `[hostid]'
-%%    <br/> Specifies the hostid that should be used when reporting this metric
+%%+ `[hostid]'<br/> Specifies the hostid that should be used when reporting this metric
 %%    This allows for multiple riak reporters to send metric data to
 %%    to a single server, thus allowing the server to distinguish between
 %%    different reporters through their individual host ids.
