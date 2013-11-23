@@ -126,10 +126,11 @@ subscribe [hostid] [metric]/[datapoint] [interval] [socket]
 
 + `[hostid]`
 <br></br>
- Specifies the hostid that should be used when reporting this metric
-This allows for multiple riak reporters to send metric data to
-to a single server, thus allowing the server to distinguish between
-different reporters through their individual host ids.
+ Specifies the hostid that should be used when
+reporting this metric This allows for multiple riak reporters to
+send metric data to to a single collector server, thus allowing
+the server to distinguish between different reporters through
+their individual host ids.
 
 
 
