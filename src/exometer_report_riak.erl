@@ -46,7 +46,7 @@
 %% + Escape Characters<br/>A newline can be a part of a field payload
 %%        if it is escaped with a backslash (`\n').<br/>A space can be
 %%        a part of a field payload if it is escaped with a backslash
-%%        (`\ ').<br/>A backslash can be a part of a field payload if
+%%        (`\  ').<br/>A backslash can be a part of a field payload if
 %%        it is escaped with a backslash (`\\').
 %%
 %% == Riak Reporter Server Protocol ==
