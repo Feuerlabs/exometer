@@ -119,12 +119,13 @@ with different `[socket]` paths.
 
 
 ```
-
-       subscribe [hostid] [metric]/[datapoint] [interval] [socket]
+subscribe [hostid] [metric]/[datapoint] [interval] [socket]
 ```
 
 + `[hostid]`
-Specifies the hostid that should be used when reporting this metric
+
+<br></br>
+ Specifies the hostid that should be used when reporting this metric
 This allows for multiple riak reporters to send metric data to
 to a single server, thus allowing the server to distinguish between
 different reporters through their individual host ids.
@@ -132,35 +133,38 @@ different reporters through their individual host ids.
 
 
 + `[metric]`
-Identifies the metric that is to be sampled and delivered.
-Each element in the atom list is separated by a slash (`/`).
 
 <br></br>
+Identifies the metric that is to be sampled and delivered.
+Each element in the atom list is separated by a slash (`/`).
 Thus `[db, cache, hits]` is identified as 'db/cache/hits'.
 
 
 
 + `[datapoint]`
+
+<br></br>
 Identifies the data point within the metric
 that is to be sampled and delivered.
 
 
 
 + `[interval]`
+
+<br></br>
 Specifies the interval, in milliseconds, that should
 elapse between each metric/data point delivery.
 
 
 
 + `[socket]
-Specifies the unix socket file path that
+<br/>Specifies the unix socket file path that
 the given metric/data point should be delivered to.
 
 === Reply Format ===
 
 Each subscibe command will trigger a one line reply being sent
-back to the client.<pre>
-[result] [text]</pre>
+back to the client.<pre>[result] [text]</pre>
 
 + `[result]`
 
@@ -237,9 +241,9 @@ reporter will disconnect a client connection for that socket.
 #### <a name="Request_Format">Request Format</a> ####
 
 
-```
 
-       unsubscribe [metric]/[datapoint]
+```
+unsubscribe [metric]/[datapoint]
 ```
 
 + `[metric]`
@@ -271,8 +275,7 @@ back to the client.
 
 
 ```
-
-       [result] [text]
+[result] [text]
 ```
 
 
@@ -340,8 +343,7 @@ available for subscription.
 
 
 ```
-
-       list [metric]
+list [metric]
 ```
 
 
@@ -366,8 +368,7 @@ being sent back to the client.
 
 
 ```
-
-       [metric1] [datapoint1] [datapoint2] ...
+[metric1] [datapoint1] [datapoint2] ...
        [metric2] [datapoint1] [datapoint2] ...
        ...
        [metricN] [datapoint1] [datapoint2] ...
@@ -446,8 +447,7 @@ to a metrics collector. The
 
 
 ```
-
-       report [hostid] [timestamp] [metric]/[datapoint] [value]
+report [hostid] [timestamp] [metric]/[datapoint] [value]
 ```
 
 <a name="index"></a>

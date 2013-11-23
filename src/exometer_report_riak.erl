@@ -75,31 +75,30 @@
 %% with different `[socket]' paths.
 %%
 %% === Request Format ===
-%%
 %% <pre>subscribe [hostid] [metric]/[datapoint] [interval] [socket]</pre>
 %%
 %%
-%% + `[hostid]'
-%%      Specifies the hostid that should be used when reporting this metric
-%%      This allows for multiple riak reporters to send metric data to
-%%      to a single server, thus allowing the server to distinguish between
-%%      different reporters through their individual host ids.
+%%+ `[hostid]'
+%%    <br/> Specifies the hostid that should be used when reporting this metric
+%%    This allows for multiple riak reporters to send metric data to
+%%    to a single server, thus allowing the server to distinguish between
+%%    different reporters through their individual host ids.
 %%
 %% + `[metric]'
-%%    Identifies the metric that is to be sampled and delivered.
+%%    <br/>Identifies the metric that is to be sampled and delivered.
 %%    Each element in the atom list is separated by a slash (`/').
-%%    <br/>Thus `[db, cache, hits]' is identified as 'db/cache/hits'.
+%%    Thus `[db, cache, hits]' is identified as 'db/cache/hits'.
 %% 
 %% + `[datapoint]'
-%%    Identifies the data point within the metric 
+%%    <br/>Identifies the data point within the metric 
 %%    that is to be sampled and delivered.
 %%
 %% + `[interval]'
-%%    Specifies the interval, in milliseconds, that should
+%%    <br/>Specifies the interval, in milliseconds, that should
 %%    elapse between each metric/data point delivery.
 %%   
 %% + `[socket]
-%%    Specifies the unix socket file path that
+%%    <br/>Specifies the unix socket file path that
 %%    the given metric/data point should be delivered to.
 %%
 %% === Reply Format ===
@@ -107,8 +106,7 @@
 %% Each subscibe command will trigger a one line reply being sent
 %% back to the client.
 %%
-%% <pre>
-%%      [result] [text]</pre>
+%% <pre>[result] [text]</pre>
 %%
 %% + `[result]'
 %%    <br/>Result code integer. See below for details.
@@ -148,8 +146,8 @@
 %% reporter will disconnect a client connection for that socket.
 %%
 %% === Request Format ===
-%% <pre>
-%%      unsubscribe [metric]/[datapoint]</pre>
+%%
+%% <pre>unsubscribe [metric]/[datapoint]</pre>
 %%
 %%
 %% + `[metric]'
@@ -167,8 +165,7 @@
 %% Each subscibe command will trigger a one line reply being sent
 %% back to the client.
 %%
-%% <pre>
-%%      [result] [text]</pre>
+%% <pre>[result] [text]</pre>
 %%
 %% + `[result]'
 %%    <br/>Result code integer. See below for details.
@@ -198,8 +195,7 @@
 %% available for subscription.
 %%
 %% === Request Format ===
-%% <pre>
-%%      list [metric]</pre>
+%% <pre>list [metric]</pre>
 %%
 %% + `[metric]'
 %%    <br/>Identifies the metric that is to be listed. If the metric
@@ -211,8 +207,7 @@
 %% Each list command will trigger a reply of one or more lines
 %% being sent back to the client.
 %%
-%% <pre>
-%%      [metric1] [datapoint1] [datapoint2] ...
+%% <pre>[metric1] [datapoint1] [datapoint2] ...
 %%      [metric2] [datapoint1] [datapoint2] ...
 %%      ...
 %%      [metricN] [datapoint1] [datapoint2] ...
@@ -257,8 +252,7 @@
 %% to a metrics collector. The 
 %%
 %% === Request Format ===
-%% <pre>
-%%      report [hostid] [timestamp] [metric]/[datapoint] [value]</pre>
+%% <pre>report [hostid] [timestamp] [metric]/[datapoint] [value]</pre>
 %%
 %% @todo Add wildcards.
 %% + `[hostid]'
