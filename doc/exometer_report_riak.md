@@ -45,7 +45,8 @@ unsubscribed command.
 
 
 
-= Protocol Characteristics =
+
+### <a name="Protocol_Characteristics">Protocol Characteristics</a> ###
 
 
 
@@ -77,7 +78,7 @@ it is escaped with a backslash (`\\`).
 
 
 
-= Riak Reporter Server Protocol =
+-= Riak Reporter Server Protocol -=
 The server protocol is used to list, subscribe to, and unsubscribe from
 metrics and data points.
 The following commands are supported.
@@ -85,7 +86,7 @@ The following commands are supported.
 
 
 
-### <a name="subscribe">subscribe</a> ###
+#### <a name="subscribe">subscribe</a> ####
 
 
 
@@ -110,8 +111,7 @@ with different `[socket]` paths.
 
 
 
-
-#### <a name="Request_Format">Request Format</a> ####
+<h5><a name="Request_Format">Request Format</a></h5>
 
 
 ```
@@ -158,8 +158,7 @@ the given metric/data point should be delivered to.
 
 
 
-
-#### <a name="Reply_Format">Reply Format</a> ####
+<h5><a name="Reply_Format">Reply Format</a></h5>
 
 
 
@@ -221,7 +220,7 @@ exometer system.
 
 
 
-### <a name="unsubscribe">unsubscribe</a> ###
+#### <a name="unsubscribe">unsubscribe</a> ####
 
 
 
@@ -238,8 +237,7 @@ reporter will disconnect a client connection for that socket.
 
 
 
-
-#### <a name="Request_Format">Request Format</a> ####
+<h5><a name="Request_Format">Request Format</a></h5>
 
 
 
@@ -263,8 +261,7 @@ command.
 
 
 
-
-#### <a name="Reply_Format">Reply Format</a> ####
+<h5><a name="Reply_Format">Reply Format</a></h5>
 
 
 
@@ -322,7 +319,7 @@ data points in the exometer system.
 
 
 
-### <a name="list">list</a> ###
+#### <a name="list">list</a> ####
 
 
 
@@ -331,8 +328,7 @@ available for subscription.
 
 
 
-
-#### <a name="Request_Format">Request Format</a> ####
+<h5><a name="Request_Format">Request Format</a></h5>
 
 
 ```
@@ -349,8 +345,7 @@ path prefix-matches `[metric]` will be listed.
 
 
 
-
-#### <a name="Reply_Format">Reply Format</a> ####
+<h5><a name="Reply_Format">Reply Format</a></h5>
 
 
 
@@ -423,7 +418,7 @@ from the collector to the riak reporter.
 
 
 
-### <a name="report">report</a> ###
+#### <a name="report">report</a> ####
 
 
 
@@ -432,8 +427,7 @@ to a metrics collector. The
 
 
 
-
-#### <a name="Request_Format">Request Format</a> ####
+<h5><a name="Request_Format">Request Format</a></h5>
 
 
 ```

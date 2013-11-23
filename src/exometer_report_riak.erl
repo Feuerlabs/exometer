@@ -34,7 +34,7 @@
 %% the last subscription referring to it is cancelled with an
 %% unsubscribed command.
 %%
-%% = Protocol Characteristics =
+%% == Protocol Characteristics ==
 %%
 %% + Line Based<br/>Each command in the protocol is transmitted as a
 %%        newline-terminated ($10) line.
@@ -48,12 +48,12 @@
 %%        (`\ ').<br/>A backslash can be a part of a field payload if
 %%        it is escaped with a backslash (`\\').
 %%
-%% = Riak Reporter Server Protocol =
+%% -= Riak Reporter Server Protocol -=
 %% The server protocol is used to list, subscribe to, and unsubscribe from
 %% metrics and data points.
 %% The following commands are supported.
 %%
-%% == subscribe ==
+%% === subscribe ===
 %%
 %% The subscribe command sets up the periodic delivery of the given
 %% metric and data point to a unix unix socket and its serving metrics
@@ -70,7 +70,7 @@
 %% The same metric / data point pair can be subscribed to multiple times
 %% with different `[socket]' paths.
 %%
-%% === Request Format ===
+%% ==== Request Format ====
 %% <pre>subscribe [hostid] [metric]/[datapoint] [interval] [socket]</pre>
 %%
 %%+ `[hostid]'<br/> Specifies the hostid that should be used when reporting this metric
@@ -91,7 +91,7 @@
 %% + `[socket]'<br/>Specifies the unix socket file path that
 %%    the given metric/data point should be delivered to.
 %%
-%% === Reply Format ===
+%% ==== Reply Format ====
 %% 
 %% Each subscibe command will trigger a one line reply being sent
 %% back to the client.
@@ -117,7 +117,7 @@
 %%
 %% + `4' - Invalid socket<br/>`[socket]' could not be accessed or connected to.
 %%
-%% == unsubscribe ==
+%% === unsubscribe ===
 %%
 %% The unsubscribe command cancels the periodic delivery of the given
 %% metric and data point to a metrics collector over a unix
@@ -128,7 +128,7 @@
 %% the socket file path provided to a `subscribe' command, the riak
 %% reporter will disconnect a client connection for that socket.
 %%
-%% === Request Format ===
+%% ==== Request Format ====
 %%
 %% <pre>unsubscribe [metric]/[datapoint]</pre>
 %%
@@ -141,7 +141,7 @@
 %%    The given data point must have been provided to a previous `subscribe' 
 %%    command.
 %%
-%% === Reply Format ===
+%% ==== Reply Format ====
 %% 
 %% Each subscibe command will trigger a one line reply being sent
 %% back to the client.
@@ -164,19 +164,19 @@
 %% + `3' - No such data point<br/>`[data point]' could not be found among the subscribed-to
 %%   data points in the exometer system.
 %% 
-%% == list ==
+%% === list ===
 %%
 %% The list command will return a list of metrics and data points
 %% available for subscription.
 %%
-%% === Request Format ===
+%% ==== Request Format ====
 %% <pre>list [metric]</pre>
 %%
 %% + `[metric]'<br/>Identifies the metric that is to be listed. If the metric
 %%    only specifies the beginning of a path, all metrics whose 
 %%    path prefix-matches `[metric]' will be listed.
 %%
-%% === Reply Format ===
+%% ==== Reply Format ====
 %% 
 %% Each list command will trigger a reply of one or more lines
 %% being sent back to the client.
@@ -218,12 +218,12 @@
 %%       metrics collector. No replies or other information are sent
 %%       from the collector to the riak reporter.
 %%
-%% == report ==
+%% === report ===
 %%
 %% The report command sends a single metric / data point value
 %% to a metrics collector. The 
 %%
-%% === Request Format ===
+%% ==== Request Format ====
 %% <pre>report [hostid] [timestamp] [metric]/[datapoint] [value]</pre>
 %%
 %% @todo Add wildcards.
@@ -238,7 +238,7 @@
 %%
 %% + `[value]'<br/>The value of the metric / data point.
 %%
-%% === Reply Format ===
+%% ==== Reply Format ====
 %% 
 %% No reply is sent in response to a `report' command.
 %% @end
