@@ -483,7 +483,7 @@ No reply is sent in response to a `report` command.<a name="index"></a>
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#exometer_init-1">exometer_init/1</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_report-4">exometer_report/4</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_subscribe-4">exometer_subscribe/4</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_unsubscribe-3">exometer_unsubscribe/3</a></td><td></td></tr><tr><td valign="top"><a href="#reconnect-2">reconnect/2</a></td><td></td></tr><tr><td valign="top"><a href="#refresh_metric-2">refresh_metric/2</a></td><td></td></tr></table>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#exometer_init-1">exometer_init/1</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_report-4">exometer_report/4</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_subscribe-4">exometer_subscribe/4</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_unsubscribe-3">exometer_unsubscribe/3</a></td><td></td></tr><tr><td valign="top"><a href="#reconnect-2">reconnect/2</a></td><td></td></tr></table>
 
 
 <a name="functions"></a>
@@ -523,12 +523,5 @@ No reply is sent in response to a `report` command.<a name="index"></a>
 ### reconnect/2 ###
 
 `reconnect(X1, St) -> any()`
-
-
-<a name="refresh_metric-2"></a>
-
-### refresh_metric/2 ###
-
-`refresh_metric(X1, St) -> any()`
 
 

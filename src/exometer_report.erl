@@ -22,24 +22,20 @@
 %% 
 %% The life cycle of a a custom reporter consists of the following steps.
 %% 
-%% + Reporter creation 
-%%     <br/>`exometer_init/1' is invoked by exometer when
+%% + Reporter creation <br/>`exometer_init/1' is invoked by exometer when
 %%     the reporter is configured in the reporter application
 %%     environment. See {@section Configuring reporter plugins} for
 %%     details. 
 %% 
-%% + Setup subscription
-%%     <br/>When `exometer_report:subscribe()' is called, targeting the
+%% + Setup subscription<br/>When `exometer_report:subscribe()' is called, targeting the
 %%     custom report plugin, the gen_serve's `exometer_subscribe()' function
 %%     will be invoked to notify the plugin of the new metrics subscription.
 %% 
-%% + Report Metrics
-%%     <br/>Updated metrics are sent by exometer to the
+%% + Report Metrics<br/>Updated metrics are sent by exometer to the
 %%     `exometer_report/4'. All reported metrics will have been notified
 %%     to the recipient through a previous `exometer_report()' function.
 %% 
-%% + Tear down subscription
-%%     <br/>When `exometer_report:unsubscribe()' is called, addressing the
+%% + Tear down subscription<br/>When `exometer_report:unsubscribe()' is called, addressing the
 %%     custom report plugin, the recipient's `exometer_unsubscribe()' function
 %%     will be invoked to notify the plugin of the deleted subscription.
 %% 
@@ -57,8 +53,7 @@
 %% The custom reporter plugin should create the necessary state for the
 %% new plugin and return a state to be used in future plugin calls.
 %% 
-%% + `Options'
-%%     <br/>Provides the prop list with attributes from the application environment
+%% + `Options'<br/>Provides the prop list with attributes from the application environment
 %%     for the cusom recipient. See {@section Configuring reporter plugins} for
 %% 
 %% The `exomoeter_init()' function should return `{ok, State}' where
@@ -78,19 +73,15 @@
 %% state in order to prepare for future calls to `exometer_report()' with
 %% the given meteric and data point.
 %% 
-%% + `Metric'
-%%     <br/>Specifies the metric that is now subscribed to by the plugin
+%% + `Metric'<br/>Specifies the metric that is now subscribed to by the plugin
 %%     as a list of atoms.
 %% 
-%% + `DataPoint'
-%%     <br/>Specifies the data point within the subscribed-to metric as an atom.
+%% + `DataPoint'<br/>Specifies the data point within the subscribed-to metric as an atom.
 %%     
-%% + `Interval'
-%%     <br/>Specifies the interval, in milliseconds, that the subscribed-to 
+%% + `Interval'<br/>Specifies the interval, in milliseconds, that the subscribed-to 
 %%     value will be reported at.
 %%
-%% + `State'
-%%     <br/>Contains the state returned by the last called plugin function.
+%% + `State'<br/>Contains the state returned by the last called plugin function.
 %% 
 %% The `exomoeter_subscribe()' function should return `{ok, State}' where
 %% State is a tuple that will be provided as a reference argument to
@@ -110,14 +101,11 @@
 %% The plugin should export the value to the external system it interfaces and
 %% return its possibly modified state.
 %% 
-%% + `Metric'
-%%     <br/>Specifies the metric that is to be reported.
+%% + `Metric'<br/>Specifies the metric that is to be reported.
 %% 
-%% + `DataPoint'
-%%     <br/>Specifies the data point within the metric that is to be reported.
+%% + `DataPoint'<br/>Specifies the data point within the metric that is to be reported.
 %%     
-%% + `State'
-%%     <br/>Contains the state returned by the last called plugin function.
+%% + `State'<br/>Contains the state returned by the last called plugin function.
 %% 
 %% The `exomoeter_report()' function should return `{ok, State}' where
 %% State is a tuple that will be provided as a reference argument to
@@ -137,15 +125,12 @@
 %% subscription. When this call returns, the given metric / data point
 %% will not be present in future calls to `exometer_report()'.
 %% 
-%% + `Metric'
-%%     <br/>Specifies the metric that is now subscribed to by the plugin
+%% + `Metric'<br/>Specifies the metric that is now subscribed to by the plugin
 %%     as a list of atoms.
 %% 
-%% + `DataPoint'
-%%     <br/>Specifies the data point within the subscribed-to metric as an atom.
+%% + `DataPoint'<br/>Specifies the data point within the subscribed-to metric as an atom.
 %%     
-%% + `State'
-%%     <br/>Contains the state returned by the last called plugin function.
+%% + `State'<br/>Contains the state returned by the last called plugin function.
 %% 
 %% The `exomoeter_unsubscribe()' function should return `{ok, State}' where
 %% State is a tuple that will be provided as a reference argument to

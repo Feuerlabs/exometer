@@ -32,8 +32,7 @@ The life cycle of a a custom reporter consists of the following steps.
 
 
 
-+ Reporter creation
-
++ Reporter creation 
 <br></br>
 `exometer_init/1` is invoked by exometer when
 the reporter is configured in the reporter application
@@ -43,7 +42,6 @@ details.
 
 
 + Setup subscription
-
 <br></br>
 When `exometer_report:subscribe()` is called, targeting the
 custom report plugin, the gen_serve's `exometer_subscribe()` function
@@ -52,7 +50,6 @@ will be invoked to notify the plugin of the new metrics subscription.
 
 
 + Report Metrics
-
 <br></br>
 Updated metrics are sent by exometer to the
 `exometer_report/4`. All reported metrics will have been notified
@@ -61,7 +58,6 @@ to the recipient through a previous `exometer_report()` function.
 
 
 + Tear down subscription
-
 <br></br>
 When `exometer_report:unsubscribe()` is called, addressing the
 custom report plugin, the recipient's `exometer_unsubscribe()` function
@@ -94,7 +90,6 @@ new plugin and return a state to be used in future plugin calls.
 
 
 + `Options`
-
 <br></br>
 Provides the prop list with attributes from the application environment
 for the cusom recipient. See [Configuring reporter plugins](#Configuring_reporter_plugins) for
@@ -129,7 +124,6 @@ the given meteric and data point.
 
 
 + `Metric`
-
 <br></br>
 Specifies the metric that is now subscribed to by the plugin
 as a list of atoms.
@@ -137,14 +131,12 @@ as a list of atoms.
 
 
 + `DataPoint`
-
 <br></br>
 Specifies the data point within the subscribed-to metric as an atom.
 
 
 
 + `Interval`
-
 <br></br>
 Specifies the interval, in milliseconds, that the subscribed-to
 value will be reported at.
@@ -152,7 +144,6 @@ value will be reported at.
 
 
 + `State`
-
 <br></br>
 Contains the state returned by the last called plugin function.
 
@@ -187,21 +178,18 @@ return its possibly modified state.
 
 
 + `Metric`
-
 <br></br>
 Specifies the metric that is to be reported.
 
 
 
 + `DataPoint`
-
 <br></br>
 Specifies the data point within the metric that is to be reported.
 
 
 
 + `State`
-
 <br></br>
 Contains the state returned by the last called plugin function.
 
@@ -236,7 +224,6 @@ will not be present in future calls to `exometer_report()`.
 
 
 + `Metric`
-
 <br></br>
 Specifies the metric that is now subscribed to by the plugin
 as a list of atoms.
@@ -244,14 +231,12 @@ as a list of atoms.
 
 
 + `DataPoint`
-
 <br></br>
 Specifies the data point within the subscribed-to metric as an atom.
 
 
 
 + `State`
-
 <br></br>
 Contains the state returned by the last called plugin function.
 

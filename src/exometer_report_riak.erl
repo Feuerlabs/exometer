@@ -254,8 +254,7 @@
 
 %% Extra functions involved by exometer_report:reporter_loop().
 %% Triggered by send_after() calls in this module
--export([refresh_metric/2,
-	 reconnect/2]).
+-export([reconnect/2]).
 
 -define(SERVER, ?MODULE). 
 
