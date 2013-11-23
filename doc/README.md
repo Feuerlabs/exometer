@@ -4,7 +4,7 @@
 
 Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved..
 
-__Version:__ Nov 22 2013 16:12:35
+__Version:__ Nov 22 2013 16:13:54
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -294,7 +294,6 @@ at a configurable interval.
 All metrics reported to collectd will be have identifiers formatted as follows:
 
 ```
-
 HostName/PluginName-PluginInstance/Type-Metric_DataPoint
 ```
 

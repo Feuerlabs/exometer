@@ -122,6 +122,8 @@ with different `[socket]` paths.
 subscribe [hostid] [metric]/[datapoint] [interval] [socket]
 ```
 
+
+
 + `[hostid]`
 
 <br></br>

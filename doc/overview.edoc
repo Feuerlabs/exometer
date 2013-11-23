@@ -301,8 +301,7 @@ at a configurable interval.
 
 All metrics reported to collectd will be have identifiers formatted as follows:
 
-<pre>
-HostName/PluginName-PluginInstance/Type-Metric_DataPoint</pre>
+<pre>HostName/PluginName-PluginInstance/Type-Metric_DataPoint</pre>
 
 + `HostName'
     <br/>Host name of the entry. 
