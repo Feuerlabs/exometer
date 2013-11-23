@@ -36,21 +36,17 @@
 %%
 %% = Protocol Characteristics =
 %%
-%% + Line Based
-%%   <br/>Each command in the protocol is transmitted as a
+%% + Line Based<br/>Each command in the protocol is transmitted as a
 %%        newline-terminated ($10) line.
 %%
-%% + Field Based
-%%   <br/>Each command line in the protocol is separated into
+%% + Field Based<br/>Each command line in the protocol is separated into
 %%        space-separated fields.
 %% 
-%% + Escape Characters
-%%   <br/>A newline can be a part of a field payload if it is escaped
-%%        with a backslash (`\n').
-%%   <br/>A space can be a part of a field payload if it is escaped
-%%        with a backslash (`\ ').
-%%   <br/>A backslash can be a part of a field payload if it is escaped
-%%        with a backslash (`\\').
+%% + Escape Characters<br/>A newline can be a part of a field payload
+%%        if it is escaped with a backslash (`\n').<br/>A space can be
+%%        a part of a field payload if it is escaped with a backslash
+%%        (`\ ').<br/>A backslash can be a part of a field payload if
+%%        it is escaped with a backslash (`\\').
 %%
 %% = Riak Reporter Server Protocol =
 %% The server protocol is used to list, subscribe to, and unsubscribe from
@@ -82,21 +78,17 @@
 %%    to a single server, thus allowing the server to distinguish between
 %%    different reporters through their individual host ids.
 %%
-%%+ `[metric]'
-%%    <br/>Identifies the metric that is to be sampled and delivered.
+%%+ `[metric]'<br/>Identifies the metric that is to be sampled and delivered.
 %%    Each element in the atom list is separated by a slash (`/').
 %%    Thus `[db, cache, hits]' is identified as 'db/cache/hits'.
 %% 
-%%+ `[datapoint]'
-%%    <br/>Identifies the data point within the metric 
+%%+ `[datapoint]'<br/>Identifies the data point within the metric 
 %%    that is to be sampled and delivered.
 %%
-%%+ `[interval]'
-%%    <br/>Specifies the interval, in milliseconds, that should
+%%+ `[interval]'<br/>Specifies the interval, in milliseconds, that should
 %%    elapse between each metric/data point delivery.
 %%   
-%% + `[socket]
-%%    <br/>Specifies the unix socket file path that
+%% + `[socket]'<br/>Specifies the unix socket file path that
 %%    the given metric/data point should be delivered to.
 %%
 %% === Reply Format ===
@@ -106,31 +98,24 @@
 %%
 %% <pre>[result] [text]</pre>
 %%
-%% + `[result]'
-%%    <br/>Result code integer. See below for details.
+%% + `[result]'<br/>Result code integer. See below for details.
 %%
-%% + `[text]'
-%%    <br/>Descriptive text.
+%% + `[text]'<br/>Descriptive text.
 %%
 %%
 %% The possible `[result]' codes are as follows:
 %%
-%% + `0' - Success
-%%    <br/>The subscription has been setup successfully.
+%% + `0' - Success<br/>The subscription has been setup successfully.
 %%
-%% + `1' - Syntax error
-%%   <br/>The format of the command was not recognized.
+%% + `1' - Syntax error<br/>The format of the command was not recognized.
 %%
-%% + `2' - No such metric
-%%   <br/>`[metric]' could not be found among the metrics in the
+%% + `2' - No such metric<br/>`[metric]' could not be found among the metrics in the
 %%   exometer system.
 %%
-%% + `3' - No such data point
-%%   <br/>`[data point]' could not be found among the metrics in the
+%% + `3' - No such data point<br/>`[data point]' could not be found among the metrics in the
 %%   exometer system.
 %%
-%% + `4' - Invalid socket
-%%   <br/>`[socket]' could not be accessed or connected to.
+%% + `4' - Invalid socket<br/>`[socket]' could not be accessed or connected to.
 %%
 %% == unsubscribe ==
 %%
@@ -148,13 +133,11 @@
 %% <pre>unsubscribe [metric]/[datapoint]</pre>
 %%
 %%
-%% + `[metric]'
-%%    <br/>Identifies the metric that is to be unsubscribed from.
+%% + `[metric]'<br/>Identifies the metric that is to be unsubscribed from.
 %%    The given metric must have been provided to a previous `subscribe' 
 %%    command.
 %% 
-%% + `[datapoint]'
-%%    <br/>Identifies the datapoint that is to be unsubscribed from.
+%% + `[datapoint]'<br/>Identifies the datapoint that is to be unsubscribed from.
 %%    The given data point must have been provided to a previous `subscribe' 
 %%    command.
 %%
@@ -165,26 +148,20 @@
 %%
 %% <pre>[result] [text]</pre>
 %%
-%% + `[result]'
-%%    <br/>Result code integer. See below for details.
+%% + `[result]'<br/>Result code integer. See below for details.
 %%
-%% + `[text]'
-%%    <br/>Descriptive text.
+%% + `[text]'<br/>Descriptive text.
 %%
 %% The possible `[result]' codes are as follows:
 %%
-%% + `0' - Success
-%%    <br/>The subscription has been cancelled.
+%% + `0' - Success<br/>The subscription has been cancelled.
 %%
-%% + `1' - Syntax error
-%%   <br/>The format of the command was not recognized.
+%% + `1' - Syntax error<br/>The format of the command was not recognized.
 %%
-%% + `2' - No such metric 
-%%   <br/>`[metric]' could not be found among the subscribed-to
+%% + `2' - No such metric <br/>`[metric]' could not be found among the subscribed-to
 %%   metrics in the exometer system.
 %%
-%% + `3' - No such data point
-%%   <br/>`[data point]' could not be found among the subscribed-to
+%% + `3' - No such data point<br/>`[data point]' could not be found among the subscribed-to
 %%   data points in the exometer system.
 %% 
 %% == list ==
@@ -195,8 +172,7 @@
 %% === Request Format ===
 %% <pre>list [metric]</pre>
 %%
-%% + `[metric]'
-%%    <br/>Identifies the metric that is to be listed. If the metric
+%% + `[metric]'<br/>Identifies the metric that is to be listed. If the metric
 %%    only specifies the beginning of a path, all metrics whose 
 %%    path prefix-matches `[metric]' will be listed.
 %%
@@ -216,11 +192,9 @@
 %%
 %% Each line describes a matching metric and its data points.
 %%
-%% + `[metricN]'
-%%    <br/>The name of the metric, in the `x/y/z' format.
+%% + `[metricN]'<br/>The name of the metric, in the `x/y/z' format.
 %%
-%% + `[datapointN]'
-%%    <br/>One or more data points supported by the given metric.
+%% + `[datapointN]'<br/>One or more data points supported by the given metric.
 %%
 %% A combined metric and a supported data point can be sent as arguments
 %% to a `subscribe' command.
@@ -253,21 +227,16 @@
 %% <pre>report [hostid] [timestamp] [metric]/[datapoint] [value]</pre>
 %%
 %% @todo Add wildcards.
-%% + `[hostid]'
-%%    <br/>Specifies the host id provided to the `subscription' command
+%% + `[hostid]'<br/>Specifies the host id provided to the `subscription' command
 %%    that generated this report.
 %%
-%% + `[timestamp]'
-%%    <br/>Specifies the time stamp, in milliseconds since 1970-01-01 00:00:00.000
+%% + `[timestamp]'<br/>Specifies the time stamp, in milliseconds since 1970-01-01 00:00:00.000
 %% 
-%% + `[metric]'
-%%    <br/>The name of the metric reported, in the `x/y/z' format.
+%% + `[metric]'<br/>The name of the metric reported, in the `x/y/z' format.
 %%
-%% + `[datapoint]'
-%%    <br/>The data point under the given metric reported..
+%% + `[datapoint]'<br/>The data point under the given metric reported..
 %%
-%% + `[value]'
-%%    <br/>The value of the metric / data point.
+%% + `[value]'<br/>The value of the metric / data point.
 %%
 %% === Reply Format ===
 %% 

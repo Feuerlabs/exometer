@@ -50,7 +50,6 @@ unsubscribed command.
 
 
 + Line Based
-
 <br></br>
 Each command in the protocol is transmitted as a
 newline-terminated ($10) line.
@@ -58,7 +57,6 @@ newline-terminated ($10) line.
 
 
 + Field Based
-
 <br></br>
 Each command line in the protocol is separated into
 space-separated fields.
@@ -66,18 +64,16 @@ space-separated fields.
 
 
 + Escape Characters
-
 <br></br>
-A newline can be a part of a field payload if it is escaped
-with a backslash (`\n`).
-
+A newline can be a part of a field payload
+if it is escaped with a backslash (`\n`).
 <br></br>
-A space can be a part of a field payload if it is escaped
-with a backslash (`\`).
-
+A space can be
+a part of a field payload if it is escaped with a backslash
+(`\`).
 <br></br>
-A backslash can be a part of a field payload if it is escaped
-with a backslash (`\\`).
+A backslash can be a part of a field payload if
+it is escaped with a backslash (`\\`).
 
 
 
@@ -134,7 +130,6 @@ different reporters through their individual host ids.
 
 
 + `[metric]`
-
 <br></br>
 Identifies the metric that is to be sampled and delivered.
 Each element in the atom list is separated by a slash (`/`).
@@ -143,7 +138,6 @@ Thus `[db, cache, hits]` is identified as 'db/cache/hits'.
 
 
 + `[datapoint]`
-
 <br></br>
 Identifies the data point within the metric
 that is to be sampled and delivered.
@@ -151,31 +145,42 @@ that is to be sampled and delivered.
 
 
 + `[interval]`
-
 <br></br>
 Specifies the interval, in milliseconds, that should
 elapse between each metric/data point delivery.
 
 
 
-+ `[socket]
-<br/>Specifies the unix socket file path that
++ `[socket]`
+<br></br>
+Specifies the unix socket file path that
 the given metric/data point should be delivered to.
 
-=== Reply Format ===
+
+
+
+#### <a name="Reply_Format">Reply Format</a> ####
+
+
 
 Each subscibe command will trigger a one line reply being sent
-back to the client.<pre>[result] [text]</pre>
+back to the client.
+
+
+
+```
+[result] [text]
+```
+
+
 
 + `[result]`
-
 <br></br>
 Result code integer. See below for details.
 
 
 
 + `[text]`
-
 <br></br>
 Descriptive text.
 
@@ -184,21 +189,18 @@ The possible `[result]` codes are as follows:
 
 
 + `0` - Success
-
 <br></br>
 The subscription has been setup successfully.
 
 
 
 + `1` - Syntax error
-
 <br></br>
 The format of the command was not recognized.
 
 
 
 + `2` - No such metric
-
 <br></br>
 `[metric]` could not be found among the metrics in the
 exometer system.
@@ -206,7 +208,6 @@ exometer system.
 
 
 + `3` - No such data point
-
 <br></br>
 `[data point]` could not be found among the metrics in the
 exometer system.
@@ -214,7 +215,6 @@ exometer system.
 
 
 + `4` - Invalid socket
-
 <br></br>
 `[socket]` could not be accessed or connected to.
 
@@ -248,7 +248,6 @@ unsubscribe [metric]/[datapoint]
 ```
 
 + `[metric]`
-
 <br></br>
 Identifies the metric that is to be unsubscribed from.
 The given metric must have been provided to a previous `subscribe`
@@ -257,7 +256,6 @@ command.
 
 
 + `[datapoint]`
-
 <br></br>
 Identifies the datapoint that is to be unsubscribed from.
 The given data point must have been provided to a previous `subscribe`
@@ -282,14 +280,12 @@ back to the client.
 
 
 + `[result]`
-
 <br></br>
 Result code integer. See below for details.
 
 
 
 + `[text]`
-
 <br></br>
 Descriptive text.
 
@@ -300,21 +296,18 @@ The possible `[result]` codes are as follows:
 
 
 + `0` - Success
-
 <br></br>
 The subscription has been cancelled.
 
 
 
 + `1` - Syntax error
-
 <br></br>
 The format of the command was not recognized.
 
 
 
-+ `2` - No such metric
-
++ `2` - No such metric 
 <br></br>
 `[metric]` could not be found among the subscribed-to
 metrics in the exometer system.
@@ -322,7 +315,6 @@ metrics in the exometer system.
 
 
 + `3` - No such data point
-
 <br></br>
 `[data point]` could not be found among the subscribed-to
 data points in the exometer system.
@@ -350,7 +342,6 @@ list [metric]
 
 
 + `[metric]`
-
 <br></br>
 Identifies the metric that is to be listed. If the metric
 only specifies the beginning of a path, all metrics whose
@@ -388,14 +379,12 @@ Each line describes a matching metric and its data points.
 
 
 + `[metricN]`
-
 <br></br>
 The name of the metric, in the `x/y/z` format.
 
 
 
 + `[datapointN]`
-
 <br></br>
 One or more data points supported by the given metric.
 
