@@ -49,7 +49,7 @@
 %%        (`\ ').<br/>A backslash can be a part of a field payload if
 %%        it is escaped with a backslash (`\\').
 %%
-%% -= Riak Reporter Server Protocol -=
+%% == Riak Reporter Server Protocol ==
 %% The server protocol is used to list, subscribe to, and unsubscribe from
 %% metrics and data points.
 %% The following commands are supported.
