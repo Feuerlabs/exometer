@@ -11,6 +11,7 @@
 %% @doc Custom reporting probe for riak
 %%
 %% <b>TODO: Add wildcards</b>
+%%
 %% The riak reporter implements a custom, ascii line based 
 %% protocol to manage subscriptions and report metrics.
 %%
