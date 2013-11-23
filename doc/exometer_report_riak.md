@@ -82,7 +82,10 @@ it is escaped with a backslash (`\\`).
 
 
 
--= Riak Reporter Server Protocol -=
+
+### <a name="Riak_Reporter_Server_Protocol">Riak Reporter Server Protocol</a> ###
+
+
 The server protocol is used to list, subscribe to, and unsubscribe from
 metrics and data points.
 The following commands are supported.
