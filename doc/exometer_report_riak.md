@@ -14,6 +14,7 @@ __Behaviours:__ [`exometer_report`](exometer_report.md).
 
 
 
+__TODO: Add wildcards__
 The riak reporter implements a custom, ascii line based
 protocol to manage subscriptions and report metrics.
 
@@ -341,7 +342,7 @@ list [metric]
 <br></br>
 Identifies the metric that is to be listed. If the metric
 only specifies the beginning of a path, all metrics whose
-path prefix-matches `[metric]` will be listed.
+path prefix matches `[metric]` will be listed.
 
 
 
@@ -434,7 +435,43 @@ to a metrics collector. The
 report [hostid] [timestamp] [metric]/[datapoint] [value]
 ```
 
-<a name="index"></a>
+
+
++ `[hostid]`
+<br></br>
+Specifies the host id provided to the `subscription` command
+that generated this report.
+
+
+
++ `[timestamp]`
+<br></br>
+Specifies the time stamp, in milliseconds since 1970-01-01 00:00:00.000
+
+
+
++ `[metric]`
+<br></br>
+The name of the metric reported, in the `x/y/z` format.
+
+
+
++ `[datapoint]`
+<br></br>
+The data point under the given metric reported..
+
+
+
++ `[value]`
+<br></br>
+The value of the metric / data point.
+
+
+
+<h5><a name="Reply_Format">Reply Format</a></h5>
+
+
+No reply is sent in response to a `report` command.<a name="index"></a>
 
 ## Function Index ##
 
