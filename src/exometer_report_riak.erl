@@ -8,9 +8,9 @@
 %%
 %% -------------------------------------------------------------------
 
-%% @todo Add wildcards.
 %% @doc Custom reporting probe for riak
 %%
+%% <b>TODO: Add wildcards</b>
 %% The riak reporter implements a custom, ascii line based 
 %% protocol to manage subscriptions and report metrics.
 %%
@@ -174,7 +174,7 @@
 %%
 %% + `[metric]'<br/>Identifies the metric that is to be listed. If the metric
 %%    only specifies the beginning of a path, all metrics whose 
-%%    path prefix-matches `[metric]' will be listed.
+%%    path prefix matches `[metric]' will be listed.
 %%
 %% ==== Reply Format ====
 %% 
@@ -226,7 +226,6 @@
 %% ==== Request Format ====
 %% <pre>report [hostid] [timestamp] [metric]/[datapoint] [value]</pre>
 %%
-%% @todo Add wildcards.
 %% + `[hostid]'<br/>Specifies the host id provided to the `subscription' command
 %%    that generated this report.
 %%
