@@ -11,6 +11,7 @@
 
 -define(EXOMETER_TABLE, exometer_util:table(erlang:system_info(scheduler_id))).
 -define(EXOMETER_SHARED, exometer_shared).
+-define(EXOMETER_ENTRIES, exometer_entries).
 
 -record(exometer_event,
 	{time = exometer_util:timestamp(),
