@@ -74,6 +74,10 @@
 %%
 %% exometer_entry callbacks
 %%
+new(Name, Type, [{type_arg, Module}|Opts]) ->
+    {ok, Pid} = gen_server:start(?MODULE, {Name, Type, Module, Opts}, []),
+    exometer_admin:monitor(Name, Pid),
+    {ok, Pid};
 new(Name, Type, Options) ->
     %% Extract the module to use.
     {value, { module, Module }, Opts1 } = lists:keytake(module, 1, Options), 

@@ -211,11 +211,13 @@ get_value_(#exometer_entry{status = Status, cache = Cache,
 delete(Name) when is_list(Name) ->
     case ets:lookup(exometer_util:table(), Name) of
 	[#exometer_entry{module = ?MODULE, type = counter}] ->
-	    [ets:delete(T, Name) || T <- exometer_util:tables()];
+	    [ets:delete(T, Name) ||
+		T <- [?EXOMETER_ENTRIES|exometer_util:tables()]];
 	[#exometer_entry{module = M, type = Type, ref = Ref}] ->
 	    try M:delete(Name, Type, Ref)
 	    after
-		[ets:delete(T, Name) || T <- exometer_util:tables()]
+		[ets:delete(T, Name) ||
+		    T <- [?EXOMETER_ENTRIES|exometer_util:tables()]]
 	    end;
 	[] ->
 	    {error, not_found}
@@ -464,7 +466,7 @@ info(Name) ->
 %% @end
 find_entries(Path) ->
     Pat = Path ++ '_',
-    ets:select(?EXOMETER_TABLE,
+    ets:select(?EXOMETER_ENTRIES,
 	       [ { #exometer_entry{name = Pat, _ = '_'}, [],
 		   [{{ {element, #exometer_entry.name, '$_'},
 		       {element, #exometer_entry.type, '$_'},
@@ -491,7 +493,7 @@ get_values(Path) ->
 %% metrics is `{Name, Type, Status}'.
 %% @end
 select(Pattern) ->
-    ets:select(?EXOMETER_TABLE, [pattern(P) || P <- Pattern]).
+    ets:select(?EXOMETER_ENTRIES, [pattern(P) || P <- Pattern]).
 
 -spec select(ets:match_spec(), pos_integer() | infinity) ->
 		    '$end_of_table'
@@ -503,7 +505,7 @@ select(Pattern) ->
 %% continuation, which can be passed to {@link select_cont/1}.
 %% @end
 select(Pattern, Limit) ->
-    ets:select(?EXOMETER_TABLE, [pattern(P) || P <- Pattern], Limit).
+    ets:select(?EXOMETER_ENTRIES, [pattern(P) || P <- Pattern], Limit).
 
 -spec select_cont('$end_of_table' | tuple()) ->
 			 '$end_of_table'
@@ -579,10 +581,20 @@ pos(cache ) -> #exometer_entry.cache;
 pos(status) -> #exometer_entry.status.
 
 update_opts(New, Old) ->
-    lists:foldl(
-      fun({K,_} = Opt, Acc) ->
-	      lists:keystore(K, 1, Acc, Opt)
-      end, Old, New).
+    type_arg_first(lists:foldl(
+		     fun({K,_} = Opt, Acc) ->
+			     lists:keystore(K, 1, Acc, Opt)
+		     end, Old, New)).
+
+type_arg_first([{type_arg,_}|_] = Opts) ->
+    Opts;
+type_arg_first(Opts) ->
+    case lists:keyfind(type_arg, 1, Opts) of
+	false ->
+	    Opts;
+	Arg ->
+	    [Arg|Opts -- [Arg]]
+    end.
 
 
 
@@ -617,7 +629,7 @@ get_fctr_datapoint(#exometer_entry{ }, Undefined) ->
 create_entry(#exometer_entry{module = exometer,
 			     type = counter} = E) ->
     E1 = E#exometer_entry{value = 0, timestamp = exometer_util:timestamp()},
-    [ets:insert(T, E1) || T <- exometer_util:tables()],
+    [ets:insert(T, E1) || T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
     ok;
 create_entry(#exometer_entry{module = exometer_entry,
 			     status = Status,
@@ -630,7 +642,8 @@ create_entry(#exometer_entry{module = exometer_entry,
 	    E1 = E#exometer_entry{ref = {M, F}, value = 0,
 				  timestamp = exometer_util:timestamp()},
 	    set_call_count(M, F, Status == enabled),
-	    [ets:insert(T, E1) || T <- exometer_util:tables()],
+	    [ets:insert(T, E1) ||
+		T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
 	    ok;
 	Other ->
 	    error({badarg, {function, Other}})
@@ -644,7 +657,7 @@ create_entry(#exometer_entry{module = M,
 	    ok;
 	{ok, Ref} ->
 	    [ets:insert(T, E#exometer_entry{ ref = Ref })
-	     || T <- exometer_util:tables()],
+	     || T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
 	    ok;
 	Other ->
 	    Other

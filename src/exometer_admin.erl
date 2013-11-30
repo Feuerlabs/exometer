@@ -119,7 +119,7 @@ handle_call({new_entry, Name, Type, Opts, AllowExisting}, _From, S) ->
 	end
     catch
 	error:Error ->
-	    {reply, {error, Error}, S}
+	    {reply, {error, Error, erlang:get_stacktrace()}, S}
     end;
 handle_call(_, _, S) ->
     {reply, error, S}.
@@ -156,7 +156,9 @@ create_ets_tabs() ->
 	    [ets:new(T, [public, named_table, set, {keypos,2}])
 	     || T <- tables()],
 	    ets:new(?EXOMETER_SHARED, [public, named_table, ordered_set,
-				       {keypos, 2}]);
+				       {keypos, 2}]),
+	    ets:new(?EXOMETER_ENTRIES, [public, named_table, ordered_set,
+					{keypos, 2}]);
 	_ ->
 	    true
     end.
@@ -184,9 +186,15 @@ default_definition(Name, Type) ->
 		#exometer_entry{} = E ->
 		    E#exometer_entry{name = Name};
 		false ->
-		    #exometer_entry{name = Name,
-				    type = Type,
-				    module = module(Type)}
+		    case module(Type) of
+			{M, Arg} ->
+			    #exometer_entry{name = Name, type = Type,
+					    module = M,
+					    options = [{type_arg,Arg}]};
+			M when is_atom(M) ->
+			    #exometer_entry{name = Name, type = Type,
+					    module = M}
+		    end
 	    end
     end.
 
@@ -199,7 +207,8 @@ module(uniform)      -> exometer_uniform;
 module(histogram)    -> exometer_histogram;
 module(spiral   )    -> exometer_spiral;
 module(netlink  )    -> exometer_netlink;
-module(probe)        -> exometer_probe.
+module(probe    )    -> exometer_probe;
+module(cpu      )    -> {exometer_probe, exometer_cpu}.
 
 search_default(Name, Type) ->
     case ets:lookup(?EXOMETER_SHARED, {default,Name,Type}) of
