@@ -145,7 +145,9 @@
 %% API
 -export([start_link/0,
 	 subscribe/4,
+	 subscribe/5,
 	 unsubscribe/3,
+	 unsubscribe/4,
 	 list_metrics/1,
 	 list_metrics/0]).
 
@@ -163,24 +165,29 @@
 -type interval() :: integer().
 -type callback_result() :: {ok, mod_state()} | any().
 -type key() :: {module(), metric(), datapoint()}.
+-type extra() :: any().
 
 %% Callback for function, not cast-based, reports that
 %% are invoked in-process.
 -callback exometer_init(options()) -> callback_result().
 
--callback exometer_report(metric(), datapoint(), value(), mod_state()) -> 
+-callback exometer_report(metric(), datapoint(), value(), extra(), mod_state()) -> 
     callback_result().
                                                                            
--callback exometer_subscribe(metric(), datapoint(), interval(), mod_state()) -> 
+-callback exometer_subscribe(metric(), datapoint(), interval(), extra(), mod_state()) -> 
     callback_result().
 
--callback exometer_unsubscribe(metric(), datapoint(), mod_state()) -> 
+-callback exometer_unsubscribe(metric(), datapoint(), extra(), mod_state()) -> 
+    callback_result().
+
+-callback exometer_info(any(),mod_state()) -> 
     callback_result().
 
 -record(key, {
 	  reporter :: module(),
 	  metric :: metric(),
-	  datapoint :: datapoint()
+	  datapoint :: datapoint(),
+	  extra :: extra()
 	 }).
 
 -record(subscriber, {
@@ -194,7 +201,6 @@
 	  mref :: reference(), 
 	  module :: module()
 	 }).
-
 
 -record(st, {
 	  subscribers:: [ #subscriber{} ],
@@ -223,15 +229,23 @@ start_link() ->
     Opts = get_env(report, []),
     gen_server:start_link({local, ?MODULE}, ?MODULE,  Opts, []).
 
-subscribe(Reporter, Metric, DataPoint, Interval) ->
+subscribe(Reporter, Metric, DataPoint, Interval, Extra) ->
     call({subscribe, #key{reporter = Reporter,
 			  metric = Metric,
-			  datapoint = DataPoint}, Interval}).
+			  datapoint = DataPoint,
+			  extra = Extra}, Interval}).
 
-unsubscribe(Reporter, Metric, DataPoint) ->
+subscribe(Reporter, Metric, DataPoint, Interval) ->
+    subscribe(Reporter, Metric, DataPoint, Interval, undefined).
+
+unsubscribe(Reporter, Metric, DataPoint, Extra) ->
     call({unsubscribe, #key{reporter = Reporter,
 			    metric = Metric,
-			    datapoint = DataPoint}}).
+			    datapoint = DataPoint,
+			   extra = Extra}}).
+
+unsubscribe(Reporter, Metric, DataPoint) ->
+    unsubscribe(Reporter, Metric, DataPoint, undefined).
 
 list_metrics()  ->
     list_metrics([]).
@@ -287,13 +301,20 @@ init(Opts) ->
 		lists:foldr(fun init_subscriber/2, [], Subscribers);
 	    _ -> []
 	end,
+
     {ok, #st {
        reporters = Reporters,
        subscribers = SubsList
       }}.
 
-init_subscriber({Reporter, Metric, DataPoint, Interval}, Acc) ->
-    [ subscribe_(Reporter, Metric, DataPoint, Interval) | Acc ].
+
+init_subscriber({Reporter, Metric, DataPoint, Interval, Extra}, Acc) ->
+    [ subscribe_(Reporter, Metric, DataPoint, Interval, Extra) | Acc ];
+
+init_subscriber(Other, Acc) ->
+    ?warning("Incorrect static subscriber spec ~p. "
+	     "Use { Reporter, Metric, DataPoint, Interval, Extra }~n", [ Other ]),
+    Acc.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -312,22 +333,30 @@ init_subscriber({Reporter, Metric, DataPoint, Interval}, Acc) ->
 handle_call({ subscribe, 
 	     #key{ reporter = Reporter,
 		   metric = Metric,
-		   datapoint = DataPoint} , Interval },
+		   datapoint = DataPoint,
+		   extra = Extra} , Interval },
 	    _From, #st{ subscribers = Subs} = St) ->
 
-    %% FIXME: Validate Metric and datapoint
-    Reporter ! { exometer_subscribe, Metric, DataPoint, Interval },
-    Sub = subscribe_(Reporter, Metric, DataPoint, Interval),
-    {reply, ok, St#st{ subscribers = [Sub | Subs] }};
+    %% Verify that the given metric/data point actually exist.
+    case exometer:get_value(Metric, DataPoint) of
+	{ok, _} ->
+	    Reporter ! { exometer_subscribe, Metric, DataPoint, Interval, Extra },
+	    Sub = subscribe_(Reporter, Metric, DataPoint, Interval, Extra),
+	    {reply, ok, St#st{ subscribers = [Sub | Subs] }};
+
+	%% Nope - Not found.
+	_ -> {reply, not_found, St }
+    end;
 
 %%
 handle_call({ unsubscribe, 
 	      #key{ reporter = Reporter,
 		    metric = Metric,
-		    datapoint = DataPoint }}, _, 
+		    datapoint = DataPoint,
+		  extra = Extra}}, _, 
 	    #st{ subscribers = Subs} = St) ->
 
-    { Res, NSubs} = unsubscribe_(Reporter, Metric, DataPoint, Subs), 
+    { Res, NSubs} = unsubscribe_(Reporter, Metric, DataPoint, Extra, Subs), 
     {reply, Res, St#st{ subscribers = NSubs } };
 
 handle_call({list_metrics, Path}, _, St) ->
@@ -364,14 +393,15 @@ handle_cast(_Msg, State) ->
 %%--------------------------------------------------------------------
 handle_info({ report, #key{ reporter = Reporter, 
 			    metric = Metric,
-			    datapoint = DataPoint } = Key, Interval},
+			    datapoint = DataPoint,
+			    extra = Extra} = Key, Interval},
 	    #st{subscribers = Subs} = St) ->
     case lists:keyfind(Key, #subscriber.key, Subs) of
 	#subscriber{} = Sub ->
 	    case exometer:get_value(Metric, [DataPoint]) of
 		{ok, [{_, Val}]} ->
 		    %% Distribute metric value to the correct process
-		    report_value(Reporter, Metric, DataPoint, Val),
+		    report_value(Reporter, Metric, DataPoint, Extra, Val),
 
 		    %% Re-arm the timer for next round
 		    TRef = erlang:send_after(Interval, self(), 
@@ -388,7 +418,7 @@ handle_info({ report, #key{ reporter = Reporter,
 		    };
 		_ ->
 		    %% Entry removed while timer in progress.
-		    ?error("Metric(~p) Datapoint(~p) not found~n",
+		    ?warning("Metric(~p) Datapoint(~p) not found~n",
 			   [Metric, DataPoint]),
 		    {noreply, St}
 	    end;
@@ -441,28 +471,31 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 
-subscribe_( Reporter, Metric, DataPoint, Interval) ->
+subscribe_( Reporter, Metric, DataPoint, Interval, Extra) ->
     Key = #key { reporter = Reporter,
 		 metric = Metric,
-		 datapoint = DataPoint
+		 datapoint = DataPoint,
+		 extra = Extra
 	       },
 
     %% FIXME: Validate Metric and datapoint
+    ?info("Subscribe_(Intv(~p), self(~p))~n", [ Interval, self()]),
     TRef = erlang:send_after(Interval, self(), 
 			     { report, Key, Interval }),
     #subscriber{ key = Key,
 		 t_ref = TRef}.
 
-unsubscribe_(Reporter, Metric, DataPoint, Subs) ->
+unsubscribe_(Reporter, Metric, DataPoint, Extra, Subs) ->
 
     case lists:keytake(#key { reporter = Reporter,
 			      metric = Metric,
-			      datapoint = DataPoint},
+			      datapoint = DataPoint,
+			      extra = Extra},
 		       #subscriber.key, Subs) of
 
 	{value, #subscriber{t_ref = TRef}, Rem} ->
 	    %% FIXME: Validate Metric and datapoint
-	    Reporter ! { exometer_unsubscribe, Metric, DataPoint },
+	    Reporter ! { exometer_unsubscribe, Metric, DataPoint, Extra },
 	    cancel_timer(TRef),
 	    {ok, Rem};
 	_ ->
@@ -475,8 +508,8 @@ cancel_timer(TRef) ->
     erlang:cancel_timer(TRef).
 
 
-report_value(Reporter, Metric, DataPoint, Val) ->
-    Reporter ! {exometer_report, Metric, DataPoint, Val},
+report_value(Reporter, Metric, DataPoint, Extra, Val) ->
+    Reporter ! {exometer_report, Metric, DataPoint, Extra, Val},
     true.
 
 retrieve_metric({ Metric, Enabled}, Subscribers, Acc) ->
@@ -546,31 +579,31 @@ reporter_launch(Module, Opts) ->
 reporter_loop(Module, St) ->
     NSt = 
 	receive 
-	    { exometer_report, Metric, DataPoint, Value } ->
-		case Module:exometer_report(Metric, DataPoint, Value, St) of
+	    { exometer_report, Metric, DataPoint, Extra, Value } ->
+		case Module:exometer_report(Metric, DataPoint, Extra, Value, St) of
 		    { ok, St1 } -> St1;
 		    _ -> St
 		end;
 
-	    { exometer_unsubscribe, Metric, DataPoint } ->
-		case Module:exometer_unsubscribe(Metric, DataPoint, St) of
+	    { exometer_unsubscribe, Metric, DataPoint, Extra } ->
+		case Module:exometer_unsubscribe(Metric, DataPoint, Extra, St) of
 		    { ok, St1 } -> St1;
 		    _ -> St
 		end;
 
-	    { exometer_subscribe, Metric, DataPoint, Interval } ->
-		case Module:exometer_subscribe(Metric, DataPoint, Interval, St) of
+	    { exometer_subscribe, Metric, DataPoint, Extra, Interval } ->
+		case Module:exometer_subscribe(Metric, DataPoint, Extra, Interval, St) of
 		    { ok, St1 } -> St1;
 		    _ -> St
 		end;
 
 	    %% Allow reporters to generate their own callbacks.
-	    { exometer_callback, Fun, Arg } ->
-		?info("Custom invocation: ~p:~p(~p)~n", [ Module, Fun, Arg]),
-		Module:Fun(Arg, St); %% Fun() is expected to return new state.
-	    Other -> 
-		?warning("Got unknown message: ~p~n", [ Other]),
-		St
+	    Other ->
+		?info("Custom invocation: ~p(~p)~n", [ Module, Other]),
+		case Module:exometer_info(Other, St) of
+		    { ok, St1 } -> St1;
+		    _ -> St
+		end
 		    
 	end,
     reporter_loop(Module, NSt).

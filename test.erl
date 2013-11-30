@@ -1,5 +1,6 @@
 %% erl -config app.config
 
+application:start(sasl).
 lager:start().
 application:start(exometer).
 
@@ -23,3 +24,6 @@ exometer_report:list_metrics().
 
 exometer:update([a,b,1], 1).
 exometer:update([a,b,2], 2).
+
+
+subscribe test_host a/b/1/max 10 /tmp/test.ux

@@ -13,9 +13,10 @@
 
 %% gen_server callbacks
 -export([exometer_init/1, 
-	 exometer_report/4,
-	 exometer_subscribe/4,
-	 exometer_unsubscribe/3]).
+	 exometer_info/2,
+	 exometer_report/5,
+	 exometer_subscribe/5,
+	 exometer_unsubscribe/4]).
 
 -include("exometer.hrl").
 
@@ -61,9 +62,9 @@ exometer_init(Opts) ->
     end.
 
 
-exometer_report(Probe, DataPoint, Value, #st{socket = Sock,
-					     api_key = APIKey,
-					     prefix = Prefix} = St) ->
+exometer_report(Probe, DataPoint, _Extra, Value, #st{socket = Sock,
+						    api_key = APIKey,
+						    prefix = Prefix} = St) ->
     Line = [prefix(Prefix, APIKey), ".", name(Probe, DataPoint), " ",
 	    value(Value), " ", timestamp(), $\n],
     io:fwrite("L = ~s~n", [Line]),
@@ -74,10 +75,13 @@ exometer_report(Probe, DataPoint, Value, #st{socket = Sock,
 	    reconnect(St)
     end.
 
-exometer_subscribe(_Metric, _DataPoint, _Interval,St) ->
+exometer_subscribe(_Metric, _DataPoint, _Extra, _Interval, St) ->
     {ok, St }.
 
-exometer_unsubscribe(_Metric, _DataPoint, St) ->
+exometer_unsubscribe(_Metric, _DataPoint, _Extra, St) ->
+    {ok, St }.
+
+exometer_info(_, St) ->
     {ok, St }.
 
 
