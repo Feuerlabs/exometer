@@ -1,6 +1,5 @@
 %% erl -config app.config
 
-application:start(sasl).
 lager:start().
 application:start(exometer).
 

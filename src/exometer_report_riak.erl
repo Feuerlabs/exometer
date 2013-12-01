@@ -10,7 +10,10 @@
 
 %% @doc Custom reporting probe for riak
 %%
-%% <b>TODO: Add wildcards, Add escape sequences</b>
+%% <b>TODO: Add wildcards</b>
+%% <b>TODO: Add escape sequences</b>
+%% <b>TODO: Add functional argument to list.</b>
+%% <b>TODO: Disconnected command client kills outbound connections.</b>
 %%
 %% The riak reporter implements a custom, ascii line based 
 %% protocol to manage subscriptions and report metrics.
@@ -752,8 +755,13 @@ inbound_connection_loop(ClientSock, MasterProc) ->
 	    lists:map(
 	      fun(Line) ->
 		      %% Parse the reply
-		      { Result, Message } = parse_inbound_command(MasterProc, Line),
-		      afunix:send(ClientSock, server_result(Result, Message))
+		      case parse_inbound_command(MasterProc, Line) of
+			  { custom_reply, Reply } ->
+			      afunix:send(ClientSock, Reply);
+			      
+			  { Result, Message } ->
+			      afunix:send(ClientSock, server_result(Result, Message))
+		      end
 	      end, string:tokens(Lines, "\n\r")),
 	    inbound_connection_loop(ClientSock, MasterProc);
 
@@ -845,8 +853,29 @@ parse_inbound_command(_MasterProc, unsubscribe, Arg) ->
       io_lib:format("Unknown argument to unsubscribe: ~p. "
 		    "Use host_id metric/datapoint path~n", [ Arg ]) };
     
+parse_inbound_command(_MasterProc, list, [ Prefix ]) ->
+    { custom_reply,
+      format_list_result(exometer:find_entries(Prefix)) };
+
+parse_inbound_command(MasterProc, list, [ ]) ->
+    parse_inbound_command(MasterProc, list, [""]);
+
+parse_inbound_command(_MasterProc, list, _Arg) ->
+    { syntax_error, "Unknown arguments to list command. Usage: list [prefix]."};
+
 parse_inbound_command(_MasterProc, unsupported, _Arg) ->
     { syntax_error, "Unknown command." }.
+
+
+format_list_result([]) ->
+    "\n"; %% End with empty newline.
+
+format_list_result([{Path, _Type, _Enabled} | T]) ->
+    metric_to_string(Path) ++ 
+	lists:flatten([ io_lib:format(" ~p", [DataPoint]) ||
+			  DataPoint <- exometer:info(Path, datapoints) ]) 
+	++ "\n" ++ format_list_result(T).
+	
 
     
 server_result(ok, Message) ->
@@ -915,5 +944,5 @@ get_opt(K, Opts, Default) ->
 
 command_to_atom("subscribe") -> subscribe;
 command_to_atom("unsubscribe") -> unsubscribe;
-command_to_atom("list") -> subscribe;
+command_to_atom("list") -> list;
 command_to_atom(_) -> unsupported.
