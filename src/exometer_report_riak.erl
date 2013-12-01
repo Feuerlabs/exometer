@@ -57,22 +57,22 @@
 %%
 %% <pre lang="erlang">
 %%  {exometer, [
-%%	     {defaults,
-%%	      [{['_'], function , [{module, exometer_function}]},
-%%	       {['_'], counter  , [{module, exometer}]},
-%%	       {['_'], histogram, [{module, exometer_histogram}]},
-%%	       {['_'], spiral   , [{module, exometer_spiral}]},
-%%	       {['_'], duration , [{module, exometer_folsom}]},
-%%	       {['_'], meter    , [{module, exometer_folsom}]},
-%%	       {['_'], gauge    , [{module, exometer_folsom}]}
-%%	      ]},
+%%         {defaults,
+%%          [{['_'], function , [{module, exometer_function}]},
+%%           {['_'], counter  , [{module, exometer}]},
+%%           {['_'], histogram, [{module, exometer_histogram}]},
+%%           {['_'], spiral   , [{module, exometer_spiral}]},
+%%           {['_'], duration , [{module, exometer_folsom}]},
+%%           {['_'], meter    , [{module, exometer_folsom}]},
+%%           {['_'], gauge    , [{module, exometer_folsom}]}
+%%          ]},
 %%      {report, 
-%% 	{ reporters, [ 
-%% 	    { exometer_report_riak, [ 
-%% 		{ server_path, "/tmp/riak_reporter.ux" }
-%% 	    }]
-%% 	}]
+%%     { reporters, [ 
+%%         { exometer_report_riak, [ 
+%%         { server_path, "/tmp/riak_reporter.ux" }
+%%         }]
 %%      }]
+%%    }]
 %%  }</pre>
 %%
 %% The `defaults' section maps symbolic metric types (`histogram',
@@ -101,8 +101,7 @@
 %% === Starting the command connection ===
 %% Setup a unix domain client conneciton using the netcat command:
 %%
-%% <pre>
-%% nc -vU /tmp/exometer_report_riak.ux</pre>
+%% <pre>nc -vU /tmp/exometer_report_riak.ux</pre>
 %%
 %% Replace the `/tmp/exometer_report_riak.ux' path with the path
 %% specified by the `server_path' option in `app.config'.
@@ -112,8 +111,7 @@
 %% === Starting the metrics collector server ===
 %% Setup a unix domain server using the netcat command:
 %%
-%% <pre lang="shell">
-%% nc -lvkU /tmp/test.ux</pre>
+%% <pre>nc -lvkU /tmp/test.ux</pre>
 %%
 %% This server will receive the metrics subscribed to through
 %% the previously setup command connection.
@@ -137,10 +135,9 @@
 %% The created `[a,b,c]' metric can be subscribed to through the command connection
 %% created above.
 %%
-%% Send the following command to the riak reporter through the client connection
+%% Send the following command to the riak reporter through the command connection
 %% 
-%% <pre>
-%% subscribe test_host a/b/c/min 5000 /tmp/test.ux</pre>
+%% <pre>subscribe test_host a/b/c/min 5000 /tmp/test.ux</pre>
 %%
 %% Please see the {@section subscribe} section for details on the command.
 %% Once setup, the riak reporter will report the value of the `min' data point
@@ -150,8 +147,7 @@
 %%
 %% Every five seconds, the following line will be reported to the collector server"
 %%
-%% <pre>
-%% report test_host 1385918754 a_b_c_min 0</pre>
+%% <pre>report test_host 1385918754 a_b_c_min 0</pre>
 %%
 %% Please see the {@section} report for details on the report command.
 %%
@@ -171,14 +167,12 @@
 %%
 %% The `report' command sent to the metrics collector will change accordingly:
 %%
-%% <pre>
-%% report test_host 1385918754 a_b_c_min 1.000000</pre>
+%% <pre>report test_host 1385918754 a_b_c_min 1.000000</pre>
 %%
 %% Additional subscriptions can be setup for the same metrics, but with different
 %% datapoints:
 %%
-%% <pre>
-%% subscribe test_host a/b/c/max 5000 /tmp/test.ux
+%% <pre>subscribe test_host a/b/c/max 5000 /tmp/test.ux
 %% subscribe test_host a/b/c/95 5000 /tmp/test.ux
 %% subscribe test_host a/b/c/mean 5000 /tmp/test.ux</pre>
 %%
@@ -209,8 +203,6 @@
 %% listening to `[socket]' shuts down, or a corresponding
 %% `unsubscribe' command is received.
 %%
-
-
 %% If this is the first `subscribe' call that refers to `[socket]',
 %% the riak reporter will setup an outbound client connection to it
 %% that will remain up until either the socket server shuts down, or
