@@ -145,11 +145,11 @@
 %% be done to `/tmp/test.ux' socket, served by metrics collector server 
 %% created above.
 %%
-%% Every five seconds, the following line will be reported to the collector server"
+%% Every five seconds, the following line will be reported to the collector server
 %%
 %% <pre>report test_host 1385918754 a_b_c_min 0</pre>
 %%
-%% Please see the {@section} report for details on the report command.
+%% Please see the {@section report} section for details on the report command.
 %%
 %% === Updating the metric ===
 %% 
@@ -172,7 +172,7 @@
 %% Additional subscriptions can be setup for the same metrics, but with different
 %% datapoints:
 %%
-%% <pre>subscribe test_host a/b/c/max 5000 /tmp/test.ux
+%% <pre>  subscribe test_host a/b/c/max 5000 /tmp/test.ux
 %% subscribe test_host a/b/c/95 5000 /tmp/test.ux
 %% subscribe test_host a/b/c/mean 5000 /tmp/test.ux</pre>
 %%
@@ -328,11 +328,11 @@
 %% Each list command will trigger a reply of one or more lines
 %% being sent back to the client.
 %%
-%% <pre>[metric1] [datapoint1] [datapoint2] ...
-%%      [metric2] [datapoint1] [datapoint2] ...
-%%      ...
-%%      [metricN] [datapoint1] [datapoint2] ...
-%%      (empty newline)</pre>
+%% <pre>  [metric1] [datapoint1] [datapoint2] ...
+%% [metric2] [datapoint1] [datapoint2] ...
+%% ...
+%% [metricN] [datapoint1] [datapoint2] ...
+%% (empty newline)</pre>
 %%
 %% If there are no matching metrics, the reply will consist of
 %% a single empty newline.
@@ -346,7 +346,7 @@
 %% A combined metric and a supported data point can be sent as arguments
 %% to a `subscribe' command.
 %%
-%% = Riak Reporter Client Protocol = 
+%% == Riak Reporter Client Protocol == 
 %%
 %% This protocol is used by the riak reporter to deliver metrics data
 %% to a metrics collector thorugh an outbound unix socket connection
