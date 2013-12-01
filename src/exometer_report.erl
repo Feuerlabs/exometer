@@ -231,8 +231,8 @@ start_link() ->
 
 subscribe(Reporter, Metric, DataPoint, Interval, Extra) ->
     call({subscribe, #key{reporter = Reporter,
-			  metric = Metric,
-			  datapoint = DataPoint,
+			  metric = convert_metric_path(Metric),
+			  datapoint = convert_metric_elem(DataPoint),
 			  extra = Extra}, Interval}).
 
 subscribe(Reporter, Metric, DataPoint, Interval) ->
@@ -240,8 +240,8 @@ subscribe(Reporter, Metric, DataPoint, Interval) ->
 
 unsubscribe(Reporter, Metric, DataPoint, Extra) ->
     call({unsubscribe, #key{reporter = Reporter,
-			    metric = Metric,
-			    datapoint = DataPoint,
+			    metric = convert_metric_path(Metric),
+			    datapoint = convert_metric_elem(DataPoint),
 			   extra = Extra}}).
 
 unsubscribe(Reporter, Metric, DataPoint) ->
@@ -309,7 +309,9 @@ init(Opts) ->
 
 
 init_subscriber({Reporter, Metric, DataPoint, Interval, Extra}, Acc) ->
-    [ subscribe_(Reporter, Metric, DataPoint, Interval, Extra) | Acc ];
+    [ subscribe_(Reporter, 
+		 convert_metric_path(Metric), 
+		 convert_metric_elem(DataPoint), Interval, Extra) | Acc ];
 
 init_subscriber(Other, Acc) ->
     ?warning("Incorrect static subscriber spec ~p. "
@@ -398,7 +400,7 @@ handle_info({ report, #key{ reporter = Reporter,
 	    #st{subscribers = Subs} = St) ->
     case lists:keyfind(Key, #subscriber.key, Subs) of
 	#subscriber{} = Sub ->
-	    case exometer:get_value(Metric, [DataPoint]) of
+	    case exometer:get_value(Metric, DataPoint) of
 		{ok, [{_, Val}]} ->
 		    %% Distribute metric value to the correct process
 		    report_value(Reporter, Metric, DataPoint, Extra, Val),
@@ -483,10 +485,12 @@ subscribe_( Reporter, Metric, DataPoint, Interval, Extra) ->
     TRef = erlang:send_after(Interval, self(), 
 			     { report, Key, Interval }),
     #subscriber{ key = Key,
+		 interval = Interval,
 		 t_ref = TRef}.
 
 unsubscribe_(Reporter, Metric, DataPoint, Extra, Subs) ->
-
+    ?info("unsubscribe_(~p, ~p, ~p, ~p, ~p)~n", 
+	  [ Reporter, Metric, DataPoint, Extra, Subs]),
     case lists:keytake(#key { reporter = Reporter,
 			      metric = Metric,
 			      datapoint = DataPoint,
@@ -607,3 +611,24 @@ reporter_loop(Module, St) ->
 		    
 	end,
     reporter_loop(Module, NSt).
+
+
+convert_metric_elem(V) when is_atom(V)->
+    V;
+
+convert_metric_elem(V) when is_integer(V)->
+    %% Surely there must be a better way of converting an integer
+    %% to an atom?
+    list_to_atom(lists:flatten(io_lib:format("~p", [V])));
+
+convert_metric_elem(V) when is_list(V) ->
+    list_to_atom(V).
+
+convert_metric_path(List) ->
+    convert_metric_path(List, []).
+
+convert_metric_path([], Acc) ->
+    lists:reverse(Acc);
+
+convert_metric_path([H|T], Acc) ->
+    convert_metric_path(T, [ convert_metric_elem(H) | Acc ]).

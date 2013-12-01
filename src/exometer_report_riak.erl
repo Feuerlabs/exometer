@@ -7,10 +7,10 @@
 %%   file, You can obtain one at http://mozilla.org/MPL/2.0/.
 %%
 %% -------------------------------------------------------------------
-
-%% @doc Custom reporting probe for riak
 %%
-%% <b>TODO: Add wildcards</b>
+%% @doc Custom reporting probe for riak.
+
+%% <b>TODO: Add wildcards, Add escape sequences</b>
 %%
 %% The riak reporter implements a custom, ascii line based 
 %% protocol to manage subscriptions and report metrics.
@@ -34,6 +34,153 @@
 %% received. The outbound connection to the collector will be
 %% terminated when the last subscription referring to it is cancelled
 %% with an unsubscribed command.
+%%
+%% == Getting Started ==
+%% 
+%% Tests are done with three components:
+%% 
+%% + Exometer test environment<br/>Erlang is started and the exometer
+%%   application is launched.
+%%
+%% + Command connection<br/>A unix domain client socket connection is
+%%   setup to the riak reporter executing inside exometer. This socket
+%%   is used to issue the commands listed under {@section Riak Reporter Server Protocol}.
+%%   
+%% + Metrics Collector<br/>A unix domain server socket is
+%%   setup that will receive subscribed-to metrics from the riak reporter, 
+%%   as described in the {@section Riak Reporter Client Protocol}.
+%%   
+%% === Setting up app.config ===
+%% The exometer riak reporter needs to be configured in the exometer
+%% application in order for the reporter to be started by exometer.
+%% Below is a sample file
+%%
+%% <pre lang="erlang">
+%%  {exometer, [
+%%	     {defaults,
+%%	      [{['_'], function , [{module, exometer_function}]},
+%%	       {['_'], counter  , [{module, exometer}]},
+%%	       {['_'], histogram, [{module, exometer_histogram}]},
+%%	       {['_'], spiral   , [{module, exometer_spiral}]},
+%%	       {['_'], duration , [{module, exometer_folsom}]},
+%%	       {['_'], meter    , [{module, exometer_folsom}]},
+%%	       {['_'], gauge    , [{module, exometer_folsom}]}
+%%	      ]},
+%%      {report, 
+%% 	{ reporters, [ 
+%% 	    { exometer_report_riak, [ 
+%% 		{ server_path, "/tmp/riak_reporter.ux" }
+%% 	    }]
+%% 	}]
+%%      }]
+%%  }</pre>
+%%
+%% The `defaults' section maps symbolic metric types (`histogram',
+%% `spiral', etc) to exometer plugin code to store and process the
+%% actual metrics. See the exometer project README file for details.
+%%
+%% The report section specifies the exometer reporter plugins to
+%% launch.  In this case we will only setup
+%% `exometer_report_riak'. See the exometer project README file for
+%% details.  
+%%
+%% The only supported exometer riak reporter option is `server_path',
+%% which specifies the unix domain socket that the riak reporter shall
+%% setup for incoming connections. The default value is
+%% `/tmp/exometer_report_riak.ux'.
+%%
+%% === Starting Exometer ===
+%%
+%% Start erlang, with the correct paths to exometer and its
+%% dependencies, and execute the following commands:
+%% 
+%% <pre lang="erlang">
+%% lager:start().
+%% application:start(exometer).</pre>
+%%
+%% === Starting the command connection ===
+%% Setup a unix domain client conneciton using the netcat command:
+%%
+%% <pre>
+%% nc -vU /tmp/exometer_report_riak.ux</pre>
+%%
+%% Replace the `/tmp/exometer_report_riak.ux' path with the path
+%% specified by the `server_path' option in `app.config'.
+%% This connection will be used to issue `subscribe', `unsubscribe',
+%% and `list' commands.
+%%
+%% === Starting the metrics collector server ===
+%% Setup a unix domain server using the netcat command:
+%%
+%% <pre lang="shell">
+%% nc -lvkU /tmp/test.ux</pre>
+%%
+%% This server will receive the metrics subscribed to through
+%% the previously setup command connection.
+%%
+%% === Creating metrics ===
+%%
+%% Metrics can be setup and updated directly from the erlang prompt.
+%% Add a metric with the following command:
+%%
+%% <pre lang="erlang">
+%% exometer:new([a,b,c], histogram).</pre>
+%%
+%% The `[a,b,c]' list is a unique metric identifier (or path).<br> 
+%% The `histogram' is the symbolic type that is mapped to the
+%% `exometer_historgram' module through `app.config'. In its default
+%% behavior, `exometer_historgram' stores 60 seconds worth of metrics,
+%% and provides various statistics on the stored metrics. Please see
+%% the `exometer_histogram' module documentation for details.
+%%
+%% === Subscribing to metrics ===
+%% The created `[a,b,c]' metric can be subscribed to through the command connection
+%% created above.
+%%
+%% Send the following command to the riak reporter through the client connection
+%% 
+%% <pre>
+%% subscribe test_host a/b/c/min 5000 /tmp/test.ux</pre>
+%%
+%% Please see the {@section subscribe} section for details on the command.
+%% Once setup, the riak reporter will report the value of the `min' data point
+%% residing in the `[a,b,c]' metric ever 5000 milliseconds. The reporting will
+%% be done to `/tmp/test.ux' socket, served by metrics collector server 
+%% created above.
+%%
+%% Every five seconds, the following line will be reported to the collector server"
+%%
+%% <pre>
+%% report test_host 1385918754 a_b_c_min 0</pre>
+%%
+%% Please see the {@section} report for details on the report command.
+%%
+%% === Updating the metric ===
+%% 
+%% Once created, the metric can be updated with data. Execute the
+%% following commands in the erlang prompt.
+%%
+%% <pre lang="erlang">
+%% exometer:update([a,b,c], 1).
+%% exometer:update([a,b,c], 2).
+%% exometer:update([a,b,c], 3).
+%% exometer:update([a,b,c], 4).</pre>
+%%
+%% Four values are stored in the `[a,b,c]' metric. Please note that these
+%% values will expire after 60 seconds, thus resetting the metric.
+%%
+%% The `report' command sent to the metrics collector will change accordingly:
+%%
+%% <pre>
+%% report test_host 1385918754 a_b_c_min 1.000000</pre>
+%%
+%% Additional subscriptions can be setup for the same metrics, but with different
+%% datapoints:
+%%
+%% <pre>
+%% subscribe test_host a/b/c/max 5000 /tmp/test.ux
+%% subscribe test_host a/b/c/95 5000 /tmp/test.ux
+%% subscribe test_host a/b/c/mean 5000 /tmp/test.ux</pre>
 %%
 %% == Protocol Characteristics ==
 %%
@@ -206,6 +353,7 @@
 %% to a `subscribe' command.
 %%
 %% = Riak Reporter Client Protocol = 
+%%
 %% This protocol is used by the riak reporter to deliver metrics data
 %% to a metrics collector thorugh an outbound unix socket connection
 %% specified by a `subscribe' command sent to the reporter using the
@@ -326,11 +474,12 @@ exometer_init(Opts) ->
 %% Invoked through the remote_exometer() function to
 %% send out an update.
 exometer_report(Metric, DataPoint, Extra, Value, St)  ->
-    ?debug("Report metric ~p ~p ~p = ~p~n", [ Extra, Metric, DataPoint, Value ]),
+    ?info("Report metric ~p ~p ~p = ~p~n", [ Extra, Metric, DataPoint, Value ]),
     case find_subscription(Metric, DataPoint, Extra) of
 	#subscription {} = Sub ->
 	    %% Report the value and setup a new refresh timer.
-	    {ok , report_to_outbound_connection(Sub, Value, St)};
+	    report_to_outbound_connection(Sub, Value, self()),
+	    {ok , St};
 
 	 false -> 
 	    ?info("Edge case. Path(~p) Metric(~p) DP(~p) was removed "
@@ -345,14 +494,19 @@ exometer_info({'DOWN', Ref, _, _, _},
 		     server_monitor = SrvRef}) when SrvRef =:= Ref->
     ?warning("Listen server died. Restarting in 5 seconds~n"),
     timer:sleep(5000), %% FIXME: Configurable
-    {ok, setup_inbound_server(Path) }.
+    {ok, setup_inbound_server(Path) };
+
+%% Handle death of inbound server.
+exometer_info(Other, St) ->
+    ?warning("Got unknown info: ~p~n", [ Other ]),
+    {ok, St }.
 
 report_to_outbound_connection(#subscription {
 				 hostid = HostID,
 				 metric = Metric, 
 				 datapoint = DataPoint,
 				 socket_path = SocketPath
-				}, Value, St) ->
+				}, Value, MasterProc) ->
     
     %% Use the socket path to locate the socket to send to.
     case find_outbound_connection(SocketPath) of
@@ -363,24 +517,24 @@ report_to_outbound_connection(#subscription {
 	false -> 
 	    ?info("Edge case. SocketPath(~p) was removed when timer fired.~n",
 		  [ SocketPath ]),
-	    St;
+	    ok;
 
 	Sock ->
 	    %% Found a socket. Setup and send request.
-	    Request = "report " ++ HostID ++ " " ++ timestamp() ++   
-		metric_dp_name(Metric, DataPoint)  ++ value(Value) ++ [$\n],
+	    Request = "report " ++ HostID ++ " " ++ timestamp() ++ " " ++
+		metric_dp_name(Metric, DataPoint)  ++ " " ++ value(Value) ++ [$\n],
 
 	    ?info("Sending ~p to ~p~n",[ Request, SocketPath]),
 	    case catch afunix:send(Sock, Request) of
-		ok -> St;
+		ok -> ok;
 		_ ->
 		    %% Send failed, most likely to peer hangup. 
 		    %% Kill off all outbound subscriptions referring the given
 		    %% socket path, and kill the connection.
 		    ?info("Failed to send to ~p. Will terminate~n", 
 			     [ SocketPath ]),
-		    terminate_outbound_subscriptions_by_socketpath(Sock,SocketPath),
-		    St
+		    terminate_outbound_subscriptions_by_socketpath(MasterProc,SocketPath),
+		    ok
 	    end
     end.
 
@@ -397,32 +551,36 @@ setup_outbound_subscription(MasterProc, Metric, DataPoint,
     ?info("Looking up ~p~n", [ SocketPath]),
     case ets:lookup(?CONNECTION_TABLE, SocketPath) of
 	[] -> 
-		    %% Tell exometer report to setup periodic data point reporting
-		    %% for this subscription. Will trigger a callback to
-		    %% the nil exometer_report_riak:exometer_subscribe() function.
-		    %% Returns ok or not_found
-		    case exometer_report:subscribe(MasterProc, 
-						   Metric, 
-						   DataPoint, 
-						   Interval, 
-						   SocketPath) of
-			ok ->
-			    case setup_outbound_connection(SocketPath) of
-				{ok, Socket} -> 
-				    %% Successful, create subscription and counter entries.
-				    add_subscription_entry(Metric, DataPoint, SocketPath, HostID),
-				    create_outbound_connection_counter(SocketPath, Socket);
-				_ -> 
-				    exometer_report:unsubscribe(MasterProc, 
-								Metric, 
-								DataPoint, 
-								Interval, 
-								SocketPath),
-				    invalid_socket
+	    %% Tell exometer report to setup periodic data point reporting
+	    %% for this subscription. Will trigger a callback to
+	    %% the nil exometer_report_riak:exometer_subscribe() function.
+	    %% Returns ok or not_found
+	    ?info("New connection: ~p~n", [MasterProc]),
+	    case exometer_report:subscribe(MasterProc, 
+					   Metric, 
+					   DataPoint, 
+					   Interval, 
+					   SocketPath) of
+		ok ->
+		    ?info("Setting up outbound connection~n"),
+		    case setup_outbound_connection(SocketPath) of
+			{ok, Socket} -> 
+			    %% Successful, create subscription and counter entries.
+			    add_subscription_entry(Metric, DataPoint, SocketPath, HostID),
+			    create_outbound_connection_counter(SocketPath, Socket),
+			    ok;
+			_ -> 
+			    exometer_report:unsubscribe(MasterProc, 
+							Metric, 
+							DataPoint, 
+							SocketPath),
+			    invalid_socket
 
-			    end;
-			_ -> unknown_metric %% No such metric/ data point
-				 
+		    end;
+		Res -> 		
+		    ?info("Subscription failed: ~p~n", [ Res ]),
+		    unknown_metric %% No such metric/ data point
+
 	    end;
 
 	[_] -> 
@@ -447,8 +605,8 @@ terminate_outbound_subscription(MasterProc, Metric, DataPoint,
     %% Tell exometer report to remove periodic data point reporting
     %% for this subscription. Will trigger a callback to
     %% the nil exometer_report_riak:exometer_unsubscribe() function.
-    exometer_report:unsubscribe(MasterProc, Metric, DataPoint, SocketPath),
-
+    Res = exometer_report:unsubscribe(MasterProc, Metric, DataPoint, SocketPath),
+    ?info("Unsubscribe: ~p~n", [Res]),
     %% Decrease connection counter for the socket and check the result
     delete_subscription_entry(Metric, DataPoint, SocketPath, HostID),
 
@@ -464,6 +622,8 @@ terminate_outbound_subscription(MasterProc, Metric, DataPoint,
 terminate_outbound_subscriptions_by_socketpath(MasterProc, SocketPath) ->
     %% Retrieve all subscriptions targeting SocketPath
     %% and unsubscribe the,
+    Subscriptions = find_subscriptions_by_socket_path(SocketPath),
+    ?info("Will terminate ~p~n", [ Subscriptions ]),
     length(lists:map(
 	     fun(#subscription {
 		    hostid = HostID,
@@ -478,7 +638,7 @@ terminate_outbound_subscriptions_by_socketpath(MasterProc, SocketPath) ->
 						     DataPoint,
 						     SocketPath,
 						     HostID)
-	     end, find_subscriptions_by_socket_path(SocketPath))).
+	     end, Subscriptions)).
 
 
 					  
@@ -496,12 +656,14 @@ terminate_outbound_connection(SocketPath) ->
     end.
 
 terminate_outbound_connection(SocketPath, Sock) ->
-    ?info("Terminating outbound connection ~p~n", SocketPath),
+    ?info("Terminating outbound connection ~p~n", [SocketPath]),
     afunix:close(Sock),
     ets:delete(?CONNECTION_TABLE, SocketPath),
     ok.
 
 add_subscription_entry(Metric, DataPoint, SocketPath, HostID) ->
+    ?info("add_subscription_entry(~p, ~p, ~p, ~p)~n",
+	  [Metric, DataPoint, SocketPath, HostID]),
     ets:insert_new(?SUBSCRIPTION_TABLE,
 		   #subscription { 
 		      key = subscription_key(Metric, DataPoint, SocketPath),
@@ -512,10 +674,15 @@ add_subscription_entry(Metric, DataPoint, SocketPath, HostID) ->
 		      }).
    
 delete_subscription_entry(Metric, DataPoint, SocketPath, _HostID) ->
+    ?info("delete_subscription(~p, ~p, ~p)~n",
+	  [Metric, DataPoint, SocketPath]),
     ets:delete(?SUBSCRIPTION_TABLE,
 	       subscription_key(Metric, DataPoint, SocketPath)).
    
 find_subscription(Metric, DataPoint, SocketPath) ->
+    ?info("find_subscription(~p, ~p, ~p)~n",
+	  [Metric, DataPoint, SocketPath]),
+
     case ets:lookup(?SUBSCRIPTION_TABLE, 
 		    subscription_key(Metric, DataPoint, SocketPath)) of
 	[] -> false;
@@ -523,13 +690,19 @@ find_subscription(Metric, DataPoint, SocketPath) ->
     end.
 
 find_subscriptions_by_socket_path(SocketPath) ->
-    ets:match(?SUBSCRIPTION_TABLE, #subscription {
-		 key = '$0', 
-		 socket_path = SocketPath,
-		 hostid = '_',
-		 metric = '_',
-		 datapoint = '_' }).
-		 
+    RawMatch = ets:match(?SUBSCRIPTION_TABLE, #subscription {
+			    socket_path = SocketPath,
+			    key = '_',
+			    hostid = '$0',
+			    metric = '$1',
+			    datapoint = '$2' }),
+    %% convert to #subscription records
+    [ #subscription {
+	 hostid = HostID,
+	 metric = Metric,
+	 datapoint = DataPoint 
+	 } || [ HostID, Metric, DataPoint ] <- RawMatch].
+
 create_outbound_connection_counter(SocketPath, Socket) ->
     ets:insert_new(?CONNECTION_TABLE, 
 		   #connection {
@@ -580,11 +753,15 @@ inbound_server(ListenSock, MasterProc) ->
 
 inbound_connection_loop(ClientSock, MasterProc) ->
     case afunix:recv(ClientSock, 0, infinity) of
-	{ ok, Line } ->
-	    %% Parse the reply
-	    { Result, Message } = parse_inbound_command(MasterProc, Line),
-	    afunix:send(ClientSock, server_result(Result, Message)),
+	{ ok, Lines } ->
+	    lists:map(
+	      fun(Line) ->
+		      %% Parse the reply
+		      { Result, Message } = parse_inbound_command(MasterProc, Line),
+		      afunix:send(ClientSock, server_result(Result, Message))
+	      end, string:tokens(Lines, "\n\r")),
 	    inbound_connection_loop(ClientSock, MasterProc);
+
 
 	_ -> 
 	    %% We failed to receive data, close and setup later reconnect
@@ -595,7 +772,7 @@ inbound_connection_loop(ClientSock, MasterProc) ->
 
 %% Parse a command sent to an inbound server connection.
 parse_inbound_command(MasterProc,Line) ->
-    case string:tokens(Line, " \n\t") of 
+    case string:tokens(Line, " \t") of 
 	[] -> { ok, "" }; %% Empty line
 	[ Cmd | Arg ] -> parse_inbound_command(MasterProc, 
 					       command_to_atom(Cmd), Arg )
@@ -619,7 +796,7 @@ parse_inbound_command(MasterProc, subscribe,
 	    {Metric, [DataPoint]} = lists:split(length(MDPList)-1, MDPList),
 	    case  setup_outbound_subscription(MasterProc, 
 					    Metric, 
-					    DataPoint, 
+					    list_to_atom(DataPoint), 
 					    Interval, 
 					    SocketPath, 
 					    HostID) of
@@ -632,8 +809,12 @@ parse_inbound_command(MasterProc, subscribe,
 		      io_lib:format("Metric ~p or data point ~p unknown",
 				   [ Metric, DataPoint ])};
 		    
-		_ ->
-		    { internal_error, "Internal error"}
+		Err ->
+		    { internal_error, 
+		      io_lib:format("Internal error: ~p",
+				   [ Err])
+		    }
+
 	    end
     end;
 
@@ -670,7 +851,7 @@ parse_inbound_command(_MasterProc, unsubscribe, Arg) ->
 		    "Use host_id metric/datapoint path~n", [ Arg ]) };
     
 parse_inbound_command(_MasterProc, unsupported, _Arg) ->
-    { syntax_error, "Unsupported command)." }.
+    { syntax_error, "Unknown command." }.
 
     
 server_result(ok, Message) ->
@@ -690,14 +871,13 @@ server_result(internal_error, Message) ->
 
 %% Construct a key to be used in the subscription table
 subscription_key(Metric, DataPoint, Socket) ->
-    
-    %% Probably a more beautiful way of doing this.
-    Res = lists:flatten(Socket ++ [ "/" ++ X || X <- Metric] ++ "/" ++ DataPoint),
-    ?info("Socket(~p) Metric(~p) DataPoint(~p) -> ~p~n", [ Socket, Metric, DataPoint, Res ]),
-    Res.
+    Socket ++ "_" ++ metric_dp_name(Metric, DataPoint).
 
 %% Add metric and datapoint within metric
-metric_dp_name(Metric, DataPoint) -> 
+metric_dp_name(Metric, DataPoint) when is_list(DataPoint)-> 
+    metric_to_string(Metric) ++ "_" ++ DataPoint;
+
+metric_dp_name(Metric, DataPoint)when is_atom(DataPoint) -> 
     metric_to_string(Metric) ++ "_" ++ atom_to_list(DataPoint).
 
 metric_to_string([Final]) ->
@@ -717,7 +897,7 @@ metric_elem_to_list(E) when is_integer(E) ->
 
 
 value(V) when is_integer(V) -> integer_to_list(V);
-value(V) when is_float(V)   -> float_to_list(V);
+value(V) when is_float(V)   -> io_lib:format("~f", [V]);
 value(_) -> "0".
 
 timestamp() ->
@@ -739,6 +919,6 @@ get_opt(K, Opts, Default) ->
     end.
 
 command_to_atom("subscribe") -> subscribe;
-command_to_atom("unsubscribe") -> subscribe;
+command_to_atom("unsubscribe") -> unsubscribe;
 command_to_atom("list") -> subscribe;
 command_to_atom(_) -> unsupported.

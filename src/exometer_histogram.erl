@@ -93,10 +93,13 @@ probe_get_value(St, DataPoints) ->
     %% We need element count and sum of all elements to get mean value.
     {Length, Total, Lst }
 	= exometer_slot_slide:foldl(
-	    fun({_TS, Val}, {Length, Total, List}) -> { Length + 1, Total + Val, [ Val | List ]}  end,
+	    fun({_TS, Val}, {Length, Total, List}) -> 
+		    { Length + 1, Total + Val, [ Val | List ]}  
+	    end,
 	    {0, 0.0, []}, St#st.slide),
 
     Sorted = lists:sort(Lst),
+    io:format("probe_get_value(~p): ~p~n", [DataPoints, Sorted]),
     {ok, [ get_datapoint_value(Length, Total, Sorted, DataPoint) || DataPoint <- DataPoints ]}.
 
 
@@ -175,7 +178,7 @@ average_sample(_TS, Val, {Count, Total}) ->
 %% If average_sample() has not been called for the current time slot,
 %% then the provided state will still be 'undefined'
 average_transform(_TS, undefined) ->
-    0.0;
+    undefined;
 
 %% Return the calculated total for the slot and return it as the
 %% element to be stored in the histogram.

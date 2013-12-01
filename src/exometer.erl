@@ -154,7 +154,6 @@ fast_incr(0, _, _) ->
     ok.
 
 
--spec get_value(name()) -> {ok, value()} | error().
 %% @doc Fetch the current value of the metric.
 %%
 %% For a built-in counter, the value returned is the sum of all counter
@@ -163,10 +162,14 @@ fast_incr(0, _, _) ->
 %% (non-zero) cache lifetime, and a value resides in the cache, the cached
 %% value will be returned.
 %% @end
+-spec get_value(name()) -> {ok, value()} | error().
 get_value(Name) when is_list(Name) ->
     get_value(Name, default).
 
--spec get_value(name(), [atom()]) -> {ok, value()} | error().
+-spec get_value(name(), atom() | [atom()]) -> {ok, value()} | error().
+get_value(Name, DataPoint) when is_list(Name), is_atom(DataPoint) ->
+    get_value(Name, [DataPoint]);
+    
 get_value(Name, DataPoints) when is_list(Name) ->
     case ets:lookup(exometer_util:table(), Name) of
 	[#exometer_entry{} = E] ->
