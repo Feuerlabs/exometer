@@ -7,9 +7,9 @@
 %%   file, You can obtain one at http://mozilla.org/MPL/2.0/.
 %%
 %% -------------------------------------------------------------------
-%%
-%% @doc Custom reporting probe for riak.
 
+%% @doc Custom reporting probe for riak
+%%
 %% <b>TODO: Add wildcards, Add escape sequences</b>
 %%
 %% The riak reporter implements a custom, ascii line based 
@@ -126,7 +126,7 @@
 %% <pre lang="erlang">
 %% exometer:new([a,b,c], histogram).</pre>
 %%
-%% The `[a,b,c]' list is a unique metric identifier (or path).<br> 
+%% The `[a,b,c]' list is a unique metric identifier (or path).<br/> 
 %% The `histogram' is the symbolic type that is mapped to the
 %% `exometer_historgram' module through `app.config'. In its default
 %% behavior, `exometer_historgram' stores 60 seconds worth of metrics,
@@ -209,6 +209,8 @@
 %% listening to `[socket]' shuts down, or a corresponding
 %% `unsubscribe' command is received.
 %%
+
+
 %% If this is the first `subscribe' call that refers to `[socket]',
 %% the riak reporter will setup an outbound client connection to it
 %% that will remain up until either the socket server shuts down, or
@@ -395,6 +397,7 @@
 %% ==== Reply Format ====
 %% 
 %% No reply is sent in response to a `report' command.
+%%
 %% @end
 
 -module(exometer_report_riak).
