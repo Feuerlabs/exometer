@@ -251,7 +251,7 @@ generate an error log message by exometer.
 
 
 <table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#list_metrics-0">list_metrics/0</a></td><td></td></tr><tr><td valign="top"><a href="#list_metrics-1">list_metrics/1</a></td><td></td></tr><tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td>
-Starts the server.</td></tr><tr><td valign="top"><a href="#subscribe-4">subscribe/4</a></td><td></td></tr><tr><td valign="top"><a href="#unsubscribe-3">unsubscribe/3</a></td><td></td></tr></table>
+Starts the server.</td></tr><tr><td valign="top"><a href="#subscribe-4">subscribe/4</a></td><td></td></tr><tr><td valign="top"><a href="#subscribe-5">subscribe/5</a></td><td></td></tr><tr><td valign="top"><a href="#unsubscribe-3">unsubscribe/3</a></td><td></td></tr><tr><td valign="top"><a href="#unsubscribe-4">unsubscribe/4</a></td><td></td></tr></table>
 
 
 <a name="functions"></a>
@@ -294,10 +294,24 @@ Starts the server
 `subscribe(Reporter, Metric, DataPoint, Interval) -> any()`
 
 
+<a name="subscribe-5"></a>
+
+### subscribe/5 ###
+
+`subscribe(Reporter, Metric, DataPoint, Interval, Extra) -> any()`
+
+
 <a name="unsubscribe-3"></a>
 
 ### unsubscribe/3 ###
 
 `unsubscribe(Reporter, Metric, DataPoint) -> any()`
+
+
+<a name="unsubscribe-4"></a>
+
+### unsubscribe/4 ###
+
+`unsubscribe(Reporter, Metric, DataPoint, Extra) -> any()`
 
 

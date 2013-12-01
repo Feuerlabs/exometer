@@ -20,12 +20,19 @@ will be reported to collectd.<a name="index"></a>
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#exometer_init-1">exometer_init/1</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_report-4">exometer_report/4</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_subscribe-4">exometer_subscribe/4</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_unsubscribe-3">exometer_unsubscribe/3</a></td><td></td></tr><tr><td valign="top"><a href="#reconnect-2">reconnect/2</a></td><td></td></tr><tr><td valign="top"><a href="#refresh_metric-2">refresh_metric/2</a></td><td></td></tr></table>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#exometer_info-2">exometer_info/2</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_init-1">exometer_init/1</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_report-5">exometer_report/5</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_subscribe-5">exometer_subscribe/5</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_unsubscribe-4">exometer_unsubscribe/4</a></td><td></td></tr></table>
 
 
 <a name="functions"></a>
 
 ## Function Details ##
+
+<a name="exometer_info-2"></a>
+
+### exometer_info/2 ###
+
+`exometer_info(Unknown, St) -> any()`
+
 
 <a name="exometer_init-1"></a>
 
@@ -34,38 +41,24 @@ will be reported to collectd.<a name="index"></a>
 `exometer_init(Opts) -> any()`
 
 
-<a name="exometer_report-4"></a>
+<a name="exometer_report-5"></a>
 
-### exometer_report/4 ###
+### exometer_report/5 ###
 
-`exometer_report(Metric, DataPoint, Value, St) -> any()`
-
-
-<a name="exometer_subscribe-4"></a>
-
-### exometer_subscribe/4 ###
-
-`exometer_subscribe(Metric, DataPoint, Interval, St) -> any()`
+`exometer_report(Metric, DataPoint, Extra, Value, St) -> any()`
 
 
-<a name="exometer_unsubscribe-3"></a>
+<a name="exometer_subscribe-5"></a>
 
-### exometer_unsubscribe/3 ###
+### exometer_subscribe/5 ###
 
-`exometer_unsubscribe(Metric, DataPoint, St) -> any()`
-
-
-<a name="reconnect-2"></a>
-
-### reconnect/2 ###
-
-`reconnect(X1, St) -> any()`
+`exometer_subscribe(Metric, DataPoint, Extra, Interval, St) -> any()`
 
 
-<a name="refresh_metric-2"></a>
+<a name="exometer_unsubscribe-4"></a>
 
-### refresh_metric/2 ###
+### exometer_unsubscribe/4 ###
 
-`refresh_metric(X1, St) -> any()`
+`exometer_unsubscribe(Metric, DataPoint, Extra, St) -> any()`
 
 

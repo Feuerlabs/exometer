@@ -80,7 +80,7 @@ __Behaviours:__ [`exometer_entry`](exometer_entry.md), [`gen_server`](gen_server
 
 ### new/3 ###
 
-`new(Name, Type, Options) -> any()`
+`new(Name, Type, Opts) -> any()`
 
 
 <a name="reset-3"></a>

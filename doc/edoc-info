@@ -1,6 +1,6 @@
 {application,exometer}.
 {packages,[]}.
-{modules,[count_example,exometer,exometer_admin,exometer_cache,
+{modules,[count_example,exometer,exometer_admin,exometer_cache,exometer_cpu,
           exometer_duration,exometer_ebuf,exometer_entry,exometer_folsom,
           exometer_function,exometer_histogram,exometer_netlink,
           exometer_probe,exometer_reg,exometer_report,

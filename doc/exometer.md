@@ -227,7 +227,7 @@ value will be returned.
 
 
 <pre><code>
-get_value(Name::<a href="#type-name">name()</a>, DataPoints::[atom()]) -&gt; {ok, <a href="#type-value">value()</a>} | <a href="#type-error">error()</a>
+get_value(Name::<a href="#type-name">name()</a>, DataPoint::atom() | [atom()]) -&gt; {ok, <a href="#type-value">value()</a>} | <a href="#type-error">error()</a>
 </code></pre>
 
 <br></br>
