@@ -248,7 +248,7 @@ created above.
 
 
 
-Every five seconds, the following line will be reported to the collector server"
+Every five seconds, the following line will be reported to the collector server
 
 
 
@@ -258,7 +258,7 @@ report test_host 1385918754 a_b_c_min 0
 
 
 
-Please see the [](#) report for details on the report command.
+Please see the [report](#report) section for details on the report command.
 
 
 
@@ -303,7 +303,7 @@ datapoints:
 
 
 ```
-subscribe test_host a/b/c/max 5000 /tmp/test.ux
+  subscribe test_host a/b/c/max 5000 /tmp/test.ux
   subscribe test_host a/b/c/95 5000 /tmp/test.ux
   subscribe test_host a/b/c/mean 5000 /tmp/test.ux
 ```
@@ -632,11 +632,11 @@ being sent back to the client.
 
 
 ```
-[metric1] [datapoint1] [datapoint2] ...
-       [metric2] [datapoint1] [datapoint2] ...
-       ...
-       [metricN] [datapoint1] [datapoint2] ...
-       (empty newline)
+  [metric1] [datapoint1] [datapoint2] ...
+  [metric2] [datapoint1] [datapoint2] ...
+  ...
+  [metricN] [datapoint1] [datapoint2] ...
+  (empty newline)
 ```
 
 
@@ -667,7 +667,8 @@ to a `subscribe` command.
 
 
 
-= Riak Reporter Client Protocol =
+
+### <a name="Riak_Reporter_Client_Protocol">Riak Reporter Client Protocol</a> ###
 
 
 
