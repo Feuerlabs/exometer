@@ -99,7 +99,6 @@ probe_get_value(St, DataPoints) ->
 	    {0, 0.0, []}, St#st.slide),
 
     Sorted = lists:sort(Lst),
-    io:format("probe_get_value(~p): ~p~n", [DataPoints, Sorted]),
     {ok, [ get_datapoint_value(Length, Total, Sorted, DataPoint) || DataPoint <- DataPoints ]}.
 
 
