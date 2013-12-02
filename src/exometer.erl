@@ -167,7 +167,8 @@ get_value(Name) when is_list(Name) ->
     get_value(Name, default).
 
 -spec get_value(name(), atom() | [atom()]) -> {ok, value()} | error().
-get_value(Name, DataPoint) when is_list(Name), is_atom(DataPoint) ->
+get_value(Name, DataPoint) when is_list(Name), is_atom(DataPoint),
+				DataPoint=/=default ->
     get_value(Name, [DataPoint]);
     
 get_value(Name, DataPoints) when is_list(Name) ->
