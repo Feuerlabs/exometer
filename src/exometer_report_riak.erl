@@ -13,7 +13,6 @@
 %% <b>TODO: Add wildcards</b>
 %% <b>TODO: Add escape sequences</b>
 %% <b>TODO: Add functional argument to list.</b>
-%% <b>TODO: Disconnected command client kills outbound connections.</b>
 %%
 %% The riak reporter implements a custom, ascii line based 
 %% protocol to manage subscriptions and report metrics.
@@ -494,6 +493,10 @@ exometer_info({'DOWN', Ref, _, _, _},
     timer:sleep(5000), %% FIXME: Configurable
     {ok, setup_inbound_server(Path) };
 
+exometer_info({'DOWN', _Ref, _, _, _}, St)->
+    ?info("Inbound client connection terminated. No action~n"),
+    {ok, St };
+
 %% Handle death of inbound server.
 exometer_info(Other, St) ->
     ?warning("Got unknown info: ~p~n", [ Other ]),
@@ -525,12 +528,12 @@ report_to_outbound_connection(#subscription {
 	    ?info("Sending ~p to ~p~n",[ Request, SocketPath]),
 	    case catch afunix:send(Sock, Request) of
 		ok -> ok;
-		_ ->
+		Err ->
 		    %% Send failed, most likely to peer hangup. 
 		    %% Kill off all outbound subscriptions referring the given
 		    %% socket path, and kill the connection.
-		    ?info("Failed to send to ~p. Will terminate~n", 
-			     [ SocketPath ]),
+		    ?info("Failed to send to ~p: ~p. Will terminate~n", 
+			     [ SocketPath, Err ]),
 		    terminate_outbound_subscriptions_by_socketpath(MasterProc,SocketPath),
 		    ok
 	    end
@@ -564,6 +567,7 @@ setup_outbound_subscription(MasterProc, Metric, DataPoint,
 		    case setup_outbound_connection(SocketPath) of
 			{ok, Socket} -> 
 			    %% Successful, create subscription and counter entries.
+			    ?info("Outbound connection socket ~p", [Socket]),
 			    add_subscription_entry(Metric, DataPoint, SocketPath, HostID),
 			    create_outbound_connection_counter(SocketPath, Socket),
 			    ok;
@@ -643,18 +647,22 @@ terminate_outbound_subscriptions_by_socketpath(MasterProc, SocketPath) ->
 %% Create an outbound connection provided by an incoming
 %% subscribe command from an external collector.
 setup_outbound_connection(SocketPath) ->
-    afunix:connect(SocketPath, [{active, false}, {mode, list}], infinity).
+    ?info("Setting up outbound connection ~p", [ SocketPath ]),
+    afunix:connect(SocketPath, [{active, false}, 
+				{mode, list}, 
+				{exit_on_close, false}], infinity).
 
 %% Terminate an outbound connection previously setup with
 %% setup_outbound_connection()
 terminate_outbound_connection(SocketPath) ->
+    ?info("Terminating outbound connection ~p", [ SocketPath ]),
     case find_outbound_connection(SocketPath) of
 	false -> ok; %% Not found, so that's ok.
 	Sock -> terminate_outbound_connection(SocketPath, Sock)
     end.
 
 terminate_outbound_connection(SocketPath, Sock) ->
-    ?info("Terminating outbound connection ~p~n", [SocketPath]),
+    ?info("Terminating outbound connection ~p/~p", [SocketPath, Sock]),
     afunix:close(Sock),
     ets:delete(?CONNECTION_TABLE, SocketPath),
     ok.
@@ -744,8 +752,8 @@ setup_inbound_server(Path) ->
 
 inbound_server(ListenSock, MasterProc) ->
     { ok, ClientSock } = afunix:accept(ListenSock),
-    spawn(fun() ->
-		  inbound_connection_loop(ClientSock, MasterProc)
+    spawn_monitor(fun() ->
+			  inbound_connection_loop(ClientSock, MasterProc)
 	  end),
     inbound_server(ListenSock, MasterProc).
 
@@ -765,12 +773,13 @@ inbound_connection_loop(ClientSock, MasterProc) ->
 	      end, string:tokens(Lines, "\n\r")),
 	    inbound_connection_loop(ClientSock, MasterProc);
 
-
 	_ -> 
 	    %% We failed to receive data, close and setup later reconnect
+	    
+	    ?info("Failed to receive from client. Will disconnect socket ~p", [ClientSock]),
 	    afunix:close(ClientSock),
-	    ?info("Failed to receive from client. Will disconnect"),
-	    exit(disconnected)
+	    timer:sleep(36000000), %% FIXME: Configurable
+	    exit(normal)
     end.
 
 %% Parse a command sent to an inbound server connection.
@@ -798,11 +807,11 @@ parse_inbound_command(MasterProc, subscribe,
 	MDPList -> 
 	    {Metric, [DataPoint]} = lists:split(length(MDPList)-1, MDPList),
 	    case  setup_outbound_subscription(MasterProc, 
-					    Metric, 
-					    list_to_atom(DataPoint), 
-					    Interval, 
-					    SocketPath, 
-					    HostID) of
+					      Metric, 
+					      list_to_atom(DataPoint), 
+					      Interval, 
+					      SocketPath, 
+					      HostID) of
 		ok ->
 		    { ok, "Subscription successful" };
 		invalid_socket ->

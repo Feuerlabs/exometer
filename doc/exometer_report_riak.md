@@ -17,7 +17,6 @@ __Behaviours:__ [`exometer_report`](exometer_report.md).
 __TODO: Add wildcards__
 __TODO: Add escape sequences__
 __TODO: Add functional argument to list.__
-__TODO: Disconnected command client kills outbound connections.__
 
 
 

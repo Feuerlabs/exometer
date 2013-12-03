@@ -195,10 +195,11 @@ report_exometer_(Metric, DataPoint, Value, #st{
 
     case  get_type(TypeMap, ets_key(Metric, DataPoint)) of
 	undefined -> 
-	   ?warning("Could not resolve ~p to a collectd type through the type_map "
-		      "application environment. Value lost~n", [ ets_key(Metric, DataPoint)]),
+	    ?warning("Could not resolve ~p to a collectd type."
+		     "Update exometer_report_collectd -> type_map in app.config. "
+		     "Value lost~n", [ ets_key(Metric, DataPoint)]),
 	    St;
-	
+
 	Type ->
 	    Request = "PUTVAL " ++ HostName ++ "/" ++  
 		PluginName ++ "-" ++ PluginInstance ++ "/" ++
@@ -268,7 +269,7 @@ metric_elem_to_list(E) when is_integer(E) ->
 
 %% Add value, int or float, converted to list
 value(V) when is_integer(V) -> integer_to_list(V);
-value(V) when is_float(V)   -> float_to_list(V);
+value(V) when is_float(V)   -> io_lib:format("~f", [V]);
 value(_) -> "0".
 
 timestamp() ->
