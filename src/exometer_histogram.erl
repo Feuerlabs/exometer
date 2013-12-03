@@ -113,7 +113,7 @@ perc(P, Len) when P > 1.0 ->
 perc(P, Len) ->
     round(P * Len).
 
-setopts(_Name, _Options, _Type, _Ref)  ->
+setopts(_Name, Options, _Type, _Ref)  ->
     { error, unsupported }.
 
 probe_setopts(_Opts, _St) ->

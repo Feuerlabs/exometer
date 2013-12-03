@@ -268,7 +268,7 @@ reset(Name)  when is_list(Name) ->
 	    TS = exometer_util:timestamp(),
 	    [ets:update_element(T, Name, [{#exometer_entry.value, 0},
 					  {#exometer_entry.timestamp, TS}])
-	     || T <- exometer_util:tables()],
+	     || T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
 	    ok;
 	[#exometer_entry{status = enabled,
 			 module = ?MODULE, type = fast_counter,
@@ -276,7 +276,7 @@ reset(Name)  when is_list(Name) ->
 	    TS = exometer_util:timestamp(),
 	    set_call_count(M, F, true),
 	    [ets:update_element(T, Name, [{#exometer_entry.timestamp, TS}])
-	     || T <- exometer_util:tables()],
+	     || T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
 	    ok;
 	[#exometer_entry{status = enabled,
 			 module = M, type = Type, ref = Ref}] ->
@@ -333,14 +333,14 @@ setopts(Name, Options)  when is_list(Name), is_list(Options) ->
 			 module = M, type = Type, ref = Ref} = E] ->
 	    {_, Elems} = process_setopts(E, Options),
 	    update_entry_elems(Name, Elems),
-	    M:setopts(Name, Options, Type, Ref);
+	    module_setopts(M, Name, Options, Type, Ref);
 	[#exometer_entry{status = disabled,
 			 module = M, type = Type, ref = Ref} = E] ->
 	    case lists:keyfind(status, 1, Options) of
 		{_, enabled} ->
-		    Elems = process_setopts(E, Options),
+		    {_, Elems} = process_setopts(E, Options),
 		    update_entry_elems(Name, Elems),
-		    M:setopts(Name, Options, Type, Ref);
+		    module_setopts(M, Name, Options, Type, Ref);
 		false ->
 		    {error, disabled}
 	    end;
@@ -348,6 +348,15 @@ setopts(Name, Options)  when is_list(Name), is_list(Options) ->
 	    {error, not_found}
 	    end.
 
+module_setopts(M, Name, Options, Type, Ref) ->
+    case [O || {K, _} = O <- Options,
+	       not lists:member(K, [status, cache])] of
+	[] ->
+	    ok;
+	[_|_] = UserOpts ->
+	    M:setopts(Name, UserOpts, Type, Ref)
+    end.
+	        
 setopts_fctr(#exometer_entry{name = Name,
 			     ref = OldRef,
 			     status = OldStatus} = E, Options) ->
@@ -386,7 +395,7 @@ cache(TTL, Name, Value) when TTL > 0 ->
     Value.
 
 update_entry_elems(Name, Elems) ->
-    [ets:update_element(T, Name, Elems) || T <- exometer_util:tables()],
+    [ets:update_element(T, Name, Elems) || T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
     ok.
 
 -type info() :: name | type | module | value | cache
@@ -571,6 +580,13 @@ process_setopts(#exometer_entry{options = OldOpts} = Entry, Options) ->
 				  Acc
 			  end;
 		     true -> error({illegal, {cache, Val}})
+		  end;
+	     ({status, Status}, {#exometer_entry{status = Status0} = E, Elems} = Acc) ->
+		  if Status =/= Status0 ->
+			  {E#exometer_entry{status = Status},
+			   add_elem(status, Status, Elems)};
+		     true ->
+			  Acc
 		  end;
 	     ({_,_}, Acc) ->
 		  Acc
