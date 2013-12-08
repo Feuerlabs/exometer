@@ -32,10 +32,15 @@ new(_Name, function, Opts) ->
     end.
 
 get_value(_, function, {M, F}, DataPoints) ->
-    M:F(DataPoints).
+    if DataPoints == default ->
+	    M:F(DataPoints);
+       is_list(DataPoints) ->
+	    [D || {K,_} = D <- M:F(DataPoints),
+		  lists:member(K, DataPoints)]
+    end.
 
 get_datapoints(_Name, _Type, _Ref) ->
-    [].
+    [value].
 
 update(_, _, _, _) ->
     {error, unsupported}.

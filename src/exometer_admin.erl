@@ -10,11 +10,6 @@
 
 -module(exometer_admin).
 
-%% ULF: See below for details
-%% -export([new/2, new/3,
-%% 	 set_default/3,
-%% 	 delete/1]).
-
 -export([new_entry/3,
 	 re_register_entry/3]).
 -export([set_default/3]).
@@ -47,7 +42,7 @@ set_default(NamePattern0, Type, #exometer_entry{} = E)
 			       (X  ) -> X
 			    end, NamePattern0),
     ets:insert(?EXOMETER_SHARED,
-	       E#exometer_entry{name = {default,NamePattern,Type},
+	       E#exometer_entry{name = {default,Type,NamePattern},
 				type = Type});
 set_default(NamePattern, Type, Opts) when is_list(NamePattern) ->
     set_default(NamePattern, Type, opts_to_rec(Opts)).
@@ -170,48 +165,56 @@ tables() ->
 %% ====
 
 lookup_definition(Name, Type) ->
-    case ets:lookup(?EXOMETER_SHARED, Name) of
-	[] ->
-	    default_definition(Name, Type);
-	[{_, _, #exometer_entry{} = Def}]  ->
-	    Def#exometer_entry{name = Name}
+    case ets:prev(?EXOMETER_SHARED, {default, Type, <<>>}) of
+	{default, Type, N} = D0 when N==[''], N==Name ->
+	    case ets:lookup(?EXOMETER_SHARED, D0) of
+		[#exometer_entry{} = Def] ->
+		    Def;
+		[] ->
+		    default_definition_(Name, Type)
+	    end;
+	{default, OtherType, _} when Type=/=OtherType ->
+	    exometer_default(Name, Type);
+	'$end_of_table' ->
+	    exometer_default(Name, Type);
+	_ ->
+	    default_definition_(Name, Type)
     end.
 
-default_definition(Name, Type) ->
-    case ets:lookup(?EXOMETER_SHARED, {default, Type}) of
-	[{_, #exometer_entry{} = Def}] ->
-	    Def;
-	[] ->
-	    case search_default(Name, Type) of
-		#exometer_entry{} = E ->
-		    E#exometer_entry{name = Name};
-		false ->
-		    case module(Type) of
-			{M, Arg} ->
-			    #exometer_entry{name = Name, type = Type,
-					    module = M,
-					    options = [{type_arg,Arg}]};
-			M when is_atom(M) ->
-			    #exometer_entry{name = Name, type = Type,
-					    module = M}
-		    end
-	    end
+default_definition_(Name, Type) ->
+    case search_default(Name, Type) of
+	#exometer_entry{} = E ->
+	    E#exometer_entry{name = Name};
+	false ->
+	    exometer_default(Name, Type)
+    end.
+
+exometer_default(Name, Type) ->
+    case module(Type) of
+	{M, Arg} ->
+	    #exometer_entry{name = Name, type = Type,
+			    module = M,
+			    options = [{type_arg,Arg}]};
+	M when is_atom(M) ->
+	    #exometer_entry{name = Name, type = Type,
+			    module = M}
     end.
 
 %% Be sure to specify { module, exometer_ctr } in Options when
 %% creating a ticker metrics through exometer:new().
-module(counter )     -> exometer;
-module(fast_counter) -> exometer;
-module(ticker  )     -> exometer_probe;
-module(uniform)      -> exometer_uniform;
-module(histogram)    -> exometer_histogram;
-module(spiral   )    -> exometer_spiral;
-module(netlink  )    -> exometer_netlink;
-module(probe    )    -> exometer_probe;
-module(cpu      )    -> {exometer_probe, exometer_cpu}.
+module(counter )      -> exometer;
+module(fast_counter)  -> exometer;
+module(exometer_proc) -> exometer;
+module(ticker  )      -> exometer_probe;
+module(uniform)       -> exometer_uniform;
+module(histogram)     -> {exometer, exometer_histogram};
+module(spiral   )     -> {exometer, exometer_spiral};
+module(netlink  )     -> exometer_netlink;
+module(probe    )     -> exometer_probe;
+module(cpu      )     -> {exometer_probe, exometer_cpu}.
 
 search_default(Name, Type) ->
-    case ets:lookup(?EXOMETER_SHARED, {default,Name,Type}) of
+    case ets:lookup(?EXOMETER_SHARED, {default,Type,Name}) of
 	[] ->
 	    case ets:select_reverse(
 		   ?EXOMETER_SHARED, make_patterns(Type, Name), 1) of
@@ -230,10 +233,10 @@ make_patterns(Type, Name) when is_list(Name) ->
 make_patterns([H|T], Type, Acc) ->
     Acc1 = Acc ++ [H],
     ID = Acc1 ++ [''],
-    [{ #exometer_entry{name = {default, ID, Type}, _ = '_'}, [], ['$_'] }
+    [{ #exometer_entry{name = {default, Type, ID}, _ = '_'}, [], ['$_'] }
      | make_patterns(T, Type, Acc1)];
 make_patterns([], Type, _) ->
-    [{ #exometer_entry{name = {default, [''], Type}, _ = '_'}, [], ['$_'] }].
+    [{ #exometer_entry{name = {default, Type, ['']}, _ = '_'}, [], ['$_'] }].
 
 
 %% This function is called when creating an #exometer_entry{} record.

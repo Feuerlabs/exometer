@@ -9,12 +9,12 @@
 {mapping, "exometer.template.fast_counter.module", "exometer.defaults",
  [{default, "exometer"}]
 }.
-{mapping, "exometer.template.histogram.module", "exometer.defaults",
- [{default, "exometer_histogram"}]
-}.
-{mapping, "exometer.template.spiral.module", "exometer.defaults",
- [{default, "exometer_spiral"}]
-}.
+%% {mapping, "exometer.template.histogram.module", "exometer.defaults",
+%%  [{default, "exometer_histogram"}]
+%% }.
+%% {mapping, "exometer.template.spiral.module", "exometer.defaults",
+%%  [{default, "exometer_spiral"}]
+%% }.
 {mapping, "exometer.template.duration.module", "exometer.defaults",
  [{default, "exometer_folsom"}]
 }.

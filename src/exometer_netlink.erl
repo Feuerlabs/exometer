@@ -60,8 +60,8 @@ probe_init(Name, _Type, Options) ->
     St = process_opts(#st { name = Name }, Options),
     Slide = exometer_slot_slide:new(St#st.time_span,
 				    St#st.slot_period,
-				    { ?MODULE, count_sample, []},
-				    { ?MODULE, count_transform, []}),
+				    fun count_sample/3,
+				    fun count_transform/2),
     {ok, St#st{ slide = Slide }}.
 
 delete(Name, Type, Ref) ->

@@ -22,6 +22,9 @@
 	 sample/3,
 	 setopts/4]).
 
+%% exometer_proc callback
+-export([init/3]).
+
 %% exometer_probe callbacks
 -export([probe_init/3,
 	 probe_terminate/1,
@@ -39,6 +42,8 @@
 -export([count_sample/3,
 	 count_transform/2]).
 
+-compile(inline).
+
 -include("exometer.hrl").
 -import(netlink_stat, [get_value/1]).
 -record(st, {name,
@@ -50,6 +55,29 @@
 
 -define(DATAPOINTS, [ count, one ]).
 
+init(Name, Type, Options) ->
+    {ok, St} = probe_init(Name, Type, Options),
+    process_flag(min_heap_size, 40000),
+    loop(St).
+
+loop(St) ->
+    receive
+	{exometer_proc, {update, Val}} ->
+	    {ok, _, St1} = probe_update(Val, St),
+	    loop(St1);
+	{exometer_proc, sample} ->
+	    %% ignore
+	    loop(St);
+	{exometer_proc, {From,Ref}, {get_value, DPs}} ->
+	    {ok, Res} = probe_get_value(St, DPs),
+	    From ! {Ref, Res},
+	    loop(St);
+	{exometer_proc, {From,Ref}, {setopts, _Opts}} ->
+	    From ! {Ref, {error, unsupported}},
+	    loop(St);
+	_ ->
+	    loop(St)
+    end.
 %%
 %% exometer_entry callbacks
 %%
@@ -61,8 +89,8 @@ probe_init(Name, _Type, Options) ->
 					     { slot_period,1000 } ] ++ Options),
     Slide = exometer_slot_slide:new(St#st.time_span,
 				    St#st.slot_period,
-				    { ?MODULE, count_sample, []},
-				    { ?MODULE, count_transform, []}),
+				    fun count_sample/3,
+				    fun count_transform/2),
     {ok, St#st{ slide = Slide }}.
 
 delete(Name, Type, Ref) ->
@@ -96,17 +124,16 @@ probe_setopts(_Opts, _St) ->
 update(Name, Increment, Type, Ref) ->
     exometer_probe:update(Name, Increment, Type, Ref).
 
-probe_update(Increment, St) ->
-    Slide = exometer_slot_slide:add_element(Increment, St#st.slide),
-    Total = St#st.total + Increment,
-    {ok, ok, St#st { slide = Slide, total = Total}}.
+probe_update(Increment, #st{slide = Slide, total = Total} = St) ->
+    {ok, ok, St#st{slide = exometer_slot_slide:add_element(Increment, Slide),
+		   total = Total + Increment}}.
 
 
 reset(Name, Type, Ref) ->
     exometer_probe:reset(Name, Type, Ref).
 
-probe_reset(St) ->
-    { ok, St#st { total = 0, slide = exometer_slot_slide:reset(St#st.slide)} }.
+probe_reset(#st{slide = Slide} = St) ->
+    { ok, St#st { total = 0, slide = exometer_slot_slide:reset(Slide)} }.
 
 
 sample(_Name, _Type, _Ref) ->

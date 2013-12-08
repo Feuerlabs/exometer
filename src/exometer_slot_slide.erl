@@ -188,10 +188,9 @@
 
 -export([test/0]).
 
--compile(export_all).
+-compile(inline).
 
 -import(lists, [reverse/1, sublist/3]).
--import(exometer_util, [timestamp/0]).
 
 
 
@@ -199,8 +198,8 @@
 %% A slot is indexed by taking the current timestamp (in ms) divided by the slot_period
 %%
 -record(slide, {timespan = 0 :: integer(),  % How far back in time do we go, in slot period increments.
-		sample_mfa :: { atom(), atom(), list() },
-		transform_mfa :: { atom(), atom(), list() },
+		sample_fun :: { atom(), atom(), list() },
+		transform_fun :: { atom(), atom(), list() },
 		slot_period :: integer(),   % Period, in ms, of each slot
 		cur_slot = 0 :: integer(),  % Current slot as in 
 		cur_state = undefined :: any(), % Total for the current slot
@@ -214,10 +213,11 @@
 	  { atom(), atom(), list() }
 	 ) -> #slide{}.
 %%
-new(HistogramTimeSpan, SlotPeriod, SampleMFA, TransformMFA) ->
+new(HistogramTimeSpan, SlotPeriod, SampleF, TransformF)
+  when is_function(SampleF, 3), is_function(TransformF, 2) ->
     #slide{timespan = trunc(HistogramTimeSpan / SlotPeriod),
-	   sample_mfa = SampleMFA,
-	   transform_mfa = TransformMFA,
+	   sample_fun = SampleF,
+	   transform_fun = TransformF,
 	   slot_period = SlotPeriod,
 	   cur_slot = trunc(timestamp() / SlotPeriod),
 	   cur_state = undefined,
@@ -237,7 +237,8 @@ add_element(Val, Slide) ->
     add_element(timestamp(), Val, Slide).
 
 add_element(TS, Val, #slide{cur_slot = CurrentSlot, 
-			    sample_mfa = SampleMFA} = Slide) ->
+			    sample_fun = SampleF,
+			    cur_state = CurSt} = Slide) ->
 
     TSSlot = get_slot(TS, Slide),
     
@@ -263,8 +264,7 @@ add_element(TS, Val, #slide{cur_slot = CurrentSlot,
     %%
     %% Invoke the sample MFA to get a new state to work with
     %%
-    { SM, SF, SA } = SampleMFA,
-    Slide1#slide { cur_state = apply(SM, SF, [ TS, Val, Slide1#slide.cur_state ] ++ SA)}.
+    Slide1#slide {cur_state = SampleF(TS, Val, CurSt)}.
 
 
 -spec to_list(#slide{}) -> list().
@@ -336,26 +336,25 @@ take_since(_, _, _, Acc) ->
 get_slot(Slide) ->
     get_slot(timestamp(), Slide).
 
-get_slot(TS, Slide) ->
-    trunc(TS / Slide#slide.slot_period).
+get_slot(TS, #slide{slot_period = Period}) ->
+    trunc(TS / Period).
 
 %%
 %% Calculate the average data sampled during the current slot period
 %% and push that average to the new slot.
 %%
 add_slot(TS, #slide{timespan = TimeSpan,
-			slot_period = SlotPeriod,
-			cur_slot = CurrentSlot,
-			cur_state = CurrentState,
-			transform_mfa = TransformMFA,
-			list1 = List1,
-			list1_start_slot = StartSlot} = Slide) ->
+		    slot_period = SlotPeriod,
+		    cur_slot = CurrentSlot,
+		    cur_state = CurrentState,
+		    transform_fun = TransformF,
+		    list1 = List1,
+		    list1_start_slot = StartSlot} = Slide) ->
 
     %% Transform current slot state to an element to be deposited
     %% in the histogram list
-    { TM, TF, TA } = TransformMFA,
     TSSlot = trunc(TS / SlotPeriod),
-    case apply(TM, TF, [ TS, CurrentState ] ++ TA) of 
+    case TransformF(TS, CurrentState) of 
 	undefined ->  %% Transformation function could not produce an element
 	    %% Reset the time slot to the current slot. Reset state./
 	    Slide#slide{ cur_slot = TSSlot,
@@ -435,4 +434,8 @@ calc_avg(Slide) ->
     T / C.
 
 			    
-
+timestamp() ->
+    %% Invented epoc is {1258,0,0}, or 2009-11-12, 4:26:40
+    %% Millisecond resolution
+    {MS,S,US} = os:timestamp(),
+    (MS-1258)*1000000000 + S*1000 + US div 1000.

@@ -265,11 +265,11 @@
 -type options()  :: [{atom(), any()}].
 -type datapoints()  :: [atom()].
 -type value()    :: any().
--type ref()      :: pid() | undefined.
+-type ref()      :: any().
 -type error()   :: { error, any() }.
 
 -callback new(name(), type(), options()) ->
-    ok | {ok, pid()} | error().
+    ok | {ok, ref()} | error().
 
 -callback delete(name(), type(), ref()) ->
     ok | error().

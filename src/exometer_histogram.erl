@@ -23,6 +23,9 @@
 	 sample/3,
 	 setopts/4]).
 
+%% exometer_proc callback
+-export([init/3]).
+
 %% exometer_probe callbacks
 -export([probe_init/3,
 	 probe_terminate/1,
@@ -40,6 +43,8 @@
 -export([average_sample/3,
 	 average_transform/2]).
 
+-compile(inline).
+
 -include("exometer.hrl").
 
 -record(st, {name,
@@ -51,6 +56,31 @@
 
 -define(DATAPOINTS,
 	[ min, max, median, mean, 50, 75, 90, 95, 99, 999 ]).
+
+
+init(Name, Type, Options) ->
+    {ok, St} = probe_init(Name, Type, Options),
+    process_flag(min_heap_size, 40000),
+    loop(St).
+
+loop(St) ->
+    receive
+	{exometer_proc, {update, Val}} ->
+	    {ok, _, St1} = probe_update(Val, St),
+	    loop(St1);
+	{exometer_proc, sample} ->
+	    %% ignore
+	    loop(St);
+	{exometer_proc, {From,Ref}, {get_value, DPs}} ->
+	    {ok, Res} = probe_get_value(St, DPs),
+	    From ! {Ref, Res},
+	    loop(St);
+	{exometer_proc, {From,Ref}, {setopts, _Opts}} ->
+	    From ! {Ref, {error, unsupported}},
+	    loop(St);
+	_ ->
+	    loop(St)
+    end.
 
 
 %%
@@ -71,8 +101,8 @@ probe_init_(Name, _Type, Options) ->
 					 {slot_period, 100}] ++ Options),
     Slide = exometer_slot_slide:new(St#st.time_span,
 				    St#st.slot_period,
-				    {?MODULE, average_sample, []},
-				    {?MODULE, average_transform, []}),
+				    fun average_sample/3,
+				    fun average_transform/2),
     {ok, St#st{slide = Slide}}.
 
 delete(Name, Type, Ref) ->
@@ -113,7 +143,7 @@ perc(P, Len) when P > 1.0 ->
 perc(P, Len) ->
     round(P * Len).
 
-setopts(_Name, Options, _Type, _Ref)  ->
+setopts(_Name, _Opts, _Type, _Ref)  ->
     { error, unsupported }.
 
 probe_setopts(_Opts, _St) ->
@@ -122,16 +152,15 @@ probe_setopts(_Opts, _St) ->
 update(Name, Value, Type, Ref) ->
     exometer_probe:update(Name, Value, Type, Ref).
 
-probe_update(Value, St) ->
-    Slide = exometer_slot_slide:add_element(Value, St#st.slide),
-    {ok, ok, St#st { slide = Slide}}.
+probe_update(Value, #st{slide = Slide} = St) ->
+    {ok, ok, St#st{slide = exometer_slot_slide:add_element(Value, Slide)}}.
 
 
 reset(Name, Type, Ref) ->
     exometer_probe:reset(Name, Type, Ref).
 
-probe_reset(St) ->
-    { ok, St#st { slide = exometer_slot_slide:reset(St#st.slide)} }.
+probe_reset(#st{slide = Slide} = St) ->
+    {ok, St#st{slide = exometer_slot_slide:reset(Slide)}}.
 
 sample(_Name, _Type, _Ref) ->
     { error, unsupported }.
