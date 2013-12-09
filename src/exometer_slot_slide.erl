@@ -42,13 +42,13 @@
 %% slot was stored in the histogram at msec 1200, the current slot
 %% period ends at msec 1300.
 %% 
-%% All samples received during the current slot are processed by an
-%% low-cost MFA that updates the current slot state. When the current
-%% slot ends, another MFA is used to transform the current slot state
+%% All samples received during the current slot are processed by a
+%% low-cost fun that updates the current slot state. When the current
+%% slot ends, another fun is used to transform the current slot state
 %% to a value that is stored in the histogram.
 %%
 %% If a simple average is to be calculated for all samples received,
-%% the sample-processing MFA will add to the sum of the received
+%% the sample-processing fun will add to the sum of the received
 %% samples, and increment sample counter. When the current slot
 %% expires, the result of SampleSum / SampleCount is stored in the
 %% slot.
@@ -57,7 +57,7 @@
 %% slot state would have a { Min, Max } tuple that is upadted with the
 %% smallest and largest values received during the period. At slot
 %% expiration the min/max tuple is simply stored, by the
-%% transformation MFA, in the histogram slots.
+%% transformation fun, in the histogram slots.
 %% 
 %% By adjusting the slot period and the total histogram duration, the
 %% cost of analysing the entire histogram can be balanced against
@@ -134,9 +134,9 @@
 %% </pre>
 %%
 %%
-%% == SAMPLE PROCESSING AND TRANSFORMATION MFA ==
+%% == SAMPLE PROCESSING AND TRANSFORMATION FUN ==
 %%
-%% Two MFAs are provided to the new() function of the slotted slide
+%% Two funs are provided to the new() function of the slotted slide
 %% histogram. The processing function is called by add_element() and
 %% will take the same sample value provided to that function together
 %% with the current timestamp and slot state as arguments. The
@@ -146,7 +146,7 @@
 %%     M:F(TimeStamp, Value, State) -> NewState
 %% </pre>
 %%
-%% The first call to the sample processing MFA when the current slot
+%% The first call to the sample processing fun when the current slot
 %% is newly reset (just after a slot has been added to the histogram),
 %% state will be set to 'undefined'
 %%
@@ -154,7 +154,7 @@
 %%     M:F(TimeStamp, Value, undefined) -> NewState
 %% </pre>
 %%
-%% The transformation MFA is called when the current slot has expired
+%% The transformation fun is called when the current slot has expired
 %% and is to be stored in the histogram. It will receive the current
 %% timestamp and slot state as arguments and returns the element to
 %% be stored (together with a slot timestamp) in the slot histogram.
@@ -165,8 +165,8 @@
 %%
 %% Element will present in the lists returned by to_list() and fold{l,r}().
 %% If the transformation MFA cannot do its job, for example because
-%% no samples have been processed by the sample processing MFA,
-%% the transformation MFA should return 'undefined'
+%% no samples have been processed by the sample processing fun,
+%% the transformation fun should return 'undefined'
 %%
 %% See new/2 and its avg_sample() and avg_transform() functions for an
 %% example of a simple average value implementation.
@@ -192,14 +192,19 @@
 
 -import(lists, [reverse/1, sublist/3]).
 
+-type(timestamp() :: integer()).
+-type(value() :: any()).
+-type(cur_state() :: any()).
 
+-type(sample_fun() :: fun((timestamp(), value(), cur_state()) -> cur_state())).
+-type transform_fun() :: fun((timestamp(), cur_state()) -> cur_state()).
 
 %% Fixed size event buffer
 %% A slot is indexed by taking the current timestamp (in ms) divided by the slot_period
 %%
 -record(slide, {timespan = 0 :: integer(),  % How far back in time do we go, in slot period increments.
-		sample_fun :: { atom(), atom(), list() },
-		transform_fun :: { atom(), atom(), list() },
+		sample_fun :: sample_fun(),
+		transform_fun :: transform_fun(),
 		slot_period :: integer(),   % Period, in ms, of each slot
 		cur_slot = 0 :: integer(),  % Current slot as in 
 		cur_state = undefined :: any(), % Total for the current slot
@@ -209,8 +214,8 @@
 
 -spec new(integer(), 
 	  integer(), 
-	  { atom(), atom(), list() }, 
-	  { atom(), atom(), list() }
+	  sample_fun(),
+	  transform_fun()
 	 ) -> #slide{}.
 %%
 new(HistogramTimeSpan, SlotPeriod, SampleF, TransformF)
@@ -227,9 +232,8 @@ new(HistogramTimeSpan, SlotPeriod, SampleF, TransformF)
 
 
 new(HistogramTimeSpan, SlotPeriod) ->
-    new(HistogramTimeSpan, SlotPeriod, 
-	{ ?MODULE, avg_sample, [] },
-	{ ?MODULE, avg_transform, [] }).
+    new(HistogramTimeSpan, SlotPeriod,
+	fun avg_sample/3, fun avg_transform/2).
     
 -spec add_element(any(), #slide{}) -> #slide{}.
     

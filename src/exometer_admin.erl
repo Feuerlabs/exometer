@@ -16,7 +16,7 @@
 
 -compile(export_all).
 
--export([monitor/2]).
+-export([monitor/2, demonitor/1]).
 
 -record(st, {}).
 -include("exometer.hrl").
@@ -77,6 +77,9 @@ re_register_entry(Name, Type, Opts) ->
 monitor(Name, Pid) when is_pid(Pid) ->
     gen_server:cast(?MODULE, {monitor, Name, Pid}).
 
+demonitor(Pid) when is_pid(Pid) ->
+    gen_server:cast(?MODULE, {demonitor, Pid}).
+
 opts_to_rec(Opts) ->
     Flds = record_info(fields, exometer_entry),
     lists:foldr(fun({K,V}, Acc) ->
@@ -122,16 +125,28 @@ handle_call(_, _, S) ->
 handle_cast({monitor, Name, Pid}, S) ->
     Ref = erlang:monitor(process, Pid),
     put(Ref, Name),
+    put(Pid, Ref),
     {noreply, S};
+handle_cast({demonitor, Pid}, S) ->
+    case get(Pid) of
+	undefined ->
+	    {noreply, S};
+	Ref ->
+	    erase(Pid),
+	    erase(Ref),
+	    catch erlang:demonitor(Ref),
+	    {noreply, S}
+    end;
 handle_cast(_, S) ->
     {noreply, S}.
 
-handle_info({'DOWN', Ref, _, _, _}, S) ->
+handle_info({'DOWN', Ref, _, Pid, _}, S) ->
     case get(Ref) of
 	undefined ->
 	    {noreply, S};
 	Name when is_list(Name) ->
 	    erase(Ref),
+	    erase(Pid),
 	    catch exometer:delete(Name),
 	    {noreply, S}
     end;
@@ -208,7 +223,8 @@ module(exometer_proc) -> exometer;
 module(ticker  )      -> exometer_probe;
 module(uniform)       -> exometer_uniform;
 module(histogram)     -> {exometer, exometer_histogram};
-module(spiral   )     -> {exometer, exometer_spiral};
+module(spiral   )     -> exometer_spiral;
+%% module(spiral   )     -> {exometer, exometer_spiral};
 module(netlink  )     -> exometer_netlink;
 module(probe    )     -> exometer_probe;
 module(cpu      )     -> {exometer_probe, exometer_cpu}.

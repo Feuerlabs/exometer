@@ -30,14 +30,24 @@ new(Name, spiral, _Opts) ->
 new(Name, histogram, Opts) ->
     case lists:keysearch(type_arg, 1, Opts) of
 	{_, {histogram, SampleType, SampleArgs}} ->
-	    folsom_metrics:new_histogram(Name, SampleType, SampleArgs);
+	    {folsom_metrics:new_histogram(Name, SampleType, SampleArgs),
+	     opt_ref(Opts)};
 	false ->
-	    folsom_metrics:new_histogram(Name, slide_uniform, {60, 1028})
+	    {folsom_metrics:new_histogram(Name, slide_uniform, {60, 1028}),
+	     opt_ref(Opts)}
     end;
-new(Name, meter, _Opts) ->
-    folsom_metrics:new_meter(Name);
-new(Name, duration, _Opts) ->
-    folsom_metrics:new_duration(Name).
+new(Name, meter, Opts) ->
+    {folsom_metrics:new_meter(Name), opt_ref(Opts)};
+new(Name, duration, Opts) ->
+    {folsom_metrics:new_duration(Name), opt_ref(Opts)}.
+
+opt_ref(Opts) ->
+    case lists:keyfind(truncate, 1, Opts) of
+	false ->
+	    [{truncate,true}];
+	{_, B} when is_boolean(B) ->
+	    [{truncate,B}]
+    end.
 
 delete(Name, _Type, _Ref) ->
     folsom_metrics:delete_metric(Name).
@@ -53,11 +63,16 @@ reset(_, _, _) ->
     {error, unsupported}.
 
 get_value(Name, Type, Ref, DataPoints) ->
-    try filter_dps(get_value_(Name, Type, Ref), DataPoints)
+    Trunc = get_trunc_opt(Ref),
+    try filter_dps(get_value_(Name, Type, Ref), DataPoints, Trunc)
     catch
 	error:_ ->
 	    unavailable
     end.
+
+get_trunc_opt(undefined) -> true;
+get_trunc_opt(L) ->
+    proplists:get_value(truncate, L, true).
 
 get_datapoints(_Name, counter, _Ref) ->
     [value];
@@ -68,25 +83,37 @@ get_datapoints(_Name, spiral, _) ->
 get_datapoints(_Name, meter, _) ->
     [count,one,five,fifteen,day,mean,acceleration].
 
-filter_dps([{percentile, L}|T], DPs) ->
-    filter_dps(L, DPs) ++ filter_dps(T, DPs);
-filter_dps([{arithmetic_mean,V}|T], DPs) ->
-    case lists:member(mean, DPs) of
-	true -> [{mean,V}|filter_dps(T, DPs)];
-	false -> case lists:member(arithmetic_mean, DPs) of
-		     true -> [{arithmetic_mean,V}|filter_dps(T, DPs)];
-		     false -> filter_dps(T, DPs)
+filter_dps([{percentile, L}|T], DPs, Trunc) ->
+    filter_dps(L, DPs, Trunc) ++ filter_dps(T, DPs, Trunc);
+filter_dps([{arithmetic_mean,V}|T], DPs, Trunc) ->
+    case keep_dp(mean, DPs) of
+	true -> [{mean,opt_trunc(Trunc, V)}|filter_dps(T, DPs, Trunc)];
+	false -> case keep_dp(arithmetic_mean, DPs) of
+		     true -> [{arithmetic_mean,
+			       opt_trunc(Trunc,V)}|filter_dps(T, DPs, Trunc)];
+		     false -> filter_dps(T, DPs, Trunc)
 		 end
     end;
-filter_dps([{K,V}|T], DPs) ->
-    case lists:member(K, DPs) of
+filter_dps([{K,V}|T], DPs, Trunc) ->
+    case keep_dp(K, DPs) of
 	true ->
-	    [{K,V}|filter_dps(T, DPs)];
+	    [{K,opt_trunc(Trunc, V)}|filter_dps(T, DPs, Trunc)];
 	false ->
-	    filter_dps(T, DPs)
+	    filter_dps(T, DPs, Trunc)
     end;
-filter_dps([], _) ->
+filter_dps([], _, _) ->
     [].
+
+opt_trunc(true, V) when is_float(V) ->
+    trunc(V);
+opt_trunc(_, V) ->
+    V.
+
+keep_dp(_, default) ->
+    true;
+keep_dp(K, DPs) ->
+    lists:member(K, DPs).
+
 
 stats_datapoints() ->
     [count,last,min,max,arithmetic_mean,geometric_mean,harmonic_mean,mean,

@@ -81,9 +81,7 @@ new(Name, Type, [{type_arg, Module}|Opts]) ->
 new(Name, Type, Options) ->
     %% Extract the module to use.
     {value, { module, Module }, Opts1 } = lists:keytake(module, 1, Options), 
-    {ok, Pid} = gen_server:start(?MODULE, {Name, Type, Module, Opts1},
-                                 [{spawn_opt,[{min_heap_size,10000},
-                                              {priority, high}]}]),
+    {ok, Pid} = gen_server:start(?MODULE, {Name, Type, Module, Opts1}, []),
     exometer_admin:monitor(Name, Pid),
     {ok, Pid}.
 
@@ -120,7 +118,7 @@ init({Name, Type, Mod, Opts}) ->
 	    %% No sample timer to start. Return with undefined mod state
 	    {ok, St#st{ mod_state = undefined }};
 	{{ok, ModSt}, infinity} ->
-	    %% No sample timer to start. Returnn with the mod state returned by probe_init.
+	    %% No sample timer to start. Return with the mod state returned by probe_init.
 	    {ok, St#st{ mod_state = ModSt }};
 
 	{ ok, _} ->
@@ -135,6 +133,7 @@ init({Name, Type, Mod, Opts}) ->
     end.
 
 handle_call(stop, _From, St) ->
+    exometer_admin:demonitor(self()),
     {stop, terminated, ok, St};
 
 handle_call({get_value, default}, _From, #st{module = M, mod_state = ModSt} = St) ->
@@ -222,6 +221,7 @@ start_timer(T, Msg) when is_integer(T), T >= 0, T =< 16#FFffFFff ->
     erlang:start_timer(T, self(), Msg).
 
 process_opts(Options, #st{} = St) ->
+    exometer_proc:process_options(Options),
     process_opts(Options, St, []).
 
 process_opts([{sample_interval, Val}|T], #st{} = St, Acc) ->

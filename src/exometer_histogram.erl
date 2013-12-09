@@ -11,7 +11,6 @@
 %% @doc Exometer histogram probe behavior
 -module(exometer_histogram).
 -behaviour(exometer_entry).
--behaviour(exometer_probe).
 
 %% exometer_entry callbacks
 -export([new/3,
@@ -26,24 +25,16 @@
 %% exometer_proc callback
 -export([init/3]).
 
-%% exometer_probe callbacks
--export([probe_init/3,
-	 probe_terminate/1,
-	 probe_get_value/2,
-	 probe_get_datapoints/1,
-	 probe_update/2,
-	 probe_reset/1,
-	 probe_sample/1,
-	 probe_setopts/2,
-	 probe_handle_call/3,
-	 probe_handle_cast/2,
-	 probe_handle_info/2,
-	 probe_code_change/3]).
-
 -export([average_sample/3,
 	 average_transform/2]).
 
 -compile(inline).
+
+-compile({parse_transform, exometer_igor}).
+-compile({igor, [{files, ["src/exometer_util.erl"
+			  , "src/exometer_proc.erl"
+			  , "src/exometer_slot_slide.erl"
+			 ]}]}).
 
 -include("exometer.hrl").
 
@@ -52,6 +43,7 @@
 	     slot_period = 1000, %% msec
 	     time_span = 60000, %% msec
 	     percentiles = [ 99.0 ], %% Which percentages to calculate
+	     truncate = true,
 	     opts = []}).
 
 -define(DATAPOINTS,
@@ -59,27 +51,36 @@
 
 
 init(Name, Type, Options) ->
-    {ok, St} = probe_init(Name, Type, Options),
+    {ok, St} = init_int(Name, Type, Options),
     process_flag(min_heap_size, 40000),
     loop(St).
 
 loop(St) ->
-    receive
+    receive Msg ->
+	    loop(handle_msg(Msg, St))
+    end.
+
+handle_msg(Msg, St) ->
+    case Msg of
 	{exometer_proc, {update, Val}} ->
-	    {ok, _, St1} = probe_update(Val, St),
-	    loop(St1);
+	    update_int(Val, St);
+	{exometer_proc, {update, Val, TS}} ->
+	    update_int(Val, TS, St);
 	{exometer_proc, sample} ->
 	    %% ignore
-	    loop(St);
+	    St;
 	{exometer_proc, {From,Ref}, {get_value, DPs}} ->
-	    {ok, Res} = probe_get_value(St, DPs),
-	    From ! {Ref, Res},
-	    loop(St);
+	    From ! {Ref, get_value_int(St, DPs)},
+	    St;
 	{exometer_proc, {From,Ref}, {setopts, _Opts}} ->
 	    From ! {Ref, {error, unsupported}},
-	    loop(St);
+	    St;
+	{exometer_proc, reset} ->
+	    reset_int(St);
+	{exometer_proc, stop} ->
+	    exometer_proc:stop();
 	_ ->
-	    loop(St)
+	    St
     end.
 
 
@@ -87,16 +88,22 @@ loop(St) ->
 %% exometer_entry callbacks
 %%
 new(Name, Type, Options) ->
-    exometer_probe:new(Name, Type, [{module, ?MODULE}|Options]).
+    {ok, exometer_proc:spawn_process(Name, fun() ->
+						   init(Name, Type, Options)
+					   end)}.
 
-probe_init(Name, Type, Options) ->
-    try probe_init_(Name, Type, Options)
-    catch
-	throw:{error,_} = E ->
-	    E
-    end.
+delete(_Name, _Type, Pid) ->
+    exometer_proc:cast(Pid, stop).
 
-probe_init_(Name, _Type, Options) ->
+get_value(_Name, _Type, Pid, DataPoints) ->
+    exometer_proc:call(Pid, {get_value, DataPoints}).
+
+%% No need to go through the process for this one.
+get_datapoints(_Name, _Type, _Ref) ->
+    ?DATAPOINTS.
+
+
+init_int(Name, _Type, Options) ->
     St = process_opts(#st{name = Name}, [{time_span, 60000},
 					 {slot_period, 100}] ++ Options),
     Slide = exometer_slot_slide:new(St#st.time_span,
@@ -105,37 +112,24 @@ probe_init_(Name, _Type, Options) ->
 				    fun average_transform/2),
     {ok, St#st{slide = Slide}}.
 
-delete(Name, Type, Ref) ->
-    exometer_probe:delete(Name, Type, Ref).
+get_value_int(St, default) ->
+    get_value_int_(St, ?DATAPOINTS);
+get_value_int(St, DataPoints) ->
+    get_value_int_(St, DataPoints).
 
-probe_terminate(_ModSt) ->
-    ok.
-
-get_value(Name, Type, Ref, DataPoints) ->
-    exometer_probe:get_value(Name, Type, Ref, DataPoints).
-
-%% No need to go through exometer_probe for this one.
-get_datapoints(_Name, _Type, _Ref) ->
-    ?DATAPOINTS.
-
-
-probe_get_value(St, DataPoints) ->
+get_value_int_(#st{truncate = Trunc} = St, DataPoints) ->
     %% We need element count and sum of all elements to get mean value.
+    Tot0 = case Trunc of true -> 0; false -> 0.0 end,
     {Length, Total, Lst }
 	= exometer_slot_slide:foldl(
 	    fun({_TS, Val}, {Length, Total, List}) -> 
-		    { Length + 1, Total + Val, [ Val | List ]}  
+		    {Length + 1, Total + Val, [Val|List]}  
 	    end,
-	    {0, 0.0, []}, St#st.slide),
-
+	    {0, Tot0, []}, St#st.slide),
     Sorted = lists:sort(Lst),
-    {ok, [ get_datapoint_value(Length, Total, Sorted, DataPoint) || DataPoint <- DataPoints ]}.
+    [get_datapoint_value(Length, Total, Sorted, DataPoint, Trunc)
+     || DataPoint <- DataPoints].
 
-
-%% Never called since the probe does not get involved for
-%% get_datapoints().
-probe_get_datapoints(_St) ->
-    { ok, ?DATAPOINTS }.
 
 perc(P, Len) when P > 1.0 ->
     round((P / 10) * Len);
@@ -144,50 +138,37 @@ perc(P, Len) ->
     round(P * Len).
 
 setopts(_Name, _Opts, _Type, _Ref)  ->
-    { error, unsupported }.
+    {error, unsupported}.
 
-probe_setopts(_Opts, _St) ->
-    error(unsupported).
+update(_Name, Value, _Type, Pid) ->
+    exometer_proc:cast(Pid, {update, Value, exometer_util:timestamp()}).
+    
+update_int(Value, #st{slide = Slide} = St) ->
+    St#st{slide = exometer_slot_slide:add_element(Value, Slide)}.
 
-update(Name, Value, Type, Ref) ->
-    exometer_probe:update(Name, Value, Type, Ref).
-
-probe_update(Value, #st{slide = Slide} = St) ->
-    {ok, ok, St#st{slide = exometer_slot_slide:add_element(Value, Slide)}}.
+update_int(Value, TS, #st{slide = Slide} = St) ->
+    St#st{slide = exometer_slot_slide:add_element(TS, Value, Slide)}.
 
 
-reset(Name, Type, Ref) ->
-    exometer_probe:reset(Name, Type, Ref).
+reset(_Name, _Type, Pid) ->
+    exometer_proc:cast(Pid, reset).
 
-probe_reset(#st{slide = Slide} = St) ->
-    {ok, St#st{slide = exometer_slot_slide:reset(Slide)}}.
+reset_int(#st{slide = Slide} = St) ->
+    St#st{slide = exometer_slot_slide:reset(Slide)}.
 
 sample(_Name, _Type, _Ref) ->
-    { error, unsupported }.
-
-
-probe_sample(_St) ->
-    error(unsupported).
-
-probe_handle_call(_, _, _) ->
-    {ok, error}.
-
-probe_handle_cast(_, _) ->
-    ok.
-
-probe_handle_info(_, _) ->
-    ok.
-
-probe_code_change(_From, ModSt, _Extra) ->
-    {ok, ModSt}.
+    {error, unsupported}.
 
 process_opts(St, Options) ->
+    exometer_proc:process_options(Options),
     lists:foldl(
       fun
 	  %% Sample interval.
-	  ({time_span, Val}, St1) -> St1#st { time_span = Val };
-	  ({slot_period, Val}, St1) -> St1#st { slot_period = Val };
-	  ({percentiles, Val}, St1) -> St1#st { percentiles = Val };
+	  ({time_span, Val}, St1) -> St1#st {time_span = Val};
+	  ({slot_period, Val}, St1) -> St1#st {slot_period = Val};
+	  ({percentiles, Val}, St1) -> St1#st {percentiles = Val};
+	  ({truncate, Val}, St1) when is_boolean(Val) ->
+	      St1#st{truncate = Val};
 	  %% Unknown option, pass on to State options list, replacing
 	  %% any earlier versions of the same option.
 	  ({Opt, Val}, St1) ->
@@ -214,38 +195,56 @@ average_transform(_TS, {Count, Total}) ->
     Total / Count. %% Return the sum of all counter increments received during this slot.
 
 
-get_datapoint_value(_Length, _Total, [], min) ->
+get_datapoint_value(_Length, _Total, [], min, _) ->
     { min, 0 };
-get_datapoint_value(_Length, _Total, [], max) ->
+get_datapoint_value(_Length, _Total, [], max, _) ->
     { max, 0 };
-get_datapoint_value(_Length, _Total, Sorted, min) ->
+get_datapoint_value(_Length, _Total, Sorted, min, _) ->
     [ Min | _ ] = Sorted,
     { min, Min };
-get_datapoint_value(_Length, _Total, Sorted, max) ->
+get_datapoint_value(_Length, _Total, Sorted, max, _) ->
     { max, lists:last(Sorted) };
-get_datapoint_value(Length, _Total, Sorted, median) ->
+get_datapoint_value(Length, _Total, Sorted, median, Trunc) ->
     %% Calc median. FIXME: Can probably be made faster.
+    dbg({?LINE,length,Length}),
     Median = case {Length, Length rem 2} of
-	{0, _} -> %% No elements
-	    0.0;
-
-	{_, 0} -> %% Even number with at least two elements. Return average of two center elements
-	    lists:sum(lists:sublist(Sorted, trunc(Length / 2), 2)) / 2.0;
-
-	{_, 1}-> %% Odd number with at least one element. Return center element
-	    lists:nth(trunc(Length / 2) + 1, Sorted)
-    end,
-    { median, Median };
-get_datapoint_value(Length, Total, _Sorted, mean) ->
+		 {0, _} -> 0.0;
+		 {_, 0} ->
+		     %% Even number with at least two elements.
+		     %% Return average of two center elements
+		     lists:sum(lists:sublist(Sorted,
+					     trunc(Length / 2), 2)) / 2.0;
+		 {_, 1} ->
+		     %% Odd number with at least one element.
+		     %% Return center element
+		     lists:nth(trunc(Length / 2) + 1, Sorted)
+	     end,
+    {median, opt_trunc(Trunc, Median)};
+get_datapoint_value(Length, Total, _Sorted, mean, Trunc) ->
+    dbg({?LINE,length,Length}),
     Mean = case Length of
-	       0 -> 0;
+	       0 -> 0.0;
 	       _ -> Total / Length
 	   end,
-    { mean, Mean };
-get_datapoint_value(Length, Total, Sorted, arithmetic_mean) ->
-    { mean, Mean } = get_datapoint_value(Length, Total, Sorted, mean),
-    { arithmetic_mean, Mean };
-get_datapoint_value(Length, _Total, _Sorted, Perc) when is_number(Perc) ->
-    {Perc , perc(Perc / 100, Length) };
-get_datapoint_value(_Length, _Total, _Sorted, Unknown)  ->
+    {mean, opt_trunc(Trunc, Mean)};
+get_datapoint_value(Length, Total, Sorted, arithmetic_mean, Trunc) ->
+    {mean, Mean} = get_datapoint_value(Length, Total, Sorted, mean, Trunc),
+    {arithmetic_mean, opt_trunc(Trunc, Mean)};
+get_datapoint_value(Length, _Total, Sorted, Perc, Trunc) when is_number(Perc) ->
+    {Perc, opt_trunc(Trunc, nth(perc(Perc / 100, Length), Sorted))};
+get_datapoint_value(_Length, _Total, _Sorted, Unknown, _)  ->
     { Unknown, undefined}.
+
+nth(_, []) ->
+    0;
+nth(N, [_|_] = L) ->
+    lists:nth(N, L).
+
+
+opt_trunc(true, V) when is_float(V) ->
+    trunc(V);
+opt_trunc(_, V) ->
+    V.
+
+dbg(_) ->
+    ok.
