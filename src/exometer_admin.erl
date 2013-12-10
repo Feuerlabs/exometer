@@ -107,7 +107,7 @@ init(_) ->
 handle_call({new_entry, Name, Type, Opts, AllowExisting}, _From, S) ->
     try
 	#exometer_entry{options = OptsTemplate} = E =
-	    lookup_definition(Name, Type),
+	    lookup_definition(Name, Type, Opts),
 	case {ets:member(exometer_util:table(), Name), AllowExisting} of
 	    {[_], false} -> {reply, {error, exists}, S};
 	    _ ->
@@ -179,7 +179,29 @@ tables() ->
 
 %% ====
 
-lookup_definition(Name, Type) ->
+lookup_definition(Name, ad_hoc, Opts) ->
+    case [K || K <- [module, type], not lists:keymember(K, 1, Opts)] of
+	[] ->
+	    {E0, Opts1} =
+		lists:foldr(
+		  fun({module, M}, {E,Os}) ->
+			  {E#exometer_entry{module = M}, Os};
+		     ({type, T}, {E, Os}) ->
+			  case T of
+			      {Type, Arg} ->
+				  {E#exometer_entry{type = Type},
+				   [{type_arg, Arg}|Os]};
+			      _ when is_atom(T) ->
+				  {E#exometer_entry{type = T}, Os}
+			  end;
+		     (O, {E, Os}) ->
+			  {E, [O|Os]}
+		  end, {#exometer_entry{name = Name}, []}, Opts),
+	    E0#exometer_entry{options = Opts1};
+	[_|_] = Missing ->
+	    error({required, Missing})
+    end;
+lookup_definition(Name, Type, _) ->
     case ets:prev(?EXOMETER_SHARED, {default, Type, <<>>}) of
 	{default, Type, N} = D0 when N==[''], N==Name ->
 	    case ets:lookup(?EXOMETER_SHARED, D0) of
