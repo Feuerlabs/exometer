@@ -4,7 +4,7 @@
 
 Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved..
 
-__Version:__ Dec 2 2013 15:19:38
+__Version:__ Dec 10 2013 02:31:52
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -815,8 +815,10 @@ Please see @see exometer_report documentation for details.
 <tr><td><a href="exometer_folsom.md" class="module">exometer_folsom</a></td></tr>
 <tr><td><a href="exometer_function.md" class="module">exometer_function</a></td></tr>
 <tr><td><a href="exometer_histogram.md" class="module">exometer_histogram</a></td></tr>
+<tr><td><a href="exometer_igor.md" class="module">exometer_igor</a></td></tr>
 <tr><td><a href="exometer_netlink.md" class="module">exometer_netlink</a></td></tr>
 <tr><td><a href="exometer_probe.md" class="module">exometer_probe</a></td></tr>
+<tr><td><a href="exometer_proc.md" class="module">exometer_proc</a></td></tr>
 <tr><td><a href="exometer_reg.md" class="module">exometer_reg</a></td></tr>
 <tr><td><a href="exometer_report.md" class="module">exometer_report</a></td></tr>
 <tr><td><a href="exometer_report_collectd.md" class="module">exometer_report_collectd</a></td></tr>

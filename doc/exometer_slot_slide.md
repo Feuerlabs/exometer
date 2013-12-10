@@ -2,6 +2,7 @@
 
 # Module exometer_slot_slide #
 * [Description](#description)
+* [Data Types](#types)
 * [Function Index](#index)
 * [Function Details](#functions)
 
@@ -60,15 +61,15 @@ period ends at msec 1300.
 
 
 
-All samples received during the current slot are processed by an
-low-cost MFA that updates the current slot state. When the current
-slot ends, another MFA is used to transform the current slot state
+All samples received during the current slot are processed by a
+low-cost fun that updates the current slot state. When the current
+slot ends, another fun is used to transform the current slot state
 to a value that is stored in the histogram.
 
 
 
 If a simple average is to be calculated for all samples received,
-the sample-processing MFA will add to the sum of the received
+the sample-processing fun will add to the sum of the received
 samples, and increment sample counter. When the current slot
 expires, the result of SampleSum / SampleCount is stored in the
 slot.
@@ -79,7 +80,7 @@ If min/max are to be stored by the slotted histograms, the current
 slot state would have a { Min, Max } tuple that is upadted with the
 smallest and largest values received during the period. At slot
 expiration the min/max tuple is simply stored, by the
-transformation MFA, in the histogram slots.
+transformation fun, in the histogram slots.
 
 
 
@@ -194,11 +195,11 @@ time span:
 ```
 
 
-### <a name="SAMPLE_PROCESSING_AND_TRANSFORMATION_MFA">SAMPLE PROCESSING AND TRANSFORMATION MFA</a> ###
+### <a name="SAMPLE_PROCESSING_AND_TRANSFORMATION_FUN">SAMPLE PROCESSING AND TRANSFORMATION FUN</a> ###
 
 
 
-Two MFAs are provided to the new() function of the slotted slide
+Two funs are provided to the new() function of the slotted slide
 histogram. The processing function is called by add_element() and
 will take the same sample value provided to that function together
 with the current timestamp and slot state as arguments. The
@@ -213,7 +214,7 @@ function will return the new current slot state.
 
 
 
-The first call to the sample processing MFA when the current slot
+The first call to the sample processing fun when the current slot
 is newly reset (just after a slot has been added to the histogram),
 state will be set to 'undefined'
 
@@ -226,7 +227,7 @@ state will be set to 'undefined'
 
 
 
-The transformation MFA is called when the current slot has expired
+The transformation fun is called when the current slot has expired
 and is to be stored in the histogram. It will receive the current
 timestamp and slot state as arguments and returns the element to
 be stored (together with a slot timestamp) in the slot histogram.
@@ -242,12 +243,77 @@ be stored (together with a slot timestamp) in the slot histogram.
 
 Element will present in the lists returned by to_list() and fold{l,r}().
 If the transformation MFA cannot do its job, for example because
-no samples have been processed by the sample processing MFA,
-the transformation MFA should return 'undefined'
+no samples have been processed by the sample processing fun,
+the transformation fun should return 'undefined'
 
 
 See new/2 and its avg_sample() and avg_transform() functions for an
 example of a simple average value implementation.
+
+<a name="types"></a>
+
+## Data Types ##
+
+
+
+
+### <a name="type-cur_state">cur_state()</a> ###
+
+
+
+<pre><code>
+cur_state() = any()
+</code></pre>
+
+
+
+
+
+### <a name="type-sample_fun">sample_fun()</a> ###
+
+
+
+<pre><code>
+sample_fun() = fun((<a href="#type-timestamp">timestamp()</a>, <a href="#type-value">value()</a>, <a href="#type-cur_state">cur_state()</a>) -&gt; <a href="#type-cur_state">cur_state()</a>)
+</code></pre>
+
+
+
+
+
+### <a name="type-timestamp">timestamp()</a> ###
+
+
+
+<pre><code>
+timestamp() = integer()
+</code></pre>
+
+
+
+
+
+### <a name="type-transform_fun">transform_fun()</a> ###
+
+
+
+<pre><code>
+transform_fun() = fun((<a href="#type-timestamp">timestamp()</a>, <a href="#type-cur_state">cur_state()</a>) -&gt; <a href="#type-cur_state">cur_state()</a>)
+</code></pre>
+
+
+
+
+
+### <a name="type-value">value()</a> ###
+
+
+
+<pre><code>
+value() = any()
+</code></pre>
+
+
 <a name="index"></a>
 
 ## Function Index ##
@@ -321,7 +387,7 @@ add_element(Val::any(), Slide::#slide{}) -&gt; #slide{}
 
 
 <pre><code>
-new(HistogramTimeSpan::integer(), SlotPeriod::integer(), SampleMFA::{atom(), atom(), list()}, TransformMFA::{atom(), atom(), list()}) -&gt; #slide{}
+new(HistogramTimeSpan::integer(), SlotPeriod::integer(), SampleF::<a href="#type-sample_fun">sample_fun()</a>, TransformF::<a href="#type-transform_fun">transform_fun()</a>) -&gt; #slide{}
 </code></pre>
 
 <br></br>

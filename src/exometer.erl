@@ -57,6 +57,8 @@
 
 -export([create_entry/1]).  % called only from exometer_admin.erl
 
+-export_type([name/0, type/0]).
+
 -compile(inline).
 
 -include("exometer.hrl").

@@ -10,12 +10,19 @@
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#monitor-2">monitor/2</a></td><td></td></tr><tr><td valign="top"><a href="#new_entry-3">new_entry/3</a></td><td></td></tr><tr><td valign="top"><a href="#re_register_entry-3">re_register_entry/3</a></td><td></td></tr><tr><td valign="top"><a href="#set_default-3">set_default/3</a></td><td>Sets a default definition for a metric type, possibly using wildcards.</td></tr></table>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#demonitor-1">demonitor/1</a></td><td></td></tr><tr><td valign="top"><a href="#monitor-2">monitor/2</a></td><td></td></tr><tr><td valign="top"><a href="#new_entry-3">new_entry/3</a></td><td></td></tr><tr><td valign="top"><a href="#re_register_entry-3">re_register_entry/3</a></td><td></td></tr><tr><td valign="top"><a href="#set_default-3">set_default/3</a></td><td>Sets a default definition for a metric type, possibly using wildcards.</td></tr></table>
 
 
 <a name="functions"></a>
 
 ## Function Details ##
+
+<a name="demonitor-1"></a>
+
+### demonitor/1 ###
+
+`demonitor(Pid) -> any()`
+
 
 <a name="monitor-2"></a>
 

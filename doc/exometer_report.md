@@ -8,6 +8,10 @@
 
 .
 __Behaviours:__ [`gen_server`](gen_server.md).
+
+__This module defines the `exometer_report` behaviour.__
+<br></br>
+ Required callback functions: `exometer_init/1`, `exometer_report/5`, `exometer_subscribe/5`, `exometer_unsubscribe/4`, `exometer_info/2`.
 <a name="description"></a>
 
 ## Description ##

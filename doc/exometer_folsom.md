@@ -28,7 +28,7 @@ __Behaviours:__ [`exometer_entry`](exometer_entry.md).
 
 ### get_datapoints/3 ###
 
-`get_datapoints(Name, Type, Ref) -> any()`
+`get_datapoints(Name, T, Ref) -> any()`
 
 
 <a name="get_value-4"></a>
