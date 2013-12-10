@@ -108,7 +108,9 @@ table(N) when is_integer(N), N > 20 ->
 
 -spec get_statistics(Length::non_neg_integer(),
 		     Total::non_neg_integer(),
-		     Sorted::list()) -> [{atom(), number()}].
+		     Sorted::list(),
+		     Min::integer(),
+		     Max::integer()) -> [{atom(), number()}].
 %% @doc Calculate statistics from a sorted list of values.
 %%
 %% This function assumes that you have already sorted the list, and
@@ -120,18 +122,22 @@ table(N) when is_integer(N), N > 20 ->
 %%
 %% This function is similar to `bear:get_statistics_subset/2'.
 %% `mean' refers to the arithmetic mean.
+%%
+%% Fulpatchad med min/max av Magnus Feuer.
 %% @end
-get_statistics(L, Total, Sorted) ->
+get_statistics(L, Total, Sorted, Min, Max) ->
     P50 = perc(0.5, L),
-    Items = [{min,1}, {50, P50}, {median, P50}, {75, perc(0.75,L)},
+    Items = [{min,Min}, {50, P50}, {median, P50}, {75, perc(0.75,L)},
 	     {90, perc(0.9,L)}, {95, perc(0.95,L)}, {99, perc(0.99,L)},
-	     {999, perc(0.999,L)}, {max,L}],
+	     {999, perc(0.999,L)}, {max,Max}],
     [{n,L}, {mean, Total/L} | pick_items(Sorted, 1, Items)].
 
 pick_items([H|_] = L, P, [{Tag,P}|Ps]) ->
     [{Tag,H} | pick_items(L, P, Ps)];
+
 pick_items([_|T], P, Ps) ->
     pick_items(T, P+1, Ps);
+
 pick_items([], _, Ps) ->
     [{Tag,undefined} || {Tag,_} <- Ps].
 

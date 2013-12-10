@@ -33,7 +33,7 @@
 -compile({parse_transform, exometer_igor}).
 -compile({igor, [{files, ["src/exometer_util.erl"
 			  , "src/exometer_proc.erl"
-			  %% , "src/exometer_slot_slide.erl"
+			  , "src/exometer_slot_slide.erl"
 			  , "src/exometer_slide.erl"
 			 ]}]}).
 
@@ -45,6 +45,7 @@
 	     time_span = 60000, %% msec
 	     percentiles = [ 99.0 ], %% Which percentages to calculate
 	     truncate = true,
+	     histogram_module = exometer_slot_slide,
 	     opts = []}).
 
 -define(DATAPOINTS,
@@ -105,13 +106,15 @@ get_datapoints(_Name, _Type, _Ref) ->
 
 
 init_int(Name, _Type, Options) ->
-    St = process_opts(#st{name = Name}, [{time_span, 60000},
+    St = process_opts(#st{name = Name}, [{histogram_module, exometer_slot_slide},
+					 {time_span, 60000},
 					 {slot_period, 100}] ++ Options),
-    %% Slide = exometer_slot_slide:new(St#st.time_span,
-    %% 				    St#st.slot_period,
-    %% 				    fun average_sample/3,
-    %% 				    fun average_transform/2),
-    Slide = exometer_slide:new(St#st.time_span),
+
+    Slide = (St#st.histogram_module):new(St#st.time_span,
+					 St#st.slot_period,
+					 fun average_sample/3,
+					 fun average_transform/2),
+
     {ok, St#st{slide = Slide}}.
 
 get_value_int(St, default) ->
@@ -119,18 +122,25 @@ get_value_int(St, default) ->
 get_value_int(St, DataPoints) ->
     get_value_int_(St, DataPoints).
 
-get_value_int_(#st{truncate = Trunc} = St, DataPoints) ->
+get_value_int_(#st{truncate = Trunc, 
+		   histogram_module = Module} = St, DataPoints) ->
     %% We need element count and sum of all elements to get mean value.
     Tot0 = case Trunc of true -> 0; false -> 0.0 end,
-    {Length, Total, Lst} =
-	%% exometer_slot_slide:foldl(
-	exometer_slide:fold(
-	    fun({_TS, Val}, {Length, Total, List}) ->
-		    {Length + 1, Total + Val, [Val|List]}
-	    end,
-	    {0,  Tot0, []}, St#st.slide),
+    {Length, Total, Min, Max, Lst} =
+	Module:fold(
+	  fun(
+	    {_TS, Val}, {Length, Total, Min, Max, List}) when val < Min ->
+		  {Length + 1, Total + Val, Val, Max, [Val|List]};
+
+	     ({_TS, Val}, {Length, Total, Min, Max, List}) when val > Max ->
+		  {Length + 1, Total + Val, Min, Val, [Val|List]};
+
+	     ({_TS, Val}, {Length, Total, Min, Max, List}) ->
+		  {Length + 1, Total + Val, Min, Max, [Val|List]}
+	  end,
+	  {0,  Tot0, 0, 0, []}, St#st.slide),
     Sorted = lists:sort(Lst),
-    Results = exometer_util:get_statistics(Length, Total, Sorted),
+    Results = exometer_util:get_statistics(Length, Total, Sorted, Min, Max),
     [get_dp(K, Results) || K <- DataPoints].
     %% [get_datapoint_value(Length, Total, Sorted, DataPoint, Trunc)
     %%  || DataPoint <- DataPoints].
@@ -155,21 +165,21 @@ setopts(_Name, _Opts, _Type, _Ref)  ->
 update(_Name, Value, _Type, Pid) ->
     exometer_proc:cast(Pid, {update, Value, exometer_util:timestamp()}).
 
-update_int(Value, #st{slide = Slide} = St) ->
-    %% St#st{slide = exometer_slot_slide:add_element(Value, Slide)}.
-    St#st{slide = exometer_slide:add_element(Value, Slide)}.
+update_int(Value, #st{slide = Slide, 
+		      histogram_module = Module} = St) ->
+    St#st{slide = Module:add_element(Value, Slide)}.
 
-update_int(Value, TS, #st{slide = Slide} = St) ->
-    %% St#st{slide = exometer_slot_slide:add_element(TS, Value, Slide)}.
-    St#st{slide = exometer_slide:add_element(TS, Value, Slide)}.
+update_int(Value, TS, #st{slide = Slide, 
+		      histogram_module = Module} = St) ->
+    St#st{slide = Module:add_element(TS, Value, Slide)}.
 
 
 reset(_Name, _Type, Pid) ->
     exometer_proc:cast(Pid, reset).
 
-reset_int(#st{time_span = Span} = St) ->
-    %% St#st{slide = exometer_slot_slide:reset(Slide)}.
-    St#st{slide = exometer_slide:new(Span)}.
+reset_int(#st{time_span = Span, 
+	      histogram_module = Module} = St) ->
+    St#st{slide = Module:new(Span)}.
 
 sample(_Name, _Type, _Ref) ->
     {error, unsupported}.
@@ -179,10 +189,11 @@ process_opts(St, Options) ->
     lists:foldl(
       fun
 	  %% Sample interval.
-	  ({time_span, Val}, St1) -> St1#st {time_span = Val};
-	  ({slot_period, Val}, St1) -> St1#st {slot_period = Val};
-	  ({percentiles, Val}, St1) -> St1#st {percentiles = Val};
-	  ({truncate, Val}, St1) when is_boolean(Val) ->
+	  ( {time_span, Val}, St1) -> St1#st {time_span = Val};
+	  ( {slot_period, Val}, St1) -> St1#st {slot_period = Val};
+	  ( {percentiles, Val}, St1) -> St1#st {percentiles = Val};
+	  ( {histogram_module, Val}, St1) -> St1#st {histogram_module = Val};
+	  ( {truncate, Val}, St1) when is_boolean(Val) ->
 	      St1#st{truncate = Val};
 	  %% Unknown option, pass on to State options list, replacing
 	  %% any earlier versions of the same option.
@@ -194,10 +205,13 @@ process_opts(St, Options) ->
 %% Simple sample processor that maintains an average
 %% of all sampled values
 average_sample(_TS, Val, undefined) ->
-   {1, Val};
+   {1, Val, Val, Val};
 
-average_sample(_TS, Val, {Count, Total}) ->
-    {Count + 1, Total + Val}.
+average_sample(_TS, Val, {Count, Total, Min, Max}) when Val > Max ->
+    {Count + 1, Total + Val, Min, Val};
+
+average_sample(_TS, Val, {Count, Total, Min, Max}) when Val < Min ->
+    {Count + 1, Total + Val, Val, Max}.
 
 %% If average_sample() has not been called for the current time slot,
 %% then the provided state will still be 'undefined'
@@ -206,9 +220,8 @@ average_transform(_TS, undefined) ->
 
 %% Return the calculated total for the slot and return it as the
 %% element to be stored in the histogram.
-average_transform(_TS, {Count, Total}) ->
-    Total / Count. %% Return the sum of all counter increments received during this slot.
-
+average_transform(_TS, {Count, Total, Min, Max}) ->
+    {Total / Count, Min, Max}. %% Return the sum of all counter increments received during this slot
 
 get_datapoint_value(_Length, _Total, [], min, _) ->
     { min, 0 };

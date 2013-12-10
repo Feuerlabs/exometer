@@ -146,6 +146,8 @@ get_value_(Name, spiral, _Ref) ->
     folsom_metrics_spiral:get_values(Name).
 
 calc_stats(Values) ->
-    exometer_util:get_statistics(length(Values),
+    L = length(Values),
+    exometer_util:get_statistics(L,
 				 lists:sum(Values),
-				 lists:sort(Values)).
+				 lists:sort(Values),
+				 1, L).

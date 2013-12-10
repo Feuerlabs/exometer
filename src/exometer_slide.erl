@@ -5,7 +5,8 @@
 
 -module(exometer_slide).
 
--export([new/1,
+-export([new/4,
+	 reset/1,
 	 add_element/2,
 	 add_element/3,
 	 to_list/1,
@@ -20,6 +21,12 @@
 -import(lists, [reverse/1, sublist/3]).
 -import(exometer_util, [timestamp/0]).
 
+-type(timestamp() :: integer()).
+-type(value() :: any()).
+-type(cur_state() :: any()).
+-type(sample_fun() :: fun((timestamp(), value(), cur_state()) -> cur_state())).
+-type transform_fun() :: fun((timestamp(), cur_state()) -> cur_state()).
+
 %% Fixed size event buffer
 -record(slide, {size = 0 :: integer(),  % ms window
 		last = 0 :: integer(), % millisecond timestamp
@@ -27,13 +34,19 @@
 		buf1 = []    :: list(),
 		buf2 = []    :: list()}).
 
--spec new(integer()) -> #slide{}.
+-spec new(integer(), integer(), 
+	  sample_fun(), transform_fun()) -> #slide{}.
 %%
-new(Size) ->
+new(Size, _Period, _SampleFun, _TransformFun) ->
     #slide{size = Size,
 	   last = timestamp(),
 	   buf1 = [],
 	   buf2 = []}.
+
+-spec reset(#slide{}) -> #slide{}.
+%%
+reset(Slide) ->
+    new(Slide#slide.size, 0, nil, nil).
 
 -spec add_element(any(), #slide{}) -> #slide{}.
 %%
@@ -79,7 +92,7 @@ take_since(_, _, Acc) ->
 test() ->
     %% Create a slotted slide covering 2000 msec, where
     %% each slot is 100 msec wide.
-    S = new(2000),
+    S = new(2000, 0, nil, nil),
     {T1, S1 }= timer:tc(?MODULE, build_histogram, [S]),
 
     {T2, Avg } = timer:tc(?MODULE, calc_avg, [S1]),
