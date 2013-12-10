@@ -64,9 +64,12 @@ reset(_, _, _) ->
 
 get_value(Name, Type, Ref, DataPoints) ->
     Trunc = get_trunc_opt(Ref),
-    try filter_dps(get_value_(Name, Type, Ref), DataPoints, Trunc)
+    Vals = get_value_(Name, Type, Ref),
+    try [filter_dp(D, Vals, Trunc) || D <- datapoints(Type, DataPoints)]
     catch
-	error:_ ->
+	error:Error ->
+	    io:fwrite(user, "ERROR ~p~nT = ~p~n",
+		      [Error,erlang:get_stacktrace()]),
 	    unavailable
     end.
 
@@ -74,51 +77,56 @@ get_trunc_opt(undefined) -> true;
 get_trunc_opt(L) ->
     proplists:get_value(truncate, L, true).
 
-get_datapoints(_Name, counter, _Ref) ->
+get_datapoints(_Name, Type, _Ref) ->
+    datapoints(Type, default).
+
+datapoints(Type, default) -> datapoints(Type);
+datapoints(_, L) when is_list(L) -> L.
+
+datapoints(counter) ->
     [value];
-get_datapoints(_Name, T, _) when T==histogram; T==duration ->
+datapoints(T) when T==histogram; T==duration ->
     stats_datapoints();
-get_datapoints(_Name, spiral, _) ->
+datapoints(spiral) ->
     [one, count];
-get_datapoints(_Name, meter, _) ->
+datapoints(meter) ->
     [count,one,five,fifteen,day,mean,acceleration].
 
-filter_dps([{percentile, L}|T], DPs, Trunc) ->
-    filter_dps(L, DPs, Trunc) ++ filter_dps(T, DPs, Trunc);
-filter_dps([{arithmetic_mean,V}|T], DPs, Trunc) ->
-    case keep_dp(mean, DPs) of
-	true -> [{mean,opt_trunc(Trunc, V)}|filter_dps(T, DPs, Trunc)];
-	false -> case keep_dp(arithmetic_mean, DPs) of
-		     true -> [{arithmetic_mean,
-			       opt_trunc(Trunc,V)}|filter_dps(T, DPs, Trunc)];
-		     false -> filter_dps(T, DPs, Trunc)
-		 end
-    end;
-filter_dps([{K,V}|T], DPs, Trunc) ->
-    case keep_dp(K, DPs) of
-	true ->
-	    [{K,opt_trunc(Trunc, V)}|filter_dps(T, DPs, Trunc)];
+filter_dp(Mean, DPs, Trunc) when Mean==mean; Mean==arithmetic_mean ->
+    case lists:keyfind(mean, 1, DPs) of
 	false ->
-	    filter_dps(T, DPs, Trunc)
+	    case lists:keyfind(arithmetic_mean, 1, DPs) of
+		false -> {mean, undefined};
+		{_,V} -> {mean, opt_trunc(Trunc, V)}
+	    end;
+	{_,V} -> {mean, opt_trunc(Trunc, V)}
     end;
-filter_dps([], _, _) ->
-    [].
+filter_dp(H, DPs, Trunc) when is_integer(H) ->
+    case lists:keyfind(H, 1, DPs) of
+	false ->
+	    case lists:keyfind(percentile, 1, DPs) of
+		false -> {H, undefined};
+		{_, Ps} ->
+		    get_dp(H, Ps, Trunc)
+	    end;
+	{_,V} -> {H, opt_trunc(Trunc, V)}
+    end;
+filter_dp(H, DPs, Trunc) ->
+    get_dp(H, DPs, Trunc).
 
 opt_trunc(true, V) when is_float(V) ->
     trunc(V);
 opt_trunc(_, V) ->
     V.
 
-keep_dp(_, default) ->
-    true;
-keep_dp(K, DPs) ->
-    lists:member(K, DPs).
-
+get_dp(K, DPs, Trunc) ->
+    case lists:keyfind(K, 1, DPs) of
+	false -> {K, undefined};
+	{_, V} -> {K, opt_trunc(Trunc, V)}
+    end.
 
 stats_datapoints() ->
-    [count,last,min,max,arithmetic_mean,geometric_mean,harmonic_mean,mean,
-     median,variance,standard_deviation,skewness,kurtosis,
-     50,75,90,95,99,999,n].
+    [n,mean,min,max,median,50,75,90,95,99,999].
 
 setopts(_Name, _Options, _Type, _Ref)  ->
     { error, unsupported }.
@@ -129,12 +137,15 @@ sample(_Name, _Type, _Ref) ->
 get_value_(Name, counter, _Ref) ->
     [{value, folsom_metrics_counter:get_value(Name)}];
 get_value_(Name, histogram, _Ref) ->
-    folsom_metrics_histogram:get_histogram_statistics(Name);
+    calc_stats(folsom_metrics_histogram:get_values(Name));
 get_value_(Name, duration, _Ref) ->
-    folsom_metrics:get_metric_value(Name);
+    calc_stats(folsom_metrics:get_metric_value(Name));
 get_value_(Name, meter, _Ref) ->
     folsom_metrics:get_metric_value(Name);
 get_value_(Name, spiral, _Ref) ->
     folsom_metrics_spiral:get_values(Name).
 
-
+calc_stats(Values) ->
+    exometer_util:get_statistics(length(Values),
+				 lists:sum(Values),
+				 lists:sort(Values)).

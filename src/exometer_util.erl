@@ -105,3 +105,38 @@ table(63) -> exometer_63;
 table(64) -> exometer_64;
 table(N) when is_integer(N), N > 20 ->
     list_to_atom("exometer_" ++ integer_to_list(N)).
+
+-spec get_statistics(Length::non_neg_integer(),
+		     Total::non_neg_integer(),
+		     Sorted::list()) -> [{atom(), number()}].
+%% @doc Calculate statistics from a sorted list of values.
+%%
+%% This function assumes that you have already sorted the list, and
+%% now the number and sum of the elements in the list.
+%%
+%% The stats calculated are min, max, mean, median and the 50th,
+%% 75th, 90th, 95th, 99th, and 99.9th percentiles (note that the
+%% 99.9th percentile is labeled 999).
+%%
+%% This function is similar to `bear:get_statistics_subset/2'.
+%% `mean' refers to the arithmetic mean.
+%% @end
+get_statistics(L, Total, Sorted) ->
+    P50 = perc(0.5, L),
+    Items = [{min,1}, {50, P50}, {median, P50}, {75, perc(0.75,L)},
+	     {90, perc(0.9,L)}, {95, perc(0.95,L)}, {99, perc(0.99,L)},
+	     {999, perc(0.999,L)}, {max,L}],
+    [{n,L}, {mean, Total/L} | pick_items(Sorted, 1, Items)].
+
+pick_items([H|_] = L, P, [{Tag,P}|Ps]) ->
+    [{Tag,H} | pick_items(L, P, Ps)];
+pick_items([_|T], P, Ps) ->
+    pick_items(T, P+1, Ps);
+pick_items([], _, Ps) ->
+    [{Tag,undefined} || {Tag,_} <- Ps].
+
+perc(P, Len) when P > 1.0 ->
+    round((P / 10) * Len);
+
+perc(P, Len) ->
+    round(P * Len).
