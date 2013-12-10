@@ -77,7 +77,8 @@ exometer_init(Opts) ->
 		  reconnect_interval = ReconnectInterval,
 		  hostname = get_opt(hostname, Opts, net_adm:localhost()),
 		  plugin_name = get_opt(plugin_name, Opts, "exometer"),
-		  plugin_instance = get_opt(plugin_instance, Opts, get_default_instance()),
+		  plugin_instance = check_instance(
+				      get_opt(plugin_instance, Opts, "auto")),
 		  socket = Sock,
 		  read_timeout = get_opt(read_timeout, Opts, ?READ_TIMEOUT),
 		  connect_timeout = ConnectTimeout,
@@ -94,7 +95,8 @@ exometer_init(Opts) ->
 		  reconnect_interval = ReconnectInterval,
 		  hostname = get_opt(hostname, Opts, net_adm:localhost()),
 		  plugin_name = get_opt(plugin_name, Opts, "exometer"),
-		  plugin_instance = get_opt(plugin_instance, Opts, get_default_instance()),
+		  plugin_instance = check_instance(
+				      get_opt(plugin_instance, Opts, "auto")),
 		  socket = undefined,
 		  read_timeout = get_opt(read_timeout, Opts, ?READ_TIMEOUT),
 		  connect_timeout = ConnectTimeout,
@@ -298,6 +300,12 @@ get_opt(K, Opts, Default) ->
 	       true -> Default
 	    end
     end.
+
+check_instance("auto") ->
+    get_default_instance();
+check_instance(Other) ->
+    Other.
+
 
 get_default_instance() ->
     FullName = atom_to_list(node()),
