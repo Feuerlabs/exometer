@@ -728,7 +728,7 @@ create_entry(#exometer_entry{module = exometer,
     E1 = E#exometer_entry{value = 0, timestamp = exometer_util:timestamp()},
     [ets:insert(T, E1) || T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
     ok;
-create_entry(#exometer_entry{module = exometer_entry,
+create_entry(#exometer_entry{module = exometer,
 			     status = Status,
 			     type = fast_counter, options = Opts} = E) ->
     case lists:keyfind(function, 1, Opts) of
