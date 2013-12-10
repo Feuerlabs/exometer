@@ -127,7 +127,7 @@ get_value_int_(#st{truncate = Trunc,
     %% We need element count and sum of all elements to get mean value.
     Tot0 = case Trunc of true -> 0; false -> 0.0 end,
     {Length, Total, Min, Max, Lst} =
-	Module:fold(
+	Module:foldl(
 	  fun(
 	    {_TS, Val}, {Length, Total, Min, Max, List}) when val < Min ->
 		  {Length + 1, Total + Val, Val, Max, [Val|List]};

@@ -10,8 +10,8 @@
 	 add_element/2,
 	 add_element/3,
 	 to_list/1,
-	 fold/3,
-	 fold/4]).
+	 foldl/3,
+	 foldl/4]).
 
 
 -export([test/0]).
@@ -73,15 +73,15 @@ to_list(#slide{size = Sz, buf1 = Buf1, buf2 = Buf2}) ->
     Start = timestamp() - Sz,
     take_since(Buf2, Start, reverse(Buf1)).
 
-fold(_TS, _Fun, _Acc, #slide{size = Sz}) when Sz == 0 ->
+foldl(_TS, _Fun, _Acc, #slide{size = Sz}) when Sz == 0 ->
     [];
-fold(TS, Fun, Acc, #slide{size = Sz, buf1 = Buf1, buf2 = Buf2}) ->
+foldl(TS, Fun, Acc, #slide{size = Sz, buf1 = Buf1, buf2 = Buf2}) ->
     Start = TS - Sz,
     lists:foldr(
       Fun, lists:foldl(Fun, Acc, take_since(Buf2, Start, [])), Buf1).
 
-fold(Fun, Acc, Slide) ->
-    fold(timestamp(), Fun, Acc, Slide).
+foldl(Fun, Acc, Slide) ->
+    foldl(timestamp(), Fun, Acc, Slide).
 
 take_since([{TS,_} = H|T], Start, Acc) when TS >= Start ->
     take_since(T, Start, [H|Acc]);
@@ -113,6 +113,6 @@ build_histogram(S) ->
 				       Elem <- lists:seq(1,10)]).
 
 calc_avg(Slide) ->
-    {T, C} = fold(4500, fun({_TS, Elem}, {Sum, Count}) ->
+    {T, C} = foldl(4500, fun({_TS, Elem}, {Sum, Count}) ->
 				    {Sum + Elem, Count + 1} end, {0, 0}, Slide),
     T / C.
