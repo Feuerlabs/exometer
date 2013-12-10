@@ -10,7 +10,7 @@
 	 add_element/3,
 	 to_list/1,
 	 fold/3,
-	fold/4]).
+	 fold/4]).
 
 
 -export([test/0]).
@@ -76,7 +76,6 @@ take_since(_, _, Acc) ->
     %% Don't reverse; already the wanted order.
     Acc.
 
-    
 test() ->
     %% Create a slotted slide covering 2000 msec, where
     %% each slot is 100 msec wide.
@@ -101,8 +100,6 @@ build_histogram(S) ->
 				       Elem <- lists:seq(1,10)]).
 
 calc_avg(Slide) ->
-    {T, C} = fold(4500, fun({_TS, Elem}, {Sum, Count}) -> 
+    {T, C} = fold(4500, fun({_TS, Elem}, {Sum, Count}) ->
 				    {Sum + Elem, Count + 1} end, {0, 0}, Slide),
     T / C.
-			    
-

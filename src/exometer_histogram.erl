@@ -33,7 +33,8 @@
 -compile({parse_transform, exometer_igor}).
 -compile({igor, [{files, ["src/exometer_util.erl"
 			  , "src/exometer_proc.erl"
-			  , "src/exometer_slot_slide.erl"
+			  %% , "src/exometer_slot_slide.erl"
+			  , "src/exometer_slide.erl"
 			 ]}]}).
 
 -include("exometer.hrl").
@@ -47,7 +48,7 @@
 	     opts = []}).
 
 -define(DATAPOINTS,
-	[ min, max, median, mean, 50, 75, 90, 95, 99, 999 ]).
+	[n, mean, min, max, median, 50, 75, 90, 95, 99, 999 ]).
 
 
 init(Name, Type, Options) ->
@@ -106,10 +107,11 @@ get_datapoints(_Name, _Type, _Ref) ->
 init_int(Name, _Type, Options) ->
     St = process_opts(#st{name = Name}, [{time_span, 60000},
 					 {slot_period, 100}] ++ Options),
-    Slide = exometer_slot_slide:new(St#st.time_span,
-				    St#st.slot_period,
-				    fun average_sample/3,
-				    fun average_transform/2),
+    %% Slide = exometer_slot_slide:new(St#st.time_span,
+    %% 				    St#st.slot_period,
+    %% 				    fun average_sample/3,
+    %% 				    fun average_transform/2),
+    Slide = exometer_slide:new(St#st.time_span),
     {ok, St#st{slide = Slide}}.
 
 get_value_int(St, default) ->
@@ -120,16 +122,26 @@ get_value_int(St, DataPoints) ->
 get_value_int_(#st{truncate = Trunc} = St, DataPoints) ->
     %% We need element count and sum of all elements to get mean value.
     Tot0 = case Trunc of true -> 0; false -> 0.0 end,
-    {Length, Total, Lst }
-	= exometer_slot_slide:foldl(
-	    fun({_TS, Val}, {Length, Total, List}) -> 
-		    {Length + 1, Total + Val, [Val|List]}  
+    {Length, Total, Lst} =
+	%% exometer_slot_slide:foldl(
+	exometer_slide:fold(
+	    fun({_TS, Val}, {Length, Total, List}) ->
+		    {Length + 1, Total + Val, [Val|List]}
 	    end,
-	    {0, Tot0, []}, St#st.slide),
+	    {0,  Tot0, []}, St#st.slide),
     Sorted = lists:sort(Lst),
-    [get_datapoint_value(Length, Total, Sorted, DataPoint, Trunc)
-     || DataPoint <- DataPoints].
+    Results = exometer_util:get_statistics(Length, Total, Sorted),
+    [get_dp(K, Results) || K <- DataPoints].
+    %% [get_datapoint_value(Length, Total, Sorted, DataPoint, Trunc)
+    %%  || DataPoint <- DataPoints].
 
+get_dp(K, L) ->
+    case lists:keyfind(K, 1, L) of
+	false ->
+	    {K, undefined};
+	{_,_} = DP ->
+	    DP
+    end.
 
 perc(P, Len) when P > 1.0 ->
     round((P / 10) * Len);
@@ -142,19 +154,22 @@ setopts(_Name, _Opts, _Type, _Ref)  ->
 
 update(_Name, Value, _Type, Pid) ->
     exometer_proc:cast(Pid, {update, Value, exometer_util:timestamp()}).
-    
+
 update_int(Value, #st{slide = Slide} = St) ->
-    St#st{slide = exometer_slot_slide:add_element(Value, Slide)}.
+    %% St#st{slide = exometer_slot_slide:add_element(Value, Slide)}.
+    St#st{slide = exometer_slide:add_element(Value, Slide)}.
 
 update_int(Value, TS, #st{slide = Slide} = St) ->
-    St#st{slide = exometer_slot_slide:add_element(TS, Value, Slide)}.
+    %% St#st{slide = exometer_slot_slide:add_element(TS, Value, Slide)}.
+    St#st{slide = exometer_slide:add_element(TS, Value, Slide)}.
 
 
 reset(_Name, _Type, Pid) ->
     exometer_proc:cast(Pid, reset).
 
-reset_int(#st{slide = Slide} = St) ->
-    St#st{slide = exometer_slot_slide:reset(Slide)}.
+reset_int(#st{time_span = Span} = St) ->
+    %% St#st{slide = exometer_slot_slide:reset(Slide)}.
+    St#st{slide = exometer_slide:new(Span)}.
 
 sample(_Name, _Type, _Ref) ->
     {error, unsupported}.
