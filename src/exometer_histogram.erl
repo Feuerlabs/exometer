@@ -141,14 +141,14 @@ get_value_int_(#st{truncate = Trunc,
 
     Sorted = lists:sort(Lst),
     Results = exometer_util:get_statistics(Length + 2, Total, [Min] ++ Sorted ++ [Max]),
-    [get_dp(K, Results) || K <- DataPoints].
+    [get_dp(K, Results, Trunc) || K <- DataPoints].
     %% [get_datapoint_value(Length, Total, Sorted, DataPoint, Trunc)
     %%  || DataPoint <- DataPoints].
 
-get_dp(K, L) ->
+get_dp(K, L, Trunc) ->
     case lists:keyfind(K, 1, L) of
 	false ->
-	    {K, undefined};
+	    {K, if Trunc -> 0; true -> 0.0 end};
 	{_,_} = DP ->
 	    DP
     end.
@@ -257,8 +257,8 @@ get_datapoint_value(Length, Total, Sorted, arithmetic_mean, Trunc) ->
     {arithmetic_mean, opt_trunc(Trunc, Mean)};
 get_datapoint_value(Length, _Total, Sorted, Perc, Trunc) when is_number(Perc) ->
     {Perc, opt_trunc(Trunc, nth(perc(Perc / 100, Length), Sorted))};
-get_datapoint_value(_Length, _Total, _Sorted, Unknown, _)  ->
-    { Unknown, undefined}.
+get_datapoint_value(_Length, _Total, _Sorted, Unknown, Trunc)  ->
+    { Unknown, if Trunc -> 0; true -> 0.0 end}.
 
 nth(_, []) ->
     0;

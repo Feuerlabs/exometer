@@ -96,7 +96,7 @@ filter_dp(Mean, DPs, Trunc) when Mean==mean; Mean==arithmetic_mean ->
     case lists:keyfind(mean, 1, DPs) of
 	false ->
 	    case lists:keyfind(arithmetic_mean, 1, DPs) of
-		false -> {mean, undefined};
+		false -> {mean, zero(Trunc)};
 		{_,V} -> {mean, opt_trunc(Trunc, V)}
 	    end;
 	{_,V} -> {mean, opt_trunc(Trunc, V)}
@@ -105,7 +105,7 @@ filter_dp(H, DPs, Trunc) when is_integer(H) ->
     case lists:keyfind(H, 1, DPs) of
 	false ->
 	    case lists:keyfind(percentile, 1, DPs) of
-		false -> {H, undefined};
+		false -> {H, zero(Trunc)};
 		{_, Ps} ->
 		    get_dp(H, Ps, Trunc)
 	    end;
@@ -121,9 +121,13 @@ opt_trunc(_, V) ->
 
 get_dp(K, DPs, Trunc) ->
     case lists:keyfind(K, 1, DPs) of
-	false -> {K, undefined};
+	false -> {K, zero(Trunc)};
 	{_, V} -> {K, opt_trunc(Trunc, V)}
     end.
+
+zero(true) -> 0;
+zero(false) -> 0.0.
+
 
 stats_datapoints() ->
     [n,mean,min,max,median,50,75,90,95,99,999].

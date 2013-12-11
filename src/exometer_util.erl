@@ -148,7 +148,7 @@ pick_items([_|T], P, Ps) ->
     pick_items(T, P+1, Ps);
 
 pick_items([], _, Ps) ->
-    [{Tag,undefined} || {Tag,_} <- Ps].
+    [{Tag, 0.0} || {Tag,_} <- Ps].
 
 perc(P, Len) when P > 1.0 ->
     round((P / 10) * Len);
