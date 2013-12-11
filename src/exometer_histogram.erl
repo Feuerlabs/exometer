@@ -28,14 +28,14 @@
 -export([average_sample/3,
 	 average_transform/2]).
 
-%% -compile(inline).
+-compile(inline).
 
-%% -compile({parse_transform, exometer_igor}).
-%% -compile({igor, [{files, ["src/exometer_util.erl"
-%% 			  , "src/exometer_proc.erl"
-%% 			  , "src/exometer_slot_slide.erl"
-%% 			  , "src/exometer_slide.erl"
-%% 			 ]}]}).
+-compile({parse_transform, exometer_igor}).
+-compile({igor, [{files, ["src/exometer_util.erl"
+			  , "src/exometer_proc.erl"
+			  , "src/exometer_slot_slide.erl"
+			  , "src/exometer_slide.erl"
+			 ]}]}).
 
 -include("exometer.hrl").
 
