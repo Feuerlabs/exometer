@@ -282,13 +282,13 @@ init(Opts) ->
 	case lists:keytake(reporters, 1, Opts) of
 	    {value, { reporters, ReporterList }, _Opts1 } ->
 		lists:foldr(
-		      fun({Reporter, Opt}, Acc) -> 
+		      fun({Reporter, Opt}, Acc) ->
+			      Mod = proplists:get_value(module, Opt, Reporter),
 			      {Pid, MRef} = 
 				  spawn_monitor(fun() ->
-							register(Reporter, self()),
-							reporter_launch(Reporter, Opt)
+							reporter_launch(Reporter, Mod, Opt)
 						end),
-			      [ #reporter { module = Reporter, 
+			      [ #reporter { module = Mod, 
 					    pid = Pid, 
 					    mref = MRef} | Acc]
 		      end, [], ReporterList);
@@ -572,11 +572,11 @@ purge_subscribtions(Module, Subs) ->
 %% Called by the spawn_monitor() call in init
 %% Loop and run reporters.
 %% Module is expected to implement exometer_report behavior
-reporter_launch(Module, Opts) ->
-    case  Module:exometer_init(Opts) of
-	{ok, St } -> reporter_loop(Module, St);
+reporter_launch(LogName, Module, Opts) ->
+    case Module:exometer_init(Opts) of
+	{ok, St} -> reporter_loop(Module, St);
 	{error, Reason} -> 
-	    ?error("Failed to start reporter ~p: ~p~n", [ Module, Reason ]),
+	    ?error("Failed to start reporter ~p/~p: ~p~n", [LogName, Module, Reason]),
 	    exit(Reason)
     end.
 

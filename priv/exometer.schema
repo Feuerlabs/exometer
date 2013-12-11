@@ -30,8 +30,65 @@
 {mapping, "exometer.pattern.all", "exometer.defaults", [{default,"_"}]}.
 {mapping, "exometer.pattern.$name", "exometer.defaults", []}.
 
+{mapping, "exometer.probe.default.min_heap_size", "exometer.probe_defaults",
+ [{datatype, integer},
+  {default, "40000"}]
+}.
+{mapping, "exometer.probe.default.priority", "exometer.probe_defaults",
+ [{datatype, {enum, [low,normal,high,max]}},
+  {default, "normal"}]
+}.
+{mapping, "exometer.probe.default.min_vheap_size", "exometer.probe_defaults",
+ [{datatype, integer},
+  {default, 0}]
+}.
+{mapping, "exometer.probe.default.sensitive", "exometer.probe_defaults",
+ [{datatype, {enum, [true, false]}},
+  {default, false}]
+}.
+{mapping, "exometer.probe.default.scheduler", "exometer.probe_defaults",
+ [{datatype, integer},
+  {default, 0}]
+}.
+
+{mapping, "exometer.reporter.collectd", "exometer.reporters",
+ [{datatype, atom}, {default, exometer_report_collectd}]}.
+{mapping, "exometer.reporter.opt.collectd.module", "exometer.reporters",
+ [{datatype, atom}, {default, exometer_report_collectd}]}.
+{mapping, "exometer.reporter.opt.collectd.connect_timeout", "exometer.reporters",
+ [{datatype, {duration, ms}}, {default, "5s"}]}.
+{mapping, "exometer.reporter.opt.collectd.read_timeout", "exometer.reporters",
+ [{datatype, {duration, ms}}, {default, "5s"}]}.
+{mapping, "exometer.reporter.opt.collectd.reconnect_interval", "exometer.reporters",
+ [{datatype, {duration, s}}, {default, "30s"}]}.
+{mapping, "exometer.reporter.opt.collectd.refresh_interval", "exometer.reporters",
+ [{datatype, {duration, s}}, {default, "10s"}]}.
+{mapping, "exometer.reporter.opt.collectd.path", "exometer.reporters",
+ [{datatype, string}, {default, "/var/run/collectd-unixsock"}]}.
+{mapping, "exometer.reporter.opt.collectd.plugin_name", "exometer.reporters",
+ [{datatype, string}, {default, "exometer"}]}.
+{mapping, "exometer.reporter.opt.collectd.plugin_instance", "exometer.reporters",
+ [{datatype, string}, {default, "auto"}]}.
+{mapping, "exometer.reporter.opt.collectd.hostname", "exometer.reporters",
+ [{datatype, string}, {default, ""}]}.
+
+{mapping, "exometer.reporter.map.collectd.$map", "exometer.reporters",
+ [{datatype, string},
+  {default, "riak.riak_kv.node.puts.one"},
+  %% {commented, "riak.riak_kv.node.puts.one"},
+  {include_default, "puts_one"}]}.
+{mapping, "exometer.reporter.type.collectd.$type", "exometer.reporters",
+ [{datatype, string},
+  {default, "counter"},
+  %% {commented, "counter"},
+  {include_default, "puts_one"}]}.
+
+{mapping, "exometer.reporter.$name", "exometer.reporters", [{datatype, atom}]}.
+{mapping, "exometer.reporter.opt.$name.$option", "exometer.reporters", []}.
+
 {translation, "exometer.defaults",
  fun(Conf) ->
+         io:fwrite("Conf = ~p~n", [Conf]),
          Parse = fun(X) ->
                          case erl_scan:string(X) of
                              {ok,Toks,_} ->
@@ -64,16 +121,16 @@
 		 end,
          Pats = [{P, MkKey(V)}
                  || {["exometer","pattern", P], V} <- Conf],
-         Templ = [{"all", list_to_atom(Type), {list_to_atom(Opt), MkVal(V)}}
+         Templ = [{"all", list_to_atom(Type), {list_to_atom(Opt), MkVal(V)} }
                   || {["exometer","template",Type,Opt], V} <- Conf] ++
-             [{P, list_to_atom(Type), {list_to_atom(Opt), MkVal(V)}}
+             [{P, list_to_atom(Type), {list_to_atom(Opt), MkVal(V)} }
               || {["exometer","template",P,Type,Opt], V} <- Conf],
          Grouped = lists:foldl(
                      fun({P,T,O}, D) ->
                              orddict:append({P,T}, O, D)
                      end, orddict:new(), Templ),
          lists:map(
-           fun({{P,T}, Opts}) ->
+           fun({ {P,T}, Opts }) ->
                    case lists:keyfind(P,1,Pats) of
                        {_, Pat} ->
                            {Pat, T, Opts};
@@ -86,6 +143,93 @@
                    end
            end, orddict:to_list(Grouped))
  end}.
+
+{translation, "exometer.probe_defaults",
+ fun(Conf) ->
+         [{list_to_atom(K), V}
+          || {["exometer","probe","default",K], V} <- Conf]
+ end
+}.
+
+
+{translation, "exometer.reporters",
+ fun(Conf) ->
+         io:fwrite("Conf = ~p~n", [Conf]),
+         Parse = fun(X) ->
+                         case erl_scan:string(X) of
+                             {ok,Toks,_} ->
+                                 erl_parse:parse_term(
+                                   Toks ++ [{dot,1}]);
+                             ScanErr ->
+                                 ScanErr
+                         end
+                 end,
+	 MkVal = fun(A) when is_atom(A) -> A;
+                    (I) when is_integer(I) -> I;
+                    (X) ->
+                         case Parse(X) of
+                             {ok, Term} -> Term;
+                             {error, _} -> X
+                         end
+		 end,
+	 MkKey = fun("[" ++ _ = S) ->
+                         case Parse(S) of
+                             {ok, Term} -> Term;
+                             {error, R} -> error({parse_error, R})
+                         end;
+		    (S) ->
+			 L = string:tokens(S, "."),
+			 lists:map(fun(K) ->
+					   try list_to_integer(K)
+					   catch
+					       error:_ ->
+						   list_to_atom(K)
+					   end
+				   end, L)
+		 end,
+         Reporters = (catch [{R, RegName}
+                      || {["exometer", "reporter", R], RegName} <- Conf]),
+         Rep = fun(R) -> case lists:keyfind(R,1,Reporters) of
+                             false -> '';
+                             {_, N} -> N
+                         end
+               end,
+         Opts = [{Rep(R), {list_to_atom(K), MkVal(V)}}
+                 || {["exometer","reporter","opt",R,K], V} <- Conf],
+         Maps = [{Rep(R), MA, V}
+                 || {["exometer","reporter","map",R,MA], V} <- Conf],
+         io:fwrite("Maps = ~p~n", [Maps]),
+         Types = [{Rep(R), TA, V}
+                 || {["exometer","reporter","type",R,TA], V} <- Conf],
+         io:fwrite("Types = ~p~n", [Types]),
+         Dict0 = orddict:from_list([{N,[]} || {_,N} <- Reporters]),
+         TypeMap = lists:foldl(
+                     fun({'',_,_}, D) -> D;
+                        ({N, A, Metric}, D) ->
+                             case [T || {N1,A1,T} <- Types, N==N1, A==A1] of
+                                 [] -> D;
+                                 [Type] ->
+                                     Key = MkKey(Metric),
+                                     io:fwrite("Mey(~p) -> ~p~n", [Metric,Key]),
+                                     orddict:append(N, {Key,Type}, D)
+                             end
+                     end, Dict0, Maps),
+         io:fwrite("TypeMap = ~p~n", [TypeMap]),
+         Dict1 = lists:foldl(
+                   fun({'',_}, D) -> D;
+                      ({R,Opt}, D) ->
+                           orddict:append(R, Opt, D)
+                   end, Dict0, Opts),
+         orddict:fold(fun(N,L,D) ->
+                              case orddict:is_key(N,D) of
+                                  true ->
+                                      orddict:append(N,{type_map,L},D);
+                                  false ->
+                                      D
+                              end
+                      end, Dict1, TypeMap)
+ end
+}.
 
 %% exometer.report.collectd.module = exometer_report_collectd
 %% exometer.report.collectd.option.reconnect_interval = 10

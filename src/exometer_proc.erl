@@ -96,6 +96,12 @@ stop() ->
 %% @doc Apply process_flag-specific options.
 %% @end
 process_options(Opts) ->
+    Defaults = case application:get_env(exometer,probe_defaults) of
+		   {ok, L} when is_list(L) ->
+		       L;
+		   _ ->
+		       []
+	       end,
     lists:foreach(
       fun({priority, P}) when P==low; P==normal; P==high; P==max ->
 	      process_flag(priority, P);
@@ -109,4 +115,4 @@ process_options(Opts) ->
 	      process_flag(scheduler, I);
 	 (_) ->
 	      ok
-      end, Opts).
+      end, Opts ++ Defaults).
