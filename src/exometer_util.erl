@@ -108,9 +108,7 @@ table(N) when is_integer(N), N > 20 ->
 
 -spec get_statistics(Length::non_neg_integer(),
 		     Total::non_neg_integer(),
-		     Sorted::list(),
-		     Min::integer(),
-		     Max::integer()) -> [{atom(), number()}].
+		     Sorted::list()) -> [{atom(), number()}].
 %% @doc Calculate statistics from a sorted list of values.
 %%
 %% This function assumes that you have already sorted the list, and
@@ -125,11 +123,23 @@ table(N) when is_integer(N), N > 20 ->
 %%
 %% Fulpatchad med min/max av Magnus Feuer.
 %% @end
-get_statistics(L, Total, Sorted, Min, Max) ->
+
+%% Special case when we get called with an empty histogram.
+get_statistics(_L, _Total, []) ->
+    [];
+
+%% Special case when we get called from
+%% exometer_histogram:get_value_int() with just
+%% a nil min/max pair.
+get_statistics(_L, _Total, [0,0]) ->
+    [];
+
+get_statistics(L, Total, Sorted) ->
+    io:format("LIST(~p)~n", [Sorted]),
     P50 = perc(0.5, L),
-    Items = [{min,Min}, {50, P50}, {median, P50}, {75, perc(0.75,L)},
+    Items = [{min,1}, {50, P50}, {median, P50}, {75, perc(0.75,L)},
 	     {90, perc(0.9,L)}, {95, perc(0.95,L)}, {99, perc(0.99,L)},
-	     {999, perc(0.999,L)}, {max,Max}],
+	     {999, perc(0.999,L)}, {max,L}],
     [{n,L}, {mean, Total/L} | pick_items(Sorted, 1, Items)].
 
 pick_items([H|_] = L, P, [{Tag,P}|Ps]) ->

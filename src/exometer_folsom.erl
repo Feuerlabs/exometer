@@ -149,5 +149,4 @@ calc_stats(Values) ->
     L = length(Values),
     exometer_util:get_statistics(L,
 				 lists:sum(Values),
-				 lists:sort(Values),
-				 1, L).
+				 lists:sort(Values)).

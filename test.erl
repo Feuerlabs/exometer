@@ -32,3 +32,19 @@ subscribe test_host a/b/c/max 5000 /tmp/test.ux
 
 unsubscribe test_host a/b/c/min /tmp/test.ux
 unsubscribe test_host a/b/c/max /tmp/test.ux
+
+
+
+% Ensure that folsom is in ERL_LIBS path
+erl -pa ebin -pz deps/*/ebin
+
+
+
+lager:start().
+application:start(sasl).
+application:start(exometer).
+
+exometer:new([u], histogram, []).
+exometer:update([u], 1).
+exometer:get_value([u]).
+

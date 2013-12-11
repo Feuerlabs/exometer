@@ -28,14 +28,14 @@
 -export([average_sample/3,
 	 average_transform/2]).
 
--compile(inline).
+%% -compile(inline).
 
--compile({parse_transform, exometer_igor}).
--compile({igor, [{files, ["src/exometer_util.erl"
-			  , "src/exometer_proc.erl"
-			  , "src/exometer_slot_slide.erl"
-			  , "src/exometer_slide.erl"
-			 ]}]}).
+%% -compile({parse_transform, exometer_igor}).
+%% -compile({igor, [{files, ["src/exometer_util.erl"
+%% 			  , "src/exometer_proc.erl"
+%% 			  , "src/exometer_slot_slide.erl"
+%% 			  , "src/exometer_slide.erl"
+%% 			 ]}]}).
 
 -include("exometer.hrl").
 
@@ -128,19 +128,19 @@ get_value_int_(#st{truncate = Trunc,
     Tot0 = case Trunc of true -> 0; false -> 0.0 end,
     {Length, Total, Min, Max, Lst} =
 	Module:foldl(
-	  fun(
-	    {_TS, Val}, {Length, Total, Min, Max, List}) when val < Min ->
-		  {Length + 1, Total + Val, Val, Max, [Val|List]};
+	  fun
+	      ({_TS, {Val, NMin, NMax}}, {Length, Total, OMin, OMax, List}) ->
+		  {Length + 1, Total + Val, min(OMin, NMin), max(OMax, NMax),
+		   [Val|List]};
 
-	     ({_TS, Val}, {Length, Total, Min, Max, List}) when val > Max ->
-		  {Length + 1, Total + Val, Min, Val, [Val|List]};
-
-	     ({_TS, Val}, {Length, Total, Min, Max, List}) ->
-		  {Length + 1, Total + Val, Min, Max, [Val|List]}
+	      ({_TS, Val}, {Length, Total, Min, Max, List}) ->
+		  {Length + 1, Total + Val, min(Val,Min), max(Val, Max), 
+		   [Val|List]}
 	  end,
 	  {0,  Tot0, 0, 0, []}, St#st.slide),
+
     Sorted = lists:sort(Lst),
-    Results = exometer_util:get_statistics(Length, Total, Sorted, Min, Max),
+    Results = exometer_util:get_statistics(Length + 2, Total, [Min] ++ Sorted ++ [Max]),
     [get_dp(K, Results) || K <- DataPoints].
     %% [get_datapoint_value(Length, Total, Sorted, DataPoint, Trunc)
     %%  || DataPoint <- DataPoints].
@@ -205,13 +205,10 @@ process_opts(St, Options) ->
 %% Simple sample processor that maintains an average
 %% of all sampled values
 average_sample(_TS, Val, undefined) ->
-   {1, Val, Val, Val};
+    {1, Val, Val, Val};
 
-average_sample(_TS, Val, {Count, Total, Min, Max}) when Val > Max ->
-    {Count + 1, Total + Val, Min, Val};
-
-average_sample(_TS, Val, {Count, Total, Min, Max}) when Val < Min ->
-    {Count + 1, Total + Val, Val, Max}.
+average_sample(_TS, Val, {Count, Total, Min, Max}) ->
+    {Count + 1, Total + Val, min(Min, Val), max(Max, Val)}.
 
 %% If average_sample() has not been called for the current time slot,
 %% then the provided state will still be 'undefined'
