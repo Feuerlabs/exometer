@@ -135,7 +135,6 @@ get_statistics(_L, _Total, [0,0]) ->
     [];
 
 get_statistics(L, Total, Sorted) ->
-    io:format("LIST(~p)~n", [Sorted]),
     P50 = perc(0.5, L),
     Items = [{min,1}, {50, P50}, {median, P50}, {75, perc(0.75,L)},
 	     {90, perc(0.9,L)}, {95, perc(0.95,L)}, {99, perc(0.99,L)},
