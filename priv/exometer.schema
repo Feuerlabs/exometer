@@ -70,7 +70,7 @@
 {mapping, "exometer.reporter.opt.collectd.plugin_instance", "exometer.reporters",
  [{datatype, string}, {default, "auto"}]}.
 {mapping, "exometer.reporter.opt.collectd.hostname", "exometer.reporters",
- [{datatype, string}, {default, ""}]}.
+ [{datatype, string}, {default, "auto"}]}.
 
 {mapping, "exometer.reporter.map.collectd.$map", "exometer.reporters",
  [{datatype, string},
@@ -88,7 +88,6 @@
 
 {translation, "exometer.defaults",
  fun(Conf) ->
-         io:fwrite("Conf = ~p~n", [Conf]),
          Parse = fun(X) ->
                          case erl_scan:string(X) of
                              {ok,Toks,_} ->
@@ -154,7 +153,6 @@
 
 {translation, "exometer.reporters",
  fun(Conf) ->
-         io:fwrite("Conf = ~p~n", [Conf]),
          Parse = fun(X) ->
                          case erl_scan:string(X) of
                              {ok,Toks,_} ->
@@ -198,10 +196,8 @@
                  || {["exometer","reporter","opt",R,K], V} <- Conf],
          Maps = [{Rep(R), MA, V}
                  || {["exometer","reporter","map",R,MA], V} <- Conf],
-         io:fwrite("Maps = ~p~n", [Maps]),
          Types = [{Rep(R), TA, V}
                  || {["exometer","reporter","type",R,TA], V} <- Conf],
-         io:fwrite("Types = ~p~n", [Types]),
          Dict0 = orddict:from_list([{N,[]} || {_,N} <- Reporters]),
          TypeMap = lists:foldl(
                      fun({'',_,_}, D) -> D;
@@ -210,11 +206,9 @@
                                  [] -> D;
                                  [Type] ->
                                      Key = MkKey(Metric),
-                                     io:fwrite("Mey(~p) -> ~p~n", [Metric,Key]),
                                      orddict:append(N, {Key,Type}, D)
                              end
                      end, Dict0, Maps),
-         io:fwrite("TypeMap = ~p~n", [TypeMap]),
          Dict1 = lists:foldl(
                    fun({'',_}, D) -> D;
                       ({R,Opt}, D) ->

@@ -75,7 +75,8 @@ exometer_init(Opts) ->
 	    { ok, 
 	      #st{socket_path = SockPath,
 		  reconnect_interval = ReconnectInterval,
-		  hostname = get_opt(hostname, Opts, net_adm:localhost()),
+		  hostname = check_hostname(
+			       get_opt(hostname, Opts, "auto")),
 		  plugin_name = get_opt(plugin_name, Opts, "exometer"),
 		  plugin_instance = check_instance(
 				      get_opt(plugin_instance, Opts, "auto")),
@@ -93,7 +94,8 @@ exometer_init(Opts) ->
 	    { ok, 
 	      #st{socket_path = SockPath,
 		  reconnect_interval = ReconnectInterval,
-		  hostname = get_opt(hostname, Opts, net_adm:localhost()),
+		  hostname = check_hostname(
+			       get_opt(hostname, Opts, "auto")),
 		  plugin_name = get_opt(plugin_name, Opts, "exometer"),
 		  plugin_instance = check_instance(
 				      get_opt(plugin_instance, Opts, "auto")),
@@ -305,6 +307,11 @@ check_instance("auto") ->
     get_default_instance();
 check_instance(Other) ->
     Other.
+
+check_hostname("auto") ->
+    net_adm:localhost();
+check_hostname(H) ->
+    H.
 
 
 get_default_instance() ->
