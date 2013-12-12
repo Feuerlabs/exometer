@@ -526,7 +526,14 @@ report_to_outbound_connection(#subscription {
 		metric_dp_name(Metric, DataPoint)  ++ " " ++ value(Value) ++ [$\n],
 
 	    ?info("Sending ~p to ~p~n",[ Request, SocketPath]),
-	    case catch afunix:send(Sock, Request) of
+	    Res = try afunix:send(Sock, Request) of
+		      ok -> ok;
+		      Other -> Other
+		  catch
+		      erlang:Error ->
+			  {error, Error}
+		  end,
+	    case Res of
 		ok -> ok;
 		Err ->
 		    %% Send failed, most likely to peer hangup. 

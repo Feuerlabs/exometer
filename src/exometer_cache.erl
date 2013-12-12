@@ -136,7 +136,8 @@ timeout(T, TTL, TS) ->
     erlang:max(TTL - (timer:now_diff(TS, T) div 1000), 0).
 
 update_tref(Name, TRef) ->
-    catch ets:update_element(?TABLE, Name, {#cache.tref, TRef}).
+    try ets:update_element(?TABLE, Name, {#cache.tref, TRef})
+    catch _ -> ok end.
 
 
 ensure_table() ->

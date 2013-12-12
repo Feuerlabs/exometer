@@ -67,9 +67,7 @@ get_value(Name, Type, Ref, DataPoints) ->
     Vals = get_value_(Name, Type, Ref),
     try [filter_dp(D, Vals, Trunc) || D <- datapoints(Type, DataPoints)]
     catch
-	error:Error ->
-	    io:fwrite(user, "ERROR ~p~nT = ~p~n",
-		      [Error,erlang:get_stacktrace()]),
+	error:_Error ->
 	    unavailable
     end.
 

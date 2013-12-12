@@ -117,7 +117,7 @@ handle_call({new_entry, Name, Type, Opts, AllowExisting}, _From, S) ->
 	end
     catch
 	error:Error ->
-	    {reply, {error, Error, erlang:get_stacktrace()}, S}
+	    {reply, {error, Error}, S}
     end;
 handle_call(_, _, S) ->
     {reply, error, S}.
@@ -134,7 +134,7 @@ handle_cast({demonitor, Pid}, S) ->
 	Ref ->
 	    erase(Pid),
 	    erase(Ref),
-	    catch erlang:demonitor(Ref),
+	    try erlang:demonitor(Ref) catch error:_ -> ok end,
 	    {noreply, S}
     end;
 handle_cast(_, S) ->
@@ -147,7 +147,7 @@ handle_info({'DOWN', Ref, _, Pid, _}, S) ->
 	Name when is_list(Name) ->
 	    erase(Ref),
 	    erase(Pid),
-	    catch exometer:delete(Name),
+	    try exometer:delete(Name) catch error:_ -> ok end,
 	    {noreply, S}
     end;
 handle_info(_, S) ->
