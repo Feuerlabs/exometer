@@ -317,12 +317,13 @@ init(Opts) ->
        subscribers = SubsList
       }}.
 
-
+init_subscriber({Reporter, Metric, DataPoint, Interval}, Acc) ->
+    [subscribe_(Reporter, Metric, DataPoint, Interval, undefined) | Acc];
 init_subscriber({Reporter, Metric, DataPoint, Interval, Extra}, Acc) ->
     [subscribe_(Reporter, Metric, DataPoint, Interval, Extra) | Acc];
 init_subscriber(Other, Acc) ->
     ?warning("Incorrect static subscriber spec ~p. "
-	     "Use { Reporter, Metric, DataPoint, Interval, Extra }~n", [ Other ]),
+	     "Use { Reporter, Metric, DataPoint, Interval [, Extra ]}~n", [ Other ]),
     Acc.
 
 %%--------------------------------------------------------------------
@@ -438,27 +439,24 @@ handle_info({ report, #key{ reporter = Reporter,
 	    case exometer:get_value(Metric, DataPoint) of
 		{ok, [{_, Val}]} ->
 		    %% Distribute metric value to the correct process
-		    report_value(Reporter, Metric, DataPoint, Extra, Val),
-
-		    %% Re-arm the timer for next round
-		    TRef = erlang:send_after(Interval, self(), 
-					     {report, Key, Interval}),
-
-		    %% Replace the pid_subscriber info with a record having
-		    %% the new timer ref. 
-		    {noreply, St#st{subscribers =
-					lists:keyreplace(
-					  Key, #subscriber.key, Subs,
-					  Sub#subscriber{ t_ref = TRef }
-					 )
-				   }
-		    };
-		_ ->
+		    report_value(Reporter, Metric, DataPoint, Extra, Val);
+		    _ ->
 		    %% Entry removed while timer in progress.
 		    ?warning("Metric(~p) Datapoint(~p) not found~n",
-			   [Metric, DataPoint]),
-		    {noreply, St}
-	    end;
+			   [Metric, DataPoint])
+	    end,
+	    %% Re-arm the timer for next round
+	    TRef = erlang:send_after(Interval, self(), 
+				     {report, Key, Interval}),
+	    %% Replace the pid_subscriber info with a record having
+	    %% the new timer ref. 
+	    {noreply, St#st{subscribers =
+				lists:keyreplace(
+				  Key, #subscriber.key, Subs,
+				  Sub#subscriber{ t_ref = TRef }
+				 )
+			   }
+	    };
 	false ->
 	    %% Possibly an unsubscribe removed the subscriber
 	    ?error("No such subscriber (Key=~p)~n", [Key]),
@@ -576,8 +574,12 @@ cancel_timer(TRef) ->
 
 
 report_value(Reporter, Metric, DataPoint, Extra, Val) ->
-    Reporter ! {exometer_report, Metric, DataPoint, Extra, Val},
-    true.
+    try Reporter ! {exometer_report, Metric, DataPoint, Extra, Val},
+	 true
+    catch
+	error:_ -> false;
+	exit:_ -> false
+    end.
 
 retrieve_metric({ Metric, Enabled}, Subscribers, Acc) ->
     [ { Metric, exometer:info(Metric, datapoints), 
