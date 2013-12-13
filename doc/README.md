@@ -4,7 +4,7 @@
 
 Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved..
 
-__Version:__ Dec 13 2013 15:20:57
+__Version:__ Dec 13 2013 15:45:08
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -605,7 +605,7 @@ Specifies the interval, in milliseconds, between each update of the
 given metric's data point. At the given interval, the data point will
 be samples, and the result will be sent to the receiver.
 
-+ `retry_failed_metrics (true | false)<br/>Specifies if the metric should be continued to be reported
++ `retry\_failed\_metrics (true | false)<br/>Specifies if the metric should be continued to be reported
     even if it is not found during a reporting cycle. This would be
     the case if a metric is not created by the time it is reported for
     the first time. If the metric will be created at a later time,

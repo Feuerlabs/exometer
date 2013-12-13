@@ -559,7 +559,7 @@ contains five elements:
     given metric's data point. At the given interval, the data point will
     be samples, and the result will be sent to the receiver.
 
-+ `retry_failed_metrics (true | false)
++ `retry\_failed\_metrics (true | false)
     <br/>Specifies if the metric should be continued to be reported
     even if it is not found during a reporting cycle. This would be
     the case if a metric is not created by the time it is reported for
