@@ -149,7 +149,10 @@
 	 unsubscribe/3,
 	 unsubscribe/4,
 	 list_metrics/1,
-	 list_metrics/0]).
+	 list_metrics/0,
+	 list_reporters/0,
+	 add_reporter/2,
+	 remove_reporter/1]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -231,8 +234,8 @@ start_link() ->
 
 subscribe(Reporter, Metric, DataPoint, Interval, Extra) ->
     call({subscribe, #key{reporter = Reporter,
-			  metric = convert_metric_path(Metric),
-			  datapoint = convert_metric_elem(DataPoint),
+			  metric = Metric,
+			  datapoint = DataPoint,
 			  extra = Extra}, Interval}).
 
 subscribe(Reporter, Metric, DataPoint, Interval) ->
@@ -240,8 +243,8 @@ subscribe(Reporter, Metric, DataPoint, Interval) ->
 
 unsubscribe(Reporter, Metric, DataPoint, Extra) ->
     call({unsubscribe, #key{reporter = Reporter,
-			    metric = convert_metric_path(Metric),
-			    datapoint = convert_metric_elem(DataPoint),
+			    metric = Metric,
+			    datapoint = DataPoint,
 			   extra = Extra}}).
 
 unsubscribe(Reporter, Metric, DataPoint) ->
@@ -252,6 +255,16 @@ list_metrics()  ->
 
 list_metrics(Path)  ->
     call({list_metrics, Path}).
+
+list_reporters() ->
+    call(list_reporters).
+
+add_reporter(Reporter, Options) ->
+    call({add_reporter, Reporter, Options}).
+
+remove_reporter(Reporter) ->
+    call({remove_reporter, Reporter}).
+
 
 call(Req) ->
     gen_server:call(?MODULE, Req).
@@ -279,27 +292,24 @@ init(Opts) ->
     %% Traverse list of reporter and launch reporter gen servers as dynamic
     %% supervisor children.
     Reporters = 
-	case lists:keytake(reporters, 1, Opts) of
-	    {value, { reporters, ReporterList }, _Opts1 } ->
+	case lists:keyfind(reporters, 1, Opts) of
+	    {reporters, ReporterList} ->
+		assert_no_duplicates(ReporterList),
 		lists:foldr(
 		      fun({Reporter, Opt}, Acc) ->
-			      Mod = proplists:get_value(module, Opt, Reporter),
-			      {Pid, MRef} = 
-				  spawn_monitor(fun() ->
-							reporter_launch(Reporter, Mod, Opt)
-						end),
-			      [ #reporter { module = Mod, 
+			      {Pid, MRef} = spawn_reporter(Reporter, Opt),
+			      [ #reporter { module = Reporter,
 					    pid = Pid, 
 					    mref = MRef} | Acc]
 		      end, [], ReporterList);
-	    _ -> []
+	    false -> []
 	end,
 
     SubsList = 
-	case lists:keytake(subscribers, 1, Opts) of
-	    {value, {subscribers, Subscribers}, _ } ->
+	case lists:keyfind(subscribers, 1, Opts) of
+	    {subscribers, Subscribers} ->
 		lists:foldr(fun init_subscriber/2, [], Subscribers);
-	    _ -> []
+	    false -> []
 	end,
 
     {ok, #st {
@@ -309,10 +319,7 @@ init(Opts) ->
 
 
 init_subscriber({Reporter, Metric, DataPoint, Interval, Extra}, Acc) ->
-    [ subscribe_(Reporter, 
-		 convert_metric_path(Metric), 
-		 convert_metric_elem(DataPoint), Interval, Extra) | Acc ];
-
+    [subscribe_(Reporter, Metric, DataPoint, Interval, Extra) | Acc];
 init_subscriber(Other, Acc) ->
     ?warning("Incorrect static subscriber spec ~p. "
 	     "Use { Reporter, Metric, DataPoint, Interval, Extra }~n", [ Other ]),
@@ -332,22 +339,28 @@ init_subscriber(Other, Acc) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_call({ subscribe, 
+handle_call({subscribe, 
 	     #key{ reporter = Reporter,
 		   metric = Metric,
 		   datapoint = DataPoint,
 		   extra = Extra} , Interval },
-	    _From, #st{ subscribers = Subs} = St) ->
+	    _From, #st{reporters = Rs, subscribers = Subs} = St) ->
 
     %% Verify that the given metric/data point actually exist.
-    case exometer:get_value(Metric, DataPoint) of
-	{ok, _} ->
-	    Reporter ! { exometer_subscribe, Metric, DataPoint, Interval, Extra },
-	    Sub = subscribe_(Reporter, Metric, DataPoint, Interval, Extra),
-	    {reply, ok, St#st{ subscribers = [Sub | Subs] }};
-
-	%% Nope - Not found.
-	_ -> {reply, not_found, St }
+    case lists:keyfind(Reporter, #reporter.module, Rs) of
+	#reporter{} ->
+	    case exometer:get_value(Metric, DataPoint) of
+		{ok, _} ->
+		    Reporter ! {exometer_subscribe, Metric,
+				DataPoint, Interval, Extra},
+		    Sub = subscribe_(Reporter, Metric, DataPoint,
+				     Interval, Extra),
+		    {reply, ok, St#st{ subscribers = [Sub | Subs] }};
+		%% Nope - Not found.
+		_ -> {reply, not_found, St }
+	    end;
+	false ->
+	    {reply, unknown_reporter, St}
     end;
 
 %%
@@ -367,7 +380,29 @@ handle_call({list_metrics, Path}, _, St) ->
 		     end, [], exometer:find_entries(Path)),
     {reply, {ok, DP}, St};
 
+handle_call(list_reporters, _, #st{reporters = Reporters} = St) ->
+    Info = [{M, Pid} || #reporter{module = M, pid = Pid} <- Reporters],
+    {reply, Info, St};
 
+handle_call({add_reporter, Reporter, Opts}, _, #st{reporters = Rs} = St) ->
+    case lists:keymember(Reporter, #reporter.module, Rs) of
+	true ->
+	    {reply, {error, already_running}, St};
+	false ->
+	    {Pid, MRef} = spawn_reporter(Reporter, Opts),
+	    Rs1 = [#reporter {module = Reporter,
+			      pid = Pid,
+			      mref = MRef} | Rs],
+	    {reply, ok, St#st{reporters = Rs1}}
+    end;
+handle_call({remove_reporter, Reporter}, _, #st{reporters = Rs} = St) ->
+    case lists:keyfind(Reporter, #reporter.module, Rs) of
+	#reporter{} = R ->
+	    St1 = terminate_reporter(R, St),
+	    {reply, ok, St1};
+	false ->
+	    {reply, {error, not_found}, St}
+    end;
 %%
 handle_call(_Request, _From, State) ->
     {reply, {error, unknown_call}, State}.
@@ -434,7 +469,7 @@ handle_info({'DOWN', Ref, process, _Pid, _Reason}, S) ->
     Subs = 
 	case lists:keytake(Ref, #reporter.mref, S#st.reporters) of
 	    #reporter {module = Module} ->
-		purge_subscribtions(Module, S#st.subscribers);
+		purge_subscriptions(Module, S#st.subscribers);
 	    _ -> S#st.subscribers
 	end,
     {noreply, S#st { subscribers = Subs }};
@@ -471,7 +506,35 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+assert_no_duplicates([{R,_}|T]) ->
+    case lists:keymember(R, 1, T) of
+	true -> error({duplicate_reporter, R});
+	false -> assert_no_duplicates(T)
+    end;
+assert_no_duplicates([]) ->
+    ok.
 
+spawn_reporter(Reporter, Opt) ->
+    spawn_monitor(fun() ->
+			  register(Reporter,self()),
+			  reporter_launch(Reporter, Opt)
+		  end).
+
+terminate_reporter(#reporter{pid = Pid, mref = MRef} = R, #st{} = S) ->
+    exit(Pid, shutdown),
+    receive
+	{'DOWN', MRef, _, _, _} ->
+	    remove_reporter(R, S)
+    after 5000 ->
+	    exit(Pid, kill),
+	    erlang:demonitor(MRef, [flush]),
+	    remove_reporter(R, S)
+    end.
+
+remove_reporter(#reporter{module = M}, #st{reporters = Rs,
+					   subscribers = Subs} = S) ->
+    S#st{reporters = lists:keydelete(M, #reporter.module, Rs),
+	 subscribers = purge_subscriptions(M, Subs)}.
 
 subscribe_( Reporter, Metric, DataPoint, Interval, Extra) ->
     Key = #key { reporter = Reporter,
@@ -555,7 +618,7 @@ get_env(Key, Default) ->
 
 %% Purge all subscriptions associated with a specific reporter 
 %% (that just went down).
-purge_subscribtions(Module, Subs) ->
+purge_subscriptions(Module, Subs) ->
     %% Go through all #subscriber elements in Subs and
     %% cancel the timer of those who match the provided module
     %%
@@ -572,11 +635,11 @@ purge_subscribtions(Module, Subs) ->
 %% Called by the spawn_monitor() call in init
 %% Loop and run reporters.
 %% Module is expected to implement exometer_report behavior
-reporter_launch(LogName, Module, Opts) ->
+reporter_launch(Module, Opts) ->
     case Module:exometer_init(Opts) of
 	{ok, St} -> reporter_loop(Module, St);
 	{error, Reason} -> 
-	    ?error("Failed to start reporter ~p/~p: ~p~n", [LogName, Module, Reason]),
+	    ?error("Failed to start reporter ~p: ~p~n", [Module, Reason]),
 	    exit(Reason)
     end.
 
@@ -608,27 +671,5 @@ reporter_loop(Module, St) ->
 		    { ok, St1 } -> St1;
 		    _ -> St
 		end
-		    
 	end,
     reporter_loop(Module, NSt).
-
-
-convert_metric_elem(V) when is_atom(V)->
-    V;
-
-convert_metric_elem(V) when is_integer(V)->
-    %% Surely there must be a better way of converting an integer
-    %% to an atom?
-    list_to_atom(lists:flatten(io_lib:format("~p", [V])));
-
-convert_metric_elem(V) when is_list(V) ->
-    list_to_atom(V).
-
-convert_metric_path(List) ->
-    convert_metric_path(List, []).
-
-convert_metric_path([], Acc) ->
-    lists:reverse(Acc);
-
-convert_metric_path([H|T], Acc) ->
-    convert_metric_path(T, [ convert_metric_elem(H) | Acc ]).
