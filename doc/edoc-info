@@ -6,5 +6,5 @@
           exometer_function,exometer_histogram,exometer_igor,exometer_netlink,
           exometer_probe,exometer_proc,exometer_reg,exometer_report,
           exometer_report_collectd,exometer_report_graphite,
-          exometer_report_riak,exometer_slide,exometer_slot_slide,
-          exometer_spiral,exometer_uniform,exometer_util]}.
+          exometer_report_riak,exometer_report_tty,exometer_slide,
+          exometer_slot_slide,exometer_spiral,exometer_uniform,exometer_util]}.

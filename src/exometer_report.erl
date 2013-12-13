@@ -190,6 +190,7 @@
 	  reporter :: module(),
 	  metric :: metric(),
 	  datapoint :: datapoint(),
+	  retry_failed_metrics :: true | false,
 	  extra :: extra()
 	 }).
 
@@ -236,6 +237,7 @@ subscribe(Reporter, Metric, DataPoint, Interval, Extra) ->
     call({subscribe, #key{reporter = Reporter,
 			  metric = Metric,
 			  datapoint = DataPoint,
+			  retry_failed_metrics = false,
 			  extra = Extra}, Interval}).
 
 subscribe(Reporter, Metric, DataPoint, Interval) ->
@@ -265,7 +267,6 @@ add_reporter(Reporter, Options) ->
 remove_reporter(Reporter) ->
     call({remove_reporter, Reporter}).
 
-
 call(Req) ->
     gen_server:call(?MODULE, Req).
 
@@ -285,8 +286,9 @@ call(Req) ->
 %% @end
 %%--------------------------------------------------------------------
 init(Opts) ->
-    %% Dig out configured 'static' subscribers
-    Opts = get_env(report, []),
+
+    
+    ?info("Starting reporter with ~p~n", [ Opts ]),
     %% Dig out the mod opts.
     %% { reporters, [ {reporter1, [{opt1, val}, ...]}, {reporter2, [...]}]}
     %% Traverse list of reporter and launch reporter gen servers as dynamic
@@ -305,6 +307,7 @@ init(Opts) ->
 	    false -> []
 	end,
 
+    %% Dig out configured 'static' subscribers
     SubsList = 
 	case lists:keyfind(subscribers, 1, Opts) of
 	    {subscribers, Subscribers} ->
@@ -313,13 +316,18 @@ init(Opts) ->
 	end,
 
     {ok, #st {
-       reporters = Reporters,
-       subscribers = SubsList
-      }}.
+	    reporters = Reporters,
+	    subscribers = SubsList
+	   }}.
 
 
-init_subscriber({Reporter, Metric, DataPoint, Interval, Extra}, Acc) ->
-    [subscribe_(Reporter, Metric, DataPoint, Interval, Extra) | Acc];
+init_subscriber({Reporter, Metric, DataPoint, Interval, RetryFailedMetrics}, Acc) ->
+    [subscribe_(Reporter, Metric, DataPoint, Interval, RetryFailedMetrics, undefined) | Acc];
+
+init_subscriber({Reporter, Metric, DataPoint, Interval, RetryFailedMetrics, Extra}, Acc) ->
+    [subscribe_(Reporter, Metric, DataPoint, Interval, RetryFailedMetrics, Extra) | Acc];
+
+
 init_subscriber(Other, Acc) ->
     ?warning("Incorrect static subscriber spec ~p. "
 	     "Use { Reporter, Metric, DataPoint, Interval, Extra }~n", [ Other ]),
@@ -343,6 +351,7 @@ handle_call({subscribe,
 	     #key{ reporter = Reporter,
 		   metric = Metric,
 		   datapoint = DataPoint,
+		   retry_failed_metrics = RetryFailedMetrics,
 		   extra = Extra} , Interval },
 	    _From, #st{reporters = Rs, subscribers = Subs} = St) ->
 
@@ -354,7 +363,7 @@ handle_call({subscribe,
 		    Reporter ! {exometer_subscribe, Metric,
 				DataPoint, Interval, Extra},
 		    Sub = subscribe_(Reporter, Metric, DataPoint,
-				     Interval, Extra),
+				     Interval, RetryFailedMetrics, Extra),
 		    {reply, ok, St#st{ subscribers = [Sub | Subs] }};
 		%% Nope - Not found.
 		_ -> {reply, not_found, St }
@@ -395,6 +404,7 @@ handle_call({add_reporter, Reporter, Opts}, _, #st{reporters = Rs} = St) ->
 			      mref = MRef} | Rs],
 	    {reply, ok, St#st{reporters = Rs1}}
     end;
+
 handle_call({remove_reporter, Reporter}, _, #st{reporters = Rs} = St) ->
     case lists:keyfind(Reporter, #reporter.module, Rs) of
 	#reporter{} = R ->
@@ -431,12 +441,14 @@ handle_cast(_Msg, State) ->
 handle_info({ report, #key{ reporter = Reporter, 
 			    metric = Metric,
 			    datapoint = DataPoint,
+			    retry_failed_metrics = RetryFailedMetrics,
 			    extra = Extra} = Key, Interval},
 	    #st{subscribers = Subs} = St) ->
     case lists:keyfind(Key, #subscriber.key, Subs) of
 	#subscriber{} = Sub ->
-	    case exometer:get_value(Metric, DataPoint) of
-		{ok, [{_, Val}]} ->
+	    case { RetryFailedMetrics,  exometer:get_value(Metric, DataPoint) } of
+		%% We found a value. 
+		{ _, {ok, [{_, Val}]}} ->
 		    %% Distribute metric value to the correct process
 		    report_value(Reporter, Metric, DataPoint, Extra, Val),
 
@@ -449,13 +461,26 @@ handle_info({ report, #key{ reporter = Reporter,
 		    {noreply, St#st{subscribers =
 					lists:keyreplace(
 					  Key, #subscriber.key, Subs,
-					  Sub#subscriber{ t_ref = TRef }
-					 )
-				   }
-		    };
+					  Sub#subscriber{ t_ref = TRef })}};
+
+		%% We did not find a value, but we should try again.
+		{ true, _ } ->
+		    ?info("Metric(~p) Datapoint(~p) not found. Will try again in ~p msec~n",
+			   [Metric, DataPoint, Interval]),
+		    %% Re-arm the timer for next round
+		    TRef = erlang:send_after(Interval, self(), 
+					     {report, Key, Interval}),
+
+		    %% Replace the pid_subscriber info with a record having
+		    %% the new timer ref. 
+		    {noreply, St#st{subscribers =
+					lists:keyreplace(
+					  Key, #subscriber.key, Subs,
+					  Sub#subscriber{ t_ref = TRef })}};
+		%% We did not find a value, and we should not retry.
 		_ ->
 		    %% Entry removed while timer in progress.
-		    ?warning("Metric(~p) Datapoint(~p) not found~n",
+		    ?warning("Metric(~p) Datapoint(~p) not found. Will not try again~n",
 			   [Metric, DataPoint]),
 		    {noreply, St}
 	    end;
@@ -536,11 +561,12 @@ remove_reporter(#reporter{module = M}, #st{reporters = Rs,
     S#st{reporters = lists:keydelete(M, #reporter.module, Rs),
 	 subscribers = purge_subscriptions(M, Subs)}.
 
-subscribe_( Reporter, Metric, DataPoint, Interval, Extra) ->
+subscribe_( Reporter, Metric, DataPoint, Interval, RetryFailedMetrics, Extra) ->
     Key = #key { reporter = Reporter,
 		 metric = Metric,
 		 datapoint = DataPoint,
-		 extra = Extra
+		 extra = Extra,
+		 retry_failed_metrics = RetryFailedMetrics
 	       },
 
     %% FIXME: Validate Metric and datapoint
