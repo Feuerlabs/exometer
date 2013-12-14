@@ -4,7 +4,7 @@
 
 Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved..
 
-__Version:__ Dec 10 2013 02:31:52
+__Version:__ Dec 13 2013 15:47:10
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -570,8 +570,8 @@ Below is an example, from `exometer/priv/app.config`:
  {exometer, [
      {report, [ 
 	{ subscribers, [ 
-	  { exometer_report_collectd, [db, cache, hits], mean, 2000 } 
-	  { exometer_report_collectd, [db, cache, hits], max, 5000 } 
+	  { exometer_report_collectd, [db, cache, hits], mean, 2000, true } 
+	  { exometer_report_collectd, [db, cache, hits], max, 5000, false } 
         ]}
      ]}
   ]}
@@ -583,7 +583,7 @@ how to configure individual plugins.
 
 The `subscribers` sub-section contains all static subscriptions to be
 setup att exometer applications start. Each tuple in the prop list
-contains four elements:
+contains five elements:
 
 + `receiver` (module name atom)
 <br></br>
@@ -604,6 +604,15 @@ Specifies the data point within the given metric to send to the
 Specifies the interval, in milliseconds, between each update of the
 given metric's data point. At the given interval, the data point will
 be samples, and the result will be sent to the receiver.
+
++ `retry_failed_metrics (true | false)`
+<br></br>
+Specifies if the metric should be continued to be reported
+even if it is not found during a reporting cycle. This would be
+the case if a metric is not created by the time it is reported for
+the first time. If the metric will be created at a later time,
+this value should be set to true. Set this value to false if all
+attempts to report the metric should stop if when is not found.
 
 
 #### <a name="Configuring_reporter_plugins">Configuring reporter plugins</a> ####
@@ -824,6 +833,7 @@ Please see @see exometer_report documentation for details.
 <tr><td><a href="exometer_report_collectd.md" class="module">exometer_report_collectd</a></td></tr>
 <tr><td><a href="exometer_report_graphite.md" class="module">exometer_report_graphite</a></td></tr>
 <tr><td><a href="exometer_report_riak.md" class="module">exometer_report_riak</a></td></tr>
+<tr><td><a href="exometer_report_tty.md" class="module">exometer_report_tty</a></td></tr>
 <tr><td><a href="exometer_slide.md" class="module">exometer_slide</a></td></tr>
 <tr><td><a href="exometer_slot_slide.md" class="module">exometer_slot_slide</a></td></tr>
 <tr><td><a href="exometer_spiral.md" class="module">exometer_spiral</a></td></tr>

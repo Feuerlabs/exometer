@@ -254,13 +254,20 @@ generate an error log message by exometer.
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#list_metrics-0">list_metrics/0</a></td><td></td></tr><tr><td valign="top"><a href="#list_metrics-1">list_metrics/1</a></td><td></td></tr><tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#add_reporter-2">add_reporter/2</a></td><td></td></tr><tr><td valign="top"><a href="#list_metrics-0">list_metrics/0</a></td><td></td></tr><tr><td valign="top"><a href="#list_metrics-1">list_metrics/1</a></td><td></td></tr><tr><td valign="top"><a href="#list_reporters-0">list_reporters/0</a></td><td></td></tr><tr><td valign="top"><a href="#remove_reporter-1">remove_reporter/1</a></td><td></td></tr><tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td>
 Starts the server.</td></tr><tr><td valign="top"><a href="#subscribe-4">subscribe/4</a></td><td></td></tr><tr><td valign="top"><a href="#subscribe-5">subscribe/5</a></td><td></td></tr><tr><td valign="top"><a href="#unsubscribe-3">unsubscribe/3</a></td><td></td></tr><tr><td valign="top"><a href="#unsubscribe-4">unsubscribe/4</a></td><td></td></tr></table>
 
 
 <a name="functions"></a>
 
 ## Function Details ##
+
+<a name="add_reporter-2"></a>
+
+### add_reporter/2 ###
+
+`add_reporter(Reporter, Options) -> any()`
+
 
 <a name="list_metrics-0"></a>
 
@@ -274,6 +281,20 @@ Starts the server.</td></tr><tr><td valign="top"><a href="#subscribe-4">subscrib
 ### list_metrics/1 ###
 
 `list_metrics(Path) -> any()`
+
+
+<a name="list_reporters-0"></a>
+
+### list_reporters/0 ###
+
+`list_reporters() -> any()`
+
+
+<a name="remove_reporter-1"></a>
+
+### remove_reporter/1 ###
+
+`remove_reporter(Reporter) -> any()`
 
 
 <a name="start_link-0"></a>
