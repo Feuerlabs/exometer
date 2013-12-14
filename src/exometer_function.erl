@@ -48,13 +48,13 @@
 %% @doc Callback for creating an exometer `function' entry.
 %%
 %% Function entries are created as
-%% ```erlang
+%% <pre lang="erlang">
 %% exometer:new(Name,{function,...},Opts)
-%% '''
+%% </pre>
 %% which is syntactic sugar for
-%% ```erlang
+%% <pre lang="erlang">
 %% exometer:new(Name,function,[{type_arg,{function,...}}|Opts])
-%% '''
+%% </pre>
 %% where `{function,...}' is either simply `{function, Module, Function}',
 %% in which case `get_value(Name, DataPoints)' will result in a call to
 %% `Module:Function(DataPoints)', which must return a list of data point values.
@@ -90,28 +90,28 @@
 %%
 %% An entry that returns a subset of `erlang:memory()':
 %%
-%% ```erlang
+%% <pre lang="erlang">
 %% exometer:new([mem], {function,erlang,memory,[],proplist,[total,processes]}).
-%% '''
+%% </pre>
 %%
 %% An entry that reports the heap size and message queue length of the
 %% code server:
 %%
-%% ```erlang
+%% <pre lang="erlang">
 %% exometer:new(
 %%     [code_server, pinfo],
 %%     {function,erlang,process_info,[{'$call',erlang,whereis,[code_server]}],
 %%      proplist, [heap_size, message_queue_len]}).
-%% '''
+%% </pre>
 %%
 %% An entry that reports the heap size of the code server.
 %%
-%% ```erlang
+%% <pre lang="erlang">
 %% exometer:new(
-%%     [code_server, heap_size],
-%%     {function,erlang,process_info,[{'$call',erlang,whereis,[code_server]},
-%%                                    '$dp'], tagged, [heap_size]}).
-%% '''
+%%   [code_server, heap_size],
+%%   {function,erlang,process_info,
+%%    [{'$call',erlang,whereis,[code_server]}, '$dp'], tagged, [heap_size]}).
+%% </pre>
 %%
 %% @end
 new(_Name, function, Opts) ->
