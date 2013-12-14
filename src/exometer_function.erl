@@ -48,11 +48,11 @@
 %% @doc Callback for creating an exometer `function' entry.
 %%
 %% Function entries are created as
-%% ``` erlang
+%% ```erlang
 %% exometer:new(Name,{function,...},Opts)
 %% '''
 %% which is syntactic sugar for
-%% ``` erlang
+%% ```erlang
 %% exometer:new(Name,function,[{type_arg,{function,...}}|Opts])
 %% '''
 %% where `{function,...}' is either simply `{function, Module, Function}',
@@ -90,14 +90,14 @@
 %%
 %% An entry that returns a subset of `erlang:memory()':
 %%
-%% ``` erlang
+%% ```erlang
 %% exometer:new([mem], {function,erlang,memory,[],proplist,[total,processes]}).
 %% '''
 %%
 %% An entry that reports the heap size and message queue length of the
 %% code server:
 %%
-%% ``` erlang
+%% ```erlang
 %% exometer:new(
 %%     [code_server, pinfo],
 %%     {function,erlang,process_info,[{'$call',erlang,whereis,[code_server]}],
@@ -106,7 +106,7 @@
 %%
 %% An entry that reports the heap size of the code server.
 %%
-%% ``` erlang
+%% ```erlang
 %% exometer:new(
 %%     [code_server, heap_size],
 %%     {function,erlang,process_info,[{'$call',erlang,whereis,[code_server]},
