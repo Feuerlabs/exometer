@@ -241,8 +241,7 @@ add_element(Val, Slide) ->
     add_element(timestamp(), Val, Slide).
 
 add_element(TS, Val, #slide{cur_slot = CurrentSlot, 
-			    sample_fun = SampleF,
-			    cur_state = CurSt} = Slide) ->
+			    sample_fun = SampleF} = Slide) ->
 
     TSSlot = get_slot(TS, Slide),
     
@@ -268,7 +267,7 @@ add_element(TS, Val, #slide{cur_slot = CurrentSlot,
     %%
     %% Invoke the sample MFA to get a new state to work with
     %%
-    Slide1#slide {cur_state = SampleF(TS, Val, CurSt)}.
+    Slide1#slide {cur_state = SampleF(TS, Val, Slide1#slide.cur_state)}.
 
 
 -spec to_list(#slide{}) -> list().
