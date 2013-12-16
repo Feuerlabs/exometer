@@ -125,21 +125,24 @@ table(N) when is_integer(N), N > 20 ->
 %% @end
 
 %% Special case when we get called with an empty histogram.
-get_statistics(_L, _Total, []) ->
+get_statistics2(_L, [], _Mean) ->
     [];
 
 %% Special case when we get called from
 %% exometer_histogram:get_value_int() with just
 %% a nil min/max pair.
-get_statistics(_L, _Total, [0,0]) ->
+get_statistics2(_L, [0,0], _Mean) ->
     [];
 
-get_statistics(L, Total, Sorted) ->
+get_statistics2(L, Sorted, Mean) ->
     P50 = perc(0.5, L),
     Items = [{min,1}, {50, P50}, {median, P50}, {75, perc(0.75,L)},
 	     {90, perc(0.9,L)}, {95, perc(0.95,L)}, {99, perc(0.99,L)},
 	     {999, perc(0.999,L)}, {max,L}],
-    [{n,L}, {mean, Total/L} | pick_items(Sorted, 1, Items)].
+    [{n,L}, {mean, Mean} | pick_items(Sorted, 1, Items)].
+
+get_statistics(L, Total, Sorted) ->
+    get_statistics2(L, Sorted, Total / L).
 
 pick_items([H|_] = L, P, [{Tag,P}|Ps]) ->
     [{Tag,H} | pick_items(L, P, Ps)];
