@@ -100,7 +100,7 @@ get_datapoint_value(count, St) ->
     { count, St#st.total };
 
 get_datapoint_value(one, St) ->
-    { count, sum_histogram(St#st.slide)};
+    { one, sum_histogram(St#st.slide)};
     
 get_datapoint_value(Unknown, _St) ->
     { Unknown, { error, undefined }}.
