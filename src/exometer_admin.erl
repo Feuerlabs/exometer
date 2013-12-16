@@ -249,7 +249,9 @@ module(spiral   )     -> exometer_spiral;
 %% module(spiral   )     -> {exometer, exometer_spiral};
 module(netlink  )     -> exometer_netlink;
 module(probe    )     -> exometer_probe;
-module(cpu      )     -> {exometer_probe, exometer_cpu}.
+module(cpu      )     -> {exometer_probe, exometer_cpu};
+module(function )     -> exometer_function.
+
 
 search_default(Name, Type) ->
     case ets:lookup(?EXOMETER_SHARED, {default,Type,Name}) of

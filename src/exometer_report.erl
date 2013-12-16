@@ -327,10 +327,11 @@ init_subscriber({Reporter, Metric, DataPoint, Interval, RetryFailedMetrics}, Acc
 init_subscriber({Reporter, Metric, DataPoint, Interval, RetryFailedMetrics, Extra}, Acc) ->
     [subscribe_(Reporter, Metric, DataPoint, Interval, RetryFailedMetrics, Extra) | Acc];
 
-
+init_subscriber({Reporter, Metric, DataPoint, Interval}, Acc) ->
+    [subscribe_(Reporter, Metric, DataPoint, Interval, true, undefined) | Acc];
 init_subscriber(Other, Acc) ->
     ?warning("Incorrect static subscriber spec ~p. "
-	     "Use { Reporter, Metric, DataPoint, Interval, Extra }~n", [ Other ]),
+	     "Use { Reporter, Metric, DataPoint, Interval [, Extra ]}~n", [ Other ]),
     Acc.
 
 %%--------------------------------------------------------------------
@@ -451,11 +452,11 @@ handle_info({ report, #key{ reporter = Reporter,
 		{ _, {ok, [{_, Val}]}} ->
 		    %% Distribute metric value to the correct process
 		    report_value(Reporter, Metric, DataPoint, Extra, Val),
-
+		    
 		    %% Re-arm the timer for next round
 		    TRef = erlang:send_after(Interval, self(), 
 					     {report, Key, Interval}),
-
+		    
 		    %% Replace the pid_subscriber info with a record having
 		    %% the new timer ref. 
 		    {noreply, St#st{subscribers =
@@ -602,8 +603,12 @@ cancel_timer(TRef) ->
 
 
 report_value(Reporter, Metric, DataPoint, Extra, Val) ->
-    Reporter ! {exometer_report, Metric, DataPoint, Extra, Val},
-    true.
+    try Reporter ! {exometer_report, Metric, DataPoint, Extra, Val},
+	 true
+    catch
+	error:_ -> false;
+	exit:_ -> false
+    end.
 
 retrieve_metric({ Metric, Enabled}, Subscribers, Acc) ->
     [ { Metric, exometer:info(Metric, datapoints), 

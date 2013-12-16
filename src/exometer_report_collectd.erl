@@ -163,25 +163,25 @@ exometer_info({exometer_callback, refresh_metric,
 	[] ->
 	    ?debug("refresh_metric(~p, ~p): No longer subscribed~n",
 		   [Metric, DataPoint]),
-	     St;
+	     {ok, St};
 	[{_, _TRef}] ->
 	    ?info("Refreshing metric ~p_~p = ~p~n",
 		  [Metric, DataPoint, Value]),
-	    report_exometer_(Metric, DataPoint, Value, St)
+	    {ok, report_exometer_(Metric, DataPoint, Value, St)}
     end;
 exometer_info({exometer_callback, reconnect}, St) ->
     ?info("Reconnecting: ~p~n", [St]),
     case connect_collectd(St) of
 	{ok, NSt} ->
-	    NSt;
+	    {ok, NSt};
 	Err  ->
 	    ?warning("Could not reconnect: ~p~n", [Err]),
 	    reconnect_after(St#st.reconnect_interval),
-	    St
+	    {ok, St}
     end;
 exometer_info(Unknown, St) ->
     ?info("Unknown: ~p~n", [Unknown]),
-    St.
+    {ok, St}.
 
 report_exometer_(Metric, DataPoint, Value,
 		 #st{hostname = HostName,
@@ -206,48 +206,43 @@ report_exometer_(Metric, DataPoint, Value,
 
 send_request(Sock, Request, Metric, DataPoint, Value,
 	     #st{read_timeout = TOut} = St) ->
-    Res = try afunix:send(Sock, Request) of
-	      ok ->
-		  case afunix:recv(Sock, 0, TOut) of
-		      {ok, Bin} ->
-			  %% Parse the reply
-			  case parse_reply(Request, Bin, St) of
-			      %% Reply is ok.
-			      %% Ensure that we have periodical refreshes
-			      %% of this value.
-			      {ok, St} ->
-				  ?debug("Setting up refresh~n"),
-				  setup_refresh(
-				    St#st.refresh_interval, Metric,
-				    DataPoint, Value),
-				  St;
-			      %% Something went wrong with reply.
-			      %% Do not refresh
-			      _ -> St
-			  end;
-		      _ ->
-			  %% We failed to receive data,
-			  %% close and setup later reconnect
-			  ?warning("Failed to receive. Will reconnect in ~p~n",
-				   [St#st.reconnect_interval]),
-			  reconnect_after(Sock, St#st.reconnect_interval),
-			  St#st{socket = undefined}
-		  end;
-	      _ ->
-		  error
-	  catch
-	      error:_ -> error
-	  end,
-    case Res of
-	ok -> ok;
-	error ->
+    try afunix:send(Sock, Request) of
+	ok ->
+	    case afunix:recv(Sock, 0, TOut) of
+		{ok, Bin} ->
+		    %% Parse the reply
+		    case parse_reply(Request, Bin, St) of
+			%% Reply is ok.
+			%% Ensure that we have periodical refreshes
+			%% of this value.
+			{ok, St1} ->
+			    ?debug("Setting up refresh~n"),
+			    setup_refresh(
+			      St1#st.refresh_interval, Metric,
+			      DataPoint, Value),
+			    St1;
+			%% Something went wrong with reply.
+			%% Do not refresh
+			_ -> St
+		    end;
+		_ ->
+		    %% We failed to receive data,
+		    %% close and setup later reconnect
+		    ?warning("Failed to receive. Will reconnect in ~p~n",
+			     [St#st.reconnect_interval]),
+		    reconnect_after(Sock, St#st.reconnect_interval),
+		    St#st{socket = undefined}
+	    end;
+	_ ->
+	    St
+    catch
+	error:_ ->
 	    %% We failed to receive data, close and setup later reconnect
 	    ?warning("Failed to send. Will reconnect in ~p~n",
 		     [St#st.reconnect_interval]),
 	    reconnect_after(Sock, St#st.reconnect_interval),
 	    St#st {socket = undefined}
     end.
-
 
 ets_key(Metric, DataPoint) ->
     Metric ++ [ DataPoint ].

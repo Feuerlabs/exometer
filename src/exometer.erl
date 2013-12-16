@@ -57,7 +57,10 @@
 
 -export([create_entry/1]).  % called only from exometer_admin.erl
 
--export_type([name/0, type/0]).
+%% Convenience function for testing
+-export([start/0]).
+
+-export_type([name/0, type/0, options/0]).
 
 -compile(inline).
 
@@ -73,8 +76,12 @@
 
 -define(DATAPOINTS, [value, ms_since_reset]).
 
--spec new(name(), type()) -> ok.
+start() ->
+    lager:start(),
+    application:start(exometer).
 
+
+-spec new(name(), type()) -> ok.
 %% @equiv new(Name, Type, [])
 new(Name, Type) ->
     new(Name, Type, []).
