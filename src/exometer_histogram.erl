@@ -34,8 +34,8 @@
 -compile({igor, [{files, ["src/exometer_util.erl"
 			  , "src/exometer_proc.erl"
 			  , "src/exometer_slot_slide.erl"
-			  , "src/exometer_slide.erl"
-			 ]}]}).
+ 			  , "src/exometer_slide.erl"
+ 			 ]}]}).
 
 -include("exometer.hrl").
 
@@ -134,13 +134,20 @@ get_value_int_(#st{truncate = Trunc,
 		   [Val|List]};
 
 	      ({_TS, Val}, {Length, Total, Min, Max, List}) ->
-		  {Length + 1, Total + Val, min(Val,Min), max(Val, Max), 
+		  {Length + 1, Total + Val, min(Val, Min), max(Val, Max), 
 		   [Val|List]}
 	  end,
 	  {0,  Tot0, 0, 0, []}, St#st.slide),
 
     Sorted = lists:sort(Lst),
-    Results = exometer_util:get_statistics(Length + 2, Total, [Min] ++ Sorted ++ [Max]),
+    Mean = case Length of
+	       0 -> 0.0;
+	       N -> Total / N
+	   end,
+		    
+    Results = exometer_util:get_statistics2(Length + 2, 
+					    [Min] ++ Sorted ++ [Max],
+					    Mean),
     [get_dp(K, Results, Trunc) || K <- DataPoints].
     %% [get_datapoint_value(Length, Total, Sorted, DataPoint, Trunc)
     %%  || DataPoint <- DataPoints].
