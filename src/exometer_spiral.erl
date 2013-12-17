@@ -94,7 +94,8 @@ init_int(Name, _Type, Options) ->
     Slide = exometer_slot_slide:new(St#st.time_span,
 				    St#st.slot_period,
 				    fun count_sample/3,
-				    fun count_transform/2),
+				    fun count_transform/2,
+				    Options),
     {ok, St#st{slide = Slide}}.
 
 delete(_Name, _Type, Pid) ->

@@ -12,7 +12,7 @@ clean:
 
 
 test:
-	rebar eunit
+	rebar eunit skip_deps=true
 
 edown_deps:
 	rebar get-deps compile edown=true

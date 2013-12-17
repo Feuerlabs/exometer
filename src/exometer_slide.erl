@@ -5,7 +5,7 @@
 
 -module(exometer_slide).
 
--export([new/4,
+-export([new/5,
 	 reset/1,
 	 add_element/2,
 	 add_element/3,
@@ -29,16 +29,18 @@
 
 %% Fixed size event buffer
 -record(slide, {size = 0 :: integer(),  % ms window
+		n = 0    :: integer(), % number of elements in buf1
+		max_n    :: undefined | integer(),  % max no of elements
 		last = 0 :: integer(), % millisecond timestamp
-		cur_size = 0 :: integer(),
 		buf1 = []    :: list(),
 		buf2 = []    :: list()}).
 
 -spec new(integer(), integer(), 
-	  sample_fun(), transform_fun()) -> #slide{}.
+	  sample_fun(), transform_fun(), list()) -> #slide{}.
 %%
-new(Size, _Period, _SampleFun, _TransformFun) ->
+new(Size, _Period, _SampleFun, _TransformFun, Opts) ->
     #slide{size = Size,
+	   max_n = proplists:get_value(max_n, Opts, infinity),
 	   last = timestamp(),
 	   buf1 = [],
 	   buf2 = []}.
@@ -46,7 +48,7 @@ new(Size, _Period, _SampleFun, _TransformFun) ->
 -spec reset(#slide{}) -> #slide{}.
 %%
 reset(Slide) ->
-    new(Slide#slide.size, 0, nil, nil).
+    Slide#slide{n = 0, buf1 = [], buf2 = [], last = 0}.
 
 -spec add_element(any(), #slide{}) -> #slide{}.
 %%
@@ -55,44 +57,60 @@ add_element(Evt, Slide) ->
 add_element(_TS, _Evt, Slide) when Slide#slide.size == 0 ->
     Slide;
 add_element(TS, Evt, #slide{last = Last, size = Sz,
+			    n = N, max_n = MaxN,
 			    buf1 = Buf1} = Slide) ->
-    if TS - Last > Sz ->
+    N1 = N+1,
+    if TS - Last > Sz; N1 > MaxN ->
 	    %% swap
 	    Slide#slide{last = TS,
+			n = 1,
 			buf1 = [{TS, Evt}],
 			buf2 = Buf1};
        true ->
-	    Slide#slide{buf1 = [{TS, Evt} | Buf1]}
+	    Slide#slide{n = N1, buf1 = [{TS, Evt} | Buf1]}
     end.
 
 -spec to_list(#slide{}) -> list().
 %%
 to_list(#slide{size = Sz}) when Sz == 0 ->
     [];
-to_list(#slide{size = Sz, buf1 = Buf1, buf2 = Buf2}) ->
+to_list(#slide{size = Sz, n = N, max_n = MaxN, buf1 = Buf1, buf2 = Buf2}) ->
     Start = timestamp() - Sz,
-    take_since(Buf2, Start, reverse(Buf1)).
+    take_since(Buf2, Start, n_diff(MaxN, N), reverse(Buf1)).
 
 foldl(_TS, _Fun, _Acc, #slide{size = Sz}) when Sz == 0 ->
     [];
-foldl(TS, Fun, Acc, #slide{size = Sz, buf1 = Buf1, buf2 = Buf2}) ->
+foldl(TS, Fun, Acc, #slide{size = Sz, n = N, max_n = MaxN,
+			   buf1 = Buf1, buf2 = Buf2}) ->
     Start = TS - Sz,
     lists:foldr(
-      Fun, lists:foldl(Fun, Acc, take_since(Buf2, Start, [])), Buf1).
+      Fun, lists:foldl(Fun, Acc, take_since(
+				   Buf2, Start, n_diff(MaxN,N), [])), Buf1).
 
 foldl(Fun, Acc, Slide) ->
     foldl(timestamp(), Fun, Acc, Slide).
 
-take_since([{TS,_} = H|T], Start, Acc) when TS >= Start ->
-    take_since(T, Start, [H|Acc]);
-take_since(_, _, Acc) ->
+take_since([{TS,_} = H|T], Start, N, Acc) when TS >= Start, N > 0 ->
+    take_since(T, Start, decr(N), [H|Acc]);
+take_since(_, _, _, Acc) ->
     %% Don't reverse; already the wanted order.
     Acc.
+
+decr(N) when is_integer(N) ->
+    N-1;
+decr(V) ->
+    V.
+
+n_diff(A, B) when is_integer(A) ->
+    A - B;
+n_diff(_, B) ->
+    B.
+
 
 test() ->
     %% Create a slotted slide covering 2000 msec, where
     %% each slot is 100 msec wide.
-    S = new(2000, 0, nil, nil),
+    S = new(2000, 0, nil, nil, []),
     {T1, S1 }= timer:tc(?MODULE, build_histogram, [S]),
 
     {T2, Avg } = timer:tc(?MODULE, calc_avg, [S1]),

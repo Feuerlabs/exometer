@@ -108,49 +108,72 @@ get_datapoints(_Name, _Type, _Ref) ->
 init_int(Name, _Type, Options) ->
     St = process_opts(#st{name = Name}, [{histogram_module, exometer_slot_slide},
 					 {time_span, 60000},
-					 {slot_period, 100}] ++ Options),
+					 {slot_period, 10}] ++ Options),
 
     Slide = (St#st.histogram_module):new(St#st.time_span,
 					 St#st.slot_period,
 					 fun average_sample/3,
-					 fun average_transform/2),
-
+					 fun average_transform/2,
+					 Options),
     {ok, St#st{slide = Slide}}.
 
 get_value_int(St, default) ->
     get_value_int_(St, ?DATAPOINTS);
+get_value_int(_, []) ->
+    [];
 get_value_int(St, DataPoints) ->
     get_value_int_(St, DataPoints).
 
 get_value_int_(#st{truncate = Trunc, 
-		   histogram_module = Module} = St, DataPoints) ->
+                   histogram_module = Module} = St, DataPoints) ->
     %% We need element count and sum of all elements to get mean value.
     Tot0 = case Trunc of true -> 0; false -> 0.0 end,
-    {Length, Total, Min, Max, Lst} =
-	Module:foldl(
-	  fun
-	      ({_TS, {Val, NMin, NMax}}, {Length, Total, OMin, OMax, List}) ->
-		  {Length + 1, Total + Val, min(OMin, NMin), max(OMax, NMax),
-		   [Val|List]};
-
-	      ({_TS, Val}, {Length, Total, Min, Max, List}) ->
-		  {Length + 1, Total + Val, min(Val, Min), max(Val, Max), 
-		   [Val|List]}
-	  end,
-	  {0,  Tot0, 0, 0, []}, St#st.slide),
-
-    Sorted = lists:sort(Lst),
+    {Length, Total, Min0, Max, Lst0, Xtra} =
+        Module:foldl(
+          fun
+              ({_TS, {Val, NMin, NMax, X}},
+	       {Length, Total, OMin, OMax, List, Xs}) ->
+                  {Length + 1, Total + Val, min(OMin, NMin), max(OMax, NMax),
+                   [Val|List], [X|Xs]};
+	      
+              ({_TS, Val}, {Length, Total, Min, Max, List, Xs}) ->
+                  {Length + 1, Total + Val, min(Val, Min), max(Val, Max), 
+                   [Val|List], Xs}
+          end,
+          {0,  Tot0, infinity, 0, [], []}, St#st.slide),
+    Min = if Min0 == infinity -> 0; true -> Min0 end,
     Mean = case Length of
-	       0 -> 0.0;
-	       N -> Total / N
-	   end,
-		    
-    Results = exometer_util:get_statistics2(Length + 2, 
-					    [Min] ++ Sorted ++ [Max],
-					    Mean),
+               0 -> 0.0;
+               N -> Total / N
+           end,
+    
+    {Len, List} =
+	if Module == exometer_slot_slide ->
+		{Length1, Lst} = add_extra(Length, Lst0, Xtra),
+		{Length1 + 2, [Min|lists:sort(Lst)] ++ [Max]};
+	   true ->
+		{Length, lists:sort(Lst0)}
+	end,
+    Results = exometer_util:get_statistics2(Len, List, Mean),
     [get_dp(K, Results, Trunc) || K <- DataPoints].
-    %% [get_datapoint_value(Length, Total, Sorted, DataPoint, Trunc)
-    %%  || DataPoint <- DataPoints].
+
+add_extra(Length, L, []) ->
+    {Length, L};
+add_extra(Length, L, X) when Length < 300 ->
+    Pick = max(1, ((300 - Length) div Length) + 1),
+    pick_extra(X, Pick, Pick, L, Length);
+add_extra(Length, L, _) ->
+    {Length, L}.
+
+
+pick_extra([[H|T]|T1], P, Pick, L, Length) when P > 0 ->
+    pick_extra([T|T1], P-1, Pick, [H|L], Length+1);
+pick_extra([_|T], 0, Pick, L, Length) ->
+    pick_extra(T, Pick, Pick, L, Length);
+pick_extra([[]|T], _, Pick, L, Length) ->
+    pick_extra(T, Pick, Pick, L, Length);
+pick_extra([], _, _, L, Length) ->
+    {Length, L}.
 
 get_dp(K, L, Trunc) ->
     case lists:keyfind(K, 1, L) of
@@ -184,9 +207,9 @@ update_int(Value, TS, #st{slide = Slide,
 reset(_Name, _Type, Pid) ->
     exometer_proc:cast(Pid, reset).
 
-reset_int(#st{time_span = Span, 
+reset_int(#st{slide = Slide,
 	      histogram_module = Module} = St) ->
-    St#st{slide = Module:new(Span)}.
+    St#st{slide = Module:reset(Slide)}.
 
 sample(_Name, _Type, _Ref) ->
     {error, unsupported}.
@@ -209,13 +232,28 @@ process_opts(St, Options) ->
 			       | lists:keydelete(Opt, 1, St1#st.opts) ] }
       end, St, Options).
 
+-record(sample, {count, total, min, max, extra = []}).
 %% Simple sample processor that maintains an average
 %% of all sampled values
 average_sample(_TS, Val, undefined) ->
-    {1, Val, Val, Val};
+    #sample{count = 1,
+	    total = Val,
+	    min = Val,
+	    max = Val};
 
-average_sample(_TS, Val, {Count, Total, Min, Max}) ->
-    {Count + 1, Total + Val, min(Min, Val), max(Max, Val)}.
+average_sample(TS, Val, #sample{count = Count,
+				 total = Total,
+				 min = Min,
+				 max = Max, extra = X} = S) ->
+    Count1 = Count + 1,
+    X1 = if Count1 rem 4 == 0 -> [Val|X];
+	    true -> X
+	 end,
+    S#sample{count = Count1,
+	     total = Total + Val,
+	     min = min(Min, Val),
+	     max = max(Max, Val),
+	     extra = X1}.
 
 %% If average_sample() has not been called for the current time slot,
 %% then the provided state will still be 'undefined'
@@ -224,8 +262,12 @@ average_transform(_TS, undefined) ->
 
 %% Return the calculated total for the slot and return it as the
 %% element to be stored in the histogram.
-average_transform(_TS, {Count, Total, Min, Max}) ->
-    {Total / Count, Min, Max}. %% Return the sum of all counter increments received during this slot
+average_transform(_TS, #sample{count = Count,
+			       total = Total,
+			       min = Min,
+			       max = Max, extra = X}) ->
+    %% Return the sum of all counter increments received during this slot
+    {Total / Count, Min, Max, X}.
 
 get_datapoint_value(_Length, _Total, [], min, _) ->
     { min, 0 };
