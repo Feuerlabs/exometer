@@ -241,7 +241,7 @@ average_sample(_TS, Val, undefined) ->
 	    min = Val,
 	    max = Val};
 
-average_sample(TS, Val, #sample{count = Count,
+average_sample(_TS, Val, #sample{count = Count,
 				 total = Total,
 				 min = Min,
 				 max = Max, extra = X} = S) ->
