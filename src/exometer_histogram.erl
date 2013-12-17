@@ -180,7 +180,7 @@ get_dp(K, L, Trunc) ->
 	false ->
 	    {K, if Trunc -> 0; true -> 0.0 end};
 	{_,_} = DP ->
-	    DP
+	    opt_trunc(Trunc, DP)
     end.
 
 perc(P, Len) when P > 1.0 ->
