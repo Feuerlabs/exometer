@@ -141,6 +141,8 @@ get_statistics2(L, Sorted, Mean) ->
 	     {999, perc(0.999,L)}, {max,L}],
     [{n,L}, {mean, Mean} | pick_items(Sorted, 1, Items)].
 
+get_statistics(_, _, []) ->
+    [];
 get_statistics(L, Total, Sorted) ->
     get_statistics2(L, Sorted, Total / L).
 

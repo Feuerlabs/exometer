@@ -83,8 +83,10 @@ datapoints(_, L) when is_list(L) -> L.
 
 datapoints(counter) ->
     [value];
-datapoints(T) when T==histogram; T==duration ->
+datapoints(histogram) ->
     stats_datapoints();
+datapoints(duration) ->
+    [count, last |stats_datapoints()];
 datapoints(spiral) ->
     [one, count];
 datapoints(meter) ->
@@ -141,7 +143,9 @@ get_value_(Name, counter, _Ref) ->
 get_value_(Name, histogram, _Ref) ->
     calc_stats(folsom_metrics_histogram:get_values(Name));
 get_value_(Name, duration, _Ref) ->
-    calc_stats(folsom_metrics:get_metric_value(Name));
+    {Name, Cnt, _Start, Last} = folsom_metrics_duration:get_value(Name),
+    Stats = calc_stats(folsom_metrics_histogram:get_values(Name)),
+    [{count, Cnt}, {last, Last} | Stats];
 get_value_(Name, meter, _Ref) ->
     folsom_metrics:get_metric_value(Name);
 get_value_(Name, spiral, _Ref) ->

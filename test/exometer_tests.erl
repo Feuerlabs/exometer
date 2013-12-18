@@ -62,7 +62,8 @@ t_fast_counter() ->
 
 t_histogram() ->
     C = [?MODULE, hist, ?LINE],
-    ok = exometer:new(C, histogram, [{histogram_module, exometer_slide}]),
+    ok = exometer:new(C, histogram, [{histogram_module, exometer_slide},
+                                     {truncate, false}]),
     [ok = update_(C,V) || V <- vals()],
     {_, {ok,DPs}} = timer:tc(exometer, get_value, [C]),
     [{n,134},{mean,2126866},{min,1},{max,9},{median,2},

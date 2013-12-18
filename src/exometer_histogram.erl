@@ -183,6 +183,11 @@ get_dp(K, L, Trunc) ->
     case lists:keyfind(K, 1, L) of
 	false ->
 	    {K, if Trunc -> 0; true -> 0.0 end};
+        {median, F} when is_float(F) ->
+            %% always truncate median
+            {median, trunc(F)};
+        {_, V} = DP when is_integer(V) ->
+            DP;
 	{_,_} = DP ->
 	    opt_trunc(Trunc, DP)
     end.
@@ -273,54 +278,14 @@ average_transform(_TS, #sample{count = Count,
     %% Return the sum of all counter increments received during this slot
     {Total / Count, Min, Max, X}.
 
-get_datapoint_value(_Length, _Total, [], min, _) ->
-    { min, 0 };
-get_datapoint_value(_Length, _Total, [], max, _) ->
-    { max, 0 };
-get_datapoint_value(_Length, _Total, Sorted, min, _) ->
-    [ Min | _ ] = Sorted,
-    { min, Min };
-get_datapoint_value(_Length, _Total, Sorted, max, _) ->
-    { max, lists:last(Sorted) };
-get_datapoint_value(Length, _Total, Sorted, median, Trunc) ->
-    %% Calc median. FIXME: Can probably be made faster.
-    dbg({?LINE,length,Length}),
-    Median = case {Length, Length rem 2} of
-		 {0, _} -> 0.0;
-		 {_, 0} ->
-		     %% Even number with at least two elements.
-		     %% Return average of two center elements
-		     lists:sum(lists:sublist(Sorted,
-					     trunc(Length / 2), 2)) / 2.0;
-		 {_, 1} ->
-		     %% Odd number with at least one element.
-		     %% Return center element
-		     lists:nth(trunc(Length / 2) + 1, Sorted)
-	     end,
-    {median, opt_trunc(Trunc, Median)};
-get_datapoint_value(Length, Total, _Sorted, mean, Trunc) ->
-    dbg({?LINE,length,Length}),
-    Mean = case Length of
-	       0 -> 0.0;
-	       _ -> Total / Length
-	   end,
-    {mean, opt_trunc(Trunc, Mean)};
-get_datapoint_value(Length, Total, Sorted, arithmetic_mean, Trunc) ->
-    {mean, Mean} = get_datapoint_value(Length, Total, Sorted, mean, Trunc),
-    {arithmetic_mean, opt_trunc(Trunc, Mean)};
-get_datapoint_value(Length, _Total, Sorted, Perc, Trunc) when is_number(Perc) ->
-    {Perc, opt_trunc(Trunc, nth(perc(Perc / 100, Length), Sorted))};
-get_datapoint_value(_Length, _Total, _Sorted, Unknown, Trunc)  ->
-    { Unknown, if Trunc -> 0; true -> 0.0 end}.
-
 nth(_, []) ->
     0;
 nth(N, [_|_] = L) ->
     lists:nth(N, L).
 
 
-opt_trunc(true, V) when is_float(V) ->
-    trunc(V);
+opt_trunc(true, {K,V}) when is_float(V) ->
+    {K, trunc(V)};
 opt_trunc(_, V) ->
     V.
 
