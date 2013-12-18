@@ -122,13 +122,14 @@ t_history(N, slot_slide, F) ->
 		    {histogram_module, exometer_slot_slide},
 		    {slot_period, 1}]),
     RefStats = load_data(F, 2000, M),
-    {ok, Val} = exometer:get_value(M),
+    {T, {ok, Val}} = timer:tc(exometer,get_value,[M]),
     Subset = subset(RefStats),
     Error = calc_error(Val, Subset),
     io:fwrite(user,
-	      "history(~w,ss): ~p~n"
+	      "time: ~p~n"
+              "history(~w,ss): ~p~n"
 	      "reference:    ~p~n"
-	      "error: ~p~n", [N, Val, Subset, Error]),
+	      "error: ~p~n", [T, N, Val, Subset, Error]),
     ok;
 t_history(N, folsom, F) ->
     ok = exometer:new(
@@ -137,13 +138,14 @@ t_history(N, folsom, F) ->
 		    {type, histogram},
 		    {truncate, true}]),
     RefStats = load_data(F, M),
-    {ok, Val} = exometer:get_value(M),
+    {T, {ok, Val}} = timer:tc(exometer,get_value,[M]),
     Subset = subset(RefStats),
     Error = calc_error(Val, Subset),
     io:fwrite(user,
-	      "history(~w,f): ~p~n"
+	      "time: ~p~n"
+              "history(~w,f): ~p~n"
 	      "reference: ~p~n"
-	      "error: ~p~n", [N, Val, Subset, Error]),
+	      "error: ~p~n", [T, N, Val, Subset, Error]),
     ok.
 
 subset(Stats) ->

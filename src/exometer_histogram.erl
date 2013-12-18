@@ -160,10 +160,14 @@ get_value_int_(#st{truncate = Trunc,
 add_extra(Length, L, []) ->
     {Length, L};
 add_extra(Length, L, X) when Length < 300 ->
-    Pick = max(1, ((300 - Length) div Length) + 1),
+    %% aim for 600 elements, since experiments indicate that this
+    %% gives decent accuracy at decent speed (ca 300-400 us on a Core i7)
+    Pick = max(2, ((600 - Length) div Length) + 1),
     pick_extra(X, Pick, Pick, L, Length);
-add_extra(Length, L, _) ->
-    {Length, L}.
+add_extra(Length, L, X) ->
+    %% Always take something from the Xtra, since this improves percentile
+    %% accuracy
+    pick_extra(X, 1, 1, L, Length).
 
 
 pick_extra([[H|T]|T1], P, Pick, L, Length) when P > 0 ->
