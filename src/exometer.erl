@@ -330,7 +330,8 @@ reset(Name)  when is_list(Name) ->
 			 ref = {Pid, _}}]
 	  when T==spiral; T==histogram; T==exometer_proc ->
 	    exometer_cache:delete(Name),
-	    exo_proc_call(Pid, reset);
+	    Pid ! {exometer_proc, reset},
+            ok;
 	[#exometer_entry{status = enabled,
 			 module = M, type = Type, ref = Ref}] ->
 	    exometer_cache:delete(Name),

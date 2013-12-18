@@ -101,7 +101,7 @@ update(_Name, Value, _Type, Pid) when is_pid(Pid) ->
     gen_server:cast(Pid, {update, Value}).
 
 reset(_Name, _Type, Pid) when is_pid(Pid) ->
-    gen_server:call(Pid, reset).
+    gen_server:cast(Pid, reset).
 
 sample(_Name, _Type, Pid) when is_pid(Pid) ->
     gen_server:call(Pid, sample).
@@ -169,6 +169,8 @@ handle_call(Req, From, #st{module = M, mod_state = ModSt} = St) ->
 
 handle_cast({update, Value}, #st{module = M, mod_state = ModSt} = St) ->
     noreply(M:probe_update(Value, ModSt), St);
+handle_cast(reset, #st{module = M, mod_state = ModSt} = St) ->
+    noreply(M:probe_reset(ModSt), St);
 handle_cast(Msg, #st{module = M, mod_state = ModSt} = St) ->
     noreply(M:probe_handle_cast(Msg, ModSt), St).
 

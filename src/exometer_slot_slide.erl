@@ -284,7 +284,8 @@ to_list(#slide{timespan = TimeSpan } = Slide) ->
 -spec reset(#slide{}) -> #slide{}.
 
 reset(#slide{} = Slide) ->
-    Slide#slide { cur_state = undefined, 
+    Slide#slide { cur_state = undefined,
+                  cur_slot = 0,
 		  list1 = [], 
 		  list2 = [],
 		  list1_start_slot = 0}.
