@@ -416,7 +416,7 @@
 
 
 -define(RESULT_OK, "0 ").
--define(RESULT_SYNTAX_ERORR, "1 ").
+-define(RESULT_SYNTAX_ERROR, "1 ").
 -define(RESULT_UNKNOWN_METRIC, "2 ").
 -define(RESULT_INVALID_SOCKET, "3 ").
 -define(RESULT_INTERNAL_ERROR, "4 ").
@@ -898,7 +898,7 @@ server_result(ok, Message) ->
     list_to_binary(?RESULT_OK ++ Message ++ "\n");
 
 server_result(syntax_error, Message) ->
-    list_to_binary(?RESULT_SYNTAX_ERORR ++ Message ++ "\n");
+    list_to_binary(?RESULT_SYNTAX_ERROR ++ Message ++ "\n");
 
 server_result(unknown_metric, Message) ->
     list_to_binary(?RESULT_UNKNOWN_METRIC ++ Message ++ "\n");
