@@ -1,8 +1,8 @@
 %% @private
 -module(minmax_example).
 
--export([minmax_sample/3, 
-	minmax_transform/2]).
+-export([minmax_sample/3,
+        minmax_transform/2]).
 
 %% Simple sample processor that maintains a min/max tuple
 %% for all received values

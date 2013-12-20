@@ -10,11 +10,11 @@
 
 -module(count_example).
 
--export([count_sample/3, 
-	count_transform/2]).
+-export([count_sample/3,
+        count_transform/2]).
 
 %% Simple sample processor that maintains a counter.
-%% of all 
+%% of all
 count_sample(_TS, Increment, undefined) ->
    Increment;
 

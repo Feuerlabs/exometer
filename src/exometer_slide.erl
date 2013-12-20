@@ -6,12 +6,12 @@
 -module(exometer_slide).
 
 -export([new/5,
-	 reset/1,
-	 add_element/2,
-	 add_element/3,
-	 to_list/1,
-	 foldl/3,
-	 foldl/4]).
+         reset/1,
+         add_element/2,
+         add_element/3,
+         to_list/1,
+         foldl/3,
+         foldl/4]).
 
 
 -export([test/0]).
@@ -29,21 +29,21 @@
 
 %% Fixed size event buffer
 -record(slide, {size = 0 :: integer(),  % ms window
-		n = 0    :: integer(), % number of elements in buf1
-		max_n    :: undefined | integer(),  % max no of elements
-		last = 0 :: integer(), % millisecond timestamp
-		buf1 = []    :: list(),
-		buf2 = []    :: list()}).
+                n = 0    :: integer(), % number of elements in buf1
+                max_n    :: undefined | integer(),  % max no of elements
+                last = 0 :: integer(), % millisecond timestamp
+                buf1 = []    :: list(),
+                buf2 = []    :: list()}).
 
--spec new(integer(), integer(), 
-	  sample_fun(), transform_fun(), list()) -> #slide{}.
+-spec new(integer(), integer(),
+          sample_fun(), transform_fun(), list()) -> #slide{}.
 %%
 new(Size, _Period, _SampleFun, _TransformFun, Opts) ->
     #slide{size = Size,
-	   max_n = proplists:get_value(max_n, Opts, infinity),
-	   last = timestamp(),
-	   buf1 = [],
-	   buf2 = []}.
+           max_n = proplists:get_value(max_n, Opts, infinity),
+           last = timestamp(),
+           buf1 = [],
+           buf2 = []}.
 
 -spec reset(#slide{}) -> #slide{}.
 %%
@@ -57,17 +57,17 @@ add_element(Evt, Slide) ->
 add_element(_TS, _Evt, Slide) when Slide#slide.size == 0 ->
     Slide;
 add_element(TS, Evt, #slide{last = Last, size = Sz,
-			    n = N, max_n = MaxN,
-			    buf1 = Buf1} = Slide) ->
+                            n = N, max_n = MaxN,
+                            buf1 = Buf1} = Slide) ->
     N1 = N+1,
     if TS - Last > Sz; N1 > MaxN ->
-	    %% swap
-	    Slide#slide{last = TS,
-			n = 1,
-			buf1 = [{TS, Evt}],
-			buf2 = Buf1};
+            %% swap
+            Slide#slide{last = TS,
+                        n = 1,
+                        buf1 = [{TS, Evt}],
+                        buf2 = Buf1};
        true ->
-	    Slide#slide{n = N1, buf1 = [{TS, Evt} | Buf1]}
+            Slide#slide{n = N1, buf1 = [{TS, Evt} | Buf1]}
     end.
 
 -spec to_list(#slide{}) -> list().
@@ -81,11 +81,11 @@ to_list(#slide{size = Sz, n = N, max_n = MaxN, buf1 = Buf1, buf2 = Buf2}) ->
 foldl(_TS, _Fun, _Acc, #slide{size = Sz}) when Sz == 0 ->
     [];
 foldl(TS, Fun, Acc, #slide{size = Sz, n = N, max_n = MaxN,
-			   buf1 = Buf1, buf2 = Buf2}) ->
+                           buf1 = Buf1, buf2 = Buf2}) ->
     Start = TS - Sz,
     lists:foldr(
       Fun, lists:foldl(Fun, Acc, take_since(
-				   Buf2, Start, n_diff(MaxN,N), [])), Buf1).
+                                   Buf2, Start, n_diff(MaxN,N), [])), Buf1).
 
 foldl(Fun, Acc, Slide) ->
     foldl(timestamp(), Fun, Acc, Slide).
@@ -126,11 +126,11 @@ build_histogram(S) ->
     %% the average of 100 msec * 10 (1000) elements.
     %%
     lists:foldl(fun({TS,Elem}, Acc) ->
-			add_element(TS,Elem, Acc)
-		end, S, [{TS, Elem} || TS <- lists:seq(1,4500),
-				       Elem <- lists:seq(1,10)]).
+                        add_element(TS,Elem, Acc)
+                end, S, [{TS, Elem} || TS <- lists:seq(1,4500),
+                                       Elem <- lists:seq(1,10)]).
 
 calc_avg(Slide) ->
     {T, C} = foldl(4500, fun({_TS, Elem}, {Sum, Count}) ->
-				    {Sum + Elem, Count + 1} end, {0, 0}, Slide),
+                                    {Sum + Elem, Count + 1} end, {0, 0}, Slide),
     T / C.

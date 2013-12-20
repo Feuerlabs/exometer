@@ -14,19 +14,19 @@
 -export([start_link/0]).
 
 -export([read/1,   %% (Name) -> {ok, Value} | error
-	 read/5,   %% (Name, Mod, Type, Ref, DataPoints) ->
-	           %%     {ok,Value} | unavailable
-	 write/2,  %% (Name, Value) -> ok
-	 write/3,  %% (Name, Value, TTL) -> ok
-	 delete/1
-	]).
+         read/5,   %% (Name, Mod, Type, Ref, DataPoints) ->
+                   %%     {ok,Value} | unavailable
+         write/2,  %% (Name, Value) -> ok
+         write/3,  %% (Name, Value, TTL) -> ok
+         delete/1
+        ]).
 
 -export([init/1,
-	 handle_call/3,
-	 handle_cast/2,
-	 handle_info/2,
-	 terminate/2,
-	 code_change/3]).
+         handle_call/3,
+         handle_cast/2,
+         handle_info/2,
+         terminate/2,
+         code_change/3]).
 
 -define(TABLE, ?MODULE).
 
@@ -40,20 +40,20 @@ start_link() ->
 
 read(Name) ->
     case ets:lookup(?TABLE, Name) of
-	[#cache{value = Val}] ->
-	    {ok, Val};
-	[] ->
-	    error
+        [#cache{value = Val}] ->
+            {ok, Val};
+        [] ->
+            error
     end.
 
 read(Name, M, Type, Ref, DataPoints) ->
     case ets:lookup(?TABLE, Name) of
-	[#cache{value = Val}] ->
-	    {ok, Val};
-	[] ->
-	    gen_server:call(
-	      ?MODULE, {get_value, Name, M, Type, Ref, DataPoints},
-	      5*60*1000)  % 5-minute timeout should really be enough
+        [#cache{value = Val}] ->
+            {ok, Val};
+        [] ->
+            gen_server:call(
+              ?MODULE, {get_value, Name, M, Type, Ref, DataPoints},
+              5*60*1000)  % 5-minute timeout should really be enough
     end.
 
 write(Name, Value) ->
@@ -61,13 +61,13 @@ write(Name, Value) ->
 
 write(Name, Value, TTL) ->
     try OldTRef = ets:lookup_element(?TABLE, Name, #cache.tref),
-	 erlang:cancel_timer(OldTRef)
+         erlang:cancel_timer(OldTRef)
     catch error:_ -> ok
     end,
     TS = os:timestamp(),
     start_timer(Name, TTL, TS),
     ets:insert(?TABLE, #cache{name = Name, value = Value, ttl = TTL,
-			      time = TS}),
+                              time = TS}),
     ok.
 
 delete(Name) ->
@@ -85,18 +85,18 @@ init(_) ->
 handle_call({get_value, Name, M, Type, Ref, DP}, From, S) ->
     S1 = add_waiter(Name, From, S),
     case have_worker(Name, S1) of
-	false ->
-	    {noreply, start_worker(Name, M, Type, Ref, DP, S1)};
-	true ->
-	    {noreply, S1}
+        false ->
+            {noreply, start_worker(Name, M, Type, Ref, DP, S1)};
+        true ->
+            {noreply, S1}
     end;
 handle_call(_, _, S) ->
     {reply, error, S}.
 
 handle_cast({start_timer, Name, TTLu, T}, #st{ttl = TTL0} = S) ->
     TTL = if TTLu == undefined -> TTL0;
-	     is_integer(TTLu) -> TTLu
-	  end,
+             is_integer(TTLu) -> TTLu
+          end,
     Timeout = timeout(T, TTL),
     TRef = erlang:start_timer(Timeout, self(), {name, Name}),
     update_tref(Name, TRef),
@@ -106,17 +106,17 @@ handle_cast(_, S) ->
 
 handle_info({'DOWN', Ref, process, Pid, Reason}, S) ->
     S1 =
-	case Reason of
-	    {get_value, Name, Result} ->
-		deliver_value(Name, Result, remove_worker(Ref, S));
-	    _Other ->
-		case lists:keyfind(Ref, 3, S#st.workers) of
-		    {Name, Pid, Ref} ->
-			deliver_value(Name, unavailable, remove_worker(Ref, S));
-		    false ->
-			S
-		end
-	end,
+        case Reason of
+            {get_value, Name, Result} ->
+                deliver_value(Name, Result, remove_worker(Ref, S));
+            _Other ->
+                case lists:keyfind(Ref, 3, S#st.workers) of
+                    {Name, Pid, Ref} ->
+                        deliver_value(Name, unavailable, remove_worker(Ref, S));
+                    false ->
+                        S
+                end
+        end,
     {noreply, S1};
 handle_info({timeout, Ref, {name, Name}}, S) ->
     ets:select_delete(
@@ -142,26 +142,26 @@ update_tref(Name, TRef) ->
 
 ensure_table() ->
     case ets:info(?TABLE, name) of
-	undefined ->
-	    ets:new(?TABLE, [set, public, named_table, {keypos, 2}]);
-	_ ->
-	    true
+        undefined ->
+            ets:new(?TABLE, [set, public, named_table, {keypos, 2}]);
+        _ ->
+            true
     end.
 
 restart_timers(TTL) ->
     random:seed(),
     restart_timers(
       ets:select(
-	?TABLE, [{#cache{name = '$1', ttl = '$2', time = '$3', _='_'},
-		  [],[{{'$1','$2','$3'}}]}], 100),
+        ?TABLE, [{#cache{name = '$1', ttl = '$2', time = '$3', _='_'},
+                  [],[{{'$1','$2','$3'}}]}], 100),
       TTL, os:timestamp()).
 
 restart_timers({Names, Cont}, TTL, TS) ->
     lists:foreach(
       fun({Name1, TTL1, T1}) ->
-	      Timeout = timeout(T1, TTL1, TS),
-	      TRef = erlang:start_timer(Timeout, self(), {name, Name1}),
-	      ets:update_element(?TABLE, Name1, {#cache.tref, TRef})
+              Timeout = timeout(T1, TTL1, TS),
+              TRef = erlang:start_timer(Timeout, self(), {name, Name1}),
+              ets:update_element(?TABLE, Name1, {#cache.tref, TRef})
       end, Names),
     restart_timers(ets:select(Cont), TTL, TS);
 restart_timers('$end_of_table', _, _) ->
@@ -172,14 +172,14 @@ add_waiter(Name, From, #st{waiters = Ws} = S) ->
 
 deliver_value(Name, Value, #st{waiters = Ws} = S) ->
     Left = lists:foldr(
-	     fun({N,From} = W, Acc) ->
-		     if N == Name ->
-			     gen_server:reply(From, {ok, Value}),
-			     Acc;
-			true ->
-			     [W|Acc]
-		     end
-	     end, [], Ws),
+             fun({N,From} = W, Acc) ->
+                     if N == Name ->
+                             gen_server:reply(From, {ok, Value}),
+                             Acc;
+                        true ->
+                             [W|Acc]
+                     end
+             end, [], Ws),
     S#st{waiters = Left}.
 
 have_worker(Name, #st{workers = Ws}) ->
@@ -187,9 +187,9 @@ have_worker(Name, #st{workers = Ws}) ->
 
 start_worker(Name, M, Type, Ref, DP, #st{workers = Ws} = S) ->
     {Pid, MRef} = spawn_monitor(
-		    fun() ->
-			    get_value_(M, Name, Type, Ref, DP)
-		    end),
+                    fun() ->
+                            get_value_(M, Name, Type, Ref, DP)
+                    end),
     S#st{workers = [{Name, Pid, MRef}|Ws]}.
 
 remove_worker(Ref, #st{workers = Ws} = S) ->
@@ -197,12 +197,12 @@ remove_worker(Ref, #st{workers = Ws} = S) ->
 
 get_value_(M, Name, Type, Ref, DP) ->
     Res = try begin
-		  Value = M:get_value(Name, Type, Ref, DP),
-		  write(Name, Value),
-		  Value
-	      end
-	  catch
-	      _:_ ->
-		  unavailable
-	  end,
+                  Value = M:get_value(Name, Type, Ref, DP),
+                  write(Name, Value),
+                  Value
+              end
+          catch
+              _:_ ->
+                  unavailable
+          end,
     exit({get_value, Name, Res}).

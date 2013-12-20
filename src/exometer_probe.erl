@@ -9,7 +9,7 @@
 %% -------------------------------------------------------------------
 %% @doc
 %%
-%% @todo Clean up and document 
+%% @todo Clean up and document
 %%
 -module(exometer_probe).
 -behaviour(gen_server).
@@ -17,31 +17,31 @@
 
 % exometer_entry callb
 -export([new/3,
-	 delete/3,
-	 get_datapoints/3,
-	 get_value/4,
-	 update/4,
-	 reset/3,
-	 sample/3,
-	 setopts/4]).
+         delete/3,
+         get_datapoints/3,
+         get_value/4,
+         update/4,
+         reset/3,
+         sample/3,
+         setopts/4]).
 
 %% gen_server callbacks
 -export([init/1,
-	 handle_call/3,
-	 handle_cast/2,
-	 handle_info/2,
-	 terminate/2,
-	 code_change/3]).
+         handle_call/3,
+         handle_cast/2,
+         handle_info/2,
+         terminate/2,
+         code_change/3]).
 
 -include("exometer.hrl").
 
 -record(st, {name,
-	     type,
-	     module = undefined,
-	     mod_state,
-	     sample_timer,
-	     sample_interval = infinity, %% msec. infinity = disable probe_sample() peridoc calls.
-	     opts = []}).
+             type,
+             module = undefined,
+             mod_state,
+             sample_timer,
+             sample_interval = infinity, %% msec. infinity = disable probe_sample() peridoc calls.
+             opts = []}).
 
 -type name()        :: exometer:name().
 -type options()     :: exometer:options().
@@ -50,13 +50,13 @@
 -type from()        :: {pid(), reference()}.
 -type data_points() :: [atom()].
 -type probe_reply() :: ok
-		     | {ok, mod_state()}
-		     | {ok, any(), mod_state()}
-		     | {noreply, mod_state()}
-		     | {error, any()}.
+                     | {ok, mod_state()}
+                     | {ok, any(), mod_state()}
+                     | {noreply, mod_state()}
+                     | {error, any()}.
 -type probe_noreply() :: ok
-		       | {ok, mod_state()}
-		       | {error, any()}.
+                       | {ok, mod_state()}
+                       | {error, any()}.
 
 -callback probe_init(name(), type(), options()) -> probe_noreply().
 -callback probe_terminate(mod_state()) -> probe_noreply().
@@ -80,7 +80,7 @@ new(Name, Type, [{type_arg, Module}|Opts]) ->
     {ok, Pid};
 new(Name, Type, Options) ->
     %% Extract the module to use.
-    {value, { module, Module }, Opts1 } = lists:keytake(module, 1, Options), 
+    {value, { module, Module }, Opts1 } = lists:keytake(module, 1, Options),
     {ok, Pid} = gen_server:start(?MODULE, {Name, Type, Module, Opts1}, []),
     exometer_admin:monitor(Name, Pid),
     {ok, Pid}.
@@ -109,27 +109,27 @@ sample(_Name, _Type, Pid) when is_pid(Pid) ->
 %% gen_server implementation
 init({Name, Type, Mod, Opts}) ->
     {St0, Opts1} = process_opts(Opts, #st{name = Name,
-					  type = Type,
-					  module = Mod}),
+                                          type = Type,
+                                          module = Mod}),
     St = St0#st{opts = Opts1},
     %% Create a new state for the module
     case {Mod:probe_init(Name, Type, St#st.opts), St#st.sample_interval} of
-	{ ok, infinity} ->
-	    %% No sample timer to start. Return with undefined mod state
-	    {ok, St#st{ mod_state = undefined }};
-	{{ok, ModSt}, infinity} ->
-	    %% No sample timer to start. Return with the mod state returned by probe_init.
-	    {ok, St#st{ mod_state = ModSt }};
+        { ok, infinity} ->
+            %% No sample timer to start. Return with undefined mod state
+            {ok, St#st{ mod_state = undefined }};
+        {{ok, ModSt}, infinity} ->
+            %% No sample timer to start. Return with the mod state returned by probe_init.
+            {ok, St#st{ mod_state = ModSt }};
 
-	{ ok, _} ->
-	    %% Fire up the timer, return with undefined mod state
-	    {ok, sample_(restart_timer(sample, St#st{ mod_state = undefined }))};
-	{{ok, ModSt}, _ } ->
-	    %% Fire up the timer. Returnn with the mod state returned by probe_init.
-	    {ok, sample_(restart_timer(sample, St#st{ mod_state = ModSt }))};
+        { ok, _} ->
+            %% Fire up the timer, return with undefined mod state
+            {ok, sample_(restart_timer(sample, St#st{ mod_state = undefined }))};
+        {{ok, ModSt}, _ } ->
+            %% Fire up the timer. Returnn with the mod state returned by probe_init.
+            {ok, sample_(restart_timer(sample, St#st{ mod_state = ModSt }))};
 
-	{{error, Reason}, _} ->
-	    {error, Reason}
+        {{error, Reason}, _} ->
+            {error, Reason}
     end.
 
 handle_call(stop, _From, St) ->
@@ -147,13 +147,13 @@ handle_call(get_datapoints, _From, #st{module = M, mod_state = ModSt} = St) ->
     reply(M:probe_get_datapoints(ModSt), St);
 
 handle_call({setopts, Options}, _From, #st{module = M,
-					   mod_state = ModSt} = St) ->
+                                           mod_state = ModSt} = St) ->
     %% Process (and delete) local options.
     %% FIXME: Check for updated timer specs here and restart timer??
     {#st{} = NSt, Opts1} = process_opts(Options, St),
     reply(M:probe_setopts(Opts1, ModSt),
-	  NSt#st{opts = Opts1 ++ [{K,V} || {K,V} <- St#st.opts,
-					   not lists:keymember(K,1,Opts1)]});
+          NSt#st{opts = Opts1 ++ [{K,V} || {K,V} <- St#st.opts,
+                                           not lists:keymember(K,1,Opts1)]});
 
 handle_call({update, Value}, _From, #st{module = M, mod_state = ModSt} = St) ->
     reply(M:probe_update(Value, ModSt), St);
@@ -186,10 +186,10 @@ terminate(_, #st{module = M, mod_state = ModSt}) ->
 
 code_change(From, #st{module = M, mod_state = ModSt} = St, Extra) ->
     case M:probe_code_change(From, ModSt, Extra) of
-	{ok, ModSt1} ->
-	    {ok, St#st{mod_state = ModSt1}};
-	Other ->
-	    Other
+        {ok, ModSt1} ->
+            {ok, St#st{mod_state = ModSt1}};
+        Other ->
+            Other
     end.
 
 reply(ok                , St) -> {reply, ok, St};
@@ -205,10 +205,10 @@ noreply({error,_}=E, St) -> {stop, E, St}.
 
 sample_(#st{module = M, mod_state = ModSt} = St) ->
     case M:probe_sample(ModSt) of
-	{ ok, ModSt1 } ->
-	    St#st { mod_state = ModSt1 };
-	_ ->
-	    St
+        { ok, ModSt1 } ->
+            St#st { mod_state = ModSt1 };
+        _ ->
+            St
     end.
 
 %% ===================================================================

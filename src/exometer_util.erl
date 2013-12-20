@@ -107,8 +107,8 @@ table(N) when is_integer(N), N > 20 ->
     list_to_atom("exometer_" ++ integer_to_list(N)).
 
 -spec get_statistics(Length::non_neg_integer(),
-		     Total::non_neg_integer(),
-		     Sorted::list()) -> [{atom(), number()}].
+                     Total::non_neg_integer(),
+                     Sorted::list()) -> [{atom(), number()}].
 %% @doc Calculate statistics from a sorted list of values.
 %%
 %% This function assumes that you have already sorted the list, and
@@ -137,8 +137,8 @@ get_statistics2(_L, [0,0], _Mean) ->
 get_statistics2(L, Sorted, Mean) ->
     P50 = perc(0.5, L),
     Items = [{min,1}, {50, P50}, {median, P50}, {75, perc(0.75,L)},
-	     {90, perc(0.9,L)}, {95, perc(0.95,L)}, {99, perc(0.99,L)},
-	     {999, perc(0.999,L)}, {max,L}],
+             {90, perc(0.9,L)}, {95, perc(0.95,L)}, {99, perc(0.99,L)},
+             {999, perc(0.999,L)}, {max,L}],
     [{n,L}, {mean, Mean} | pick_items(Sorted, 1, Items)].
 
 get_statistics(_, _, []) ->

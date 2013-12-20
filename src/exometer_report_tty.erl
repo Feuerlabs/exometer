@@ -27,10 +27,10 @@
 -behaviour(exometer_report).
 
 -export([exometer_init/1,
-	 exometer_info/2,
-	 exometer_report/5,
-	 exometer_subscribe/5,
-	 exometer_unsubscribe/4]).
+         exometer_info/2,
+         exometer_report/5,
+         exometer_subscribe/5,
+         exometer_unsubscribe/4]).
 
 
 -define(SERVER, ?MODULE).
@@ -67,7 +67,7 @@ exometer_info(Unknown, St) ->
 
 report_exometer_(Metric, DataPoint, Value, #st{} = St) ->
     Str = [?MODULE_STRING, ": ", name(Metric, DataPoint), $\s,
-	   timestamp(), ":", value(Value), $\n],
+           timestamp(), ":", value(Value), $\n],
     io:fwrite(Str),
     St.
 

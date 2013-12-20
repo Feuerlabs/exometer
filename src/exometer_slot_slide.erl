@@ -13,7 +13,7 @@
 %%
 %% == Introduction ==
 %% This module defines a sliding time-window histogram with execution
-%% cost control.  
+%% cost control.
 %%
 %% The problem with traditional histograms is that every sample is
 %% stored and processed, no matter what the desired resolution is.
@@ -25,7 +25,7 @@
 %%
 %% The solution is to introduce cost-control, where we can balance
 %% execution time against sample resolution.
-%% 
+%%
 %% The obvious implementation is to lower the sample rate by throwing
 %% away samples and just store evey N samples. However, this will
 %% mean potentially missed min/max values, and other extreme data
@@ -41,7 +41,7 @@
 %% the next slot. If the slot period (size) is 100ms, and the last
 %% slot was stored in the histogram at msec 1200, the current slot
 %% period ends at msec 1300.
-%% 
+%%
 %% All samples received during the current slot are processed by a
 %% low-cost fun that updates the current slot state. When the current
 %% slot ends, another fun is used to transform the current slot state
@@ -58,7 +58,7 @@
 %% smallest and largest values received during the period. At slot
 %% expiration the min/max tuple is simply stored, by the
 %% transformation fun, in the histogram slots.
-%% 
+%%
 %% By adjusting the slot period and the total histogram duration, the
 %% cost of analysing the entire histogram can be balanced against
 %% the resolution of that analysis.
@@ -78,7 +78,7 @@
 %% no slot for that time stamp will be stored, leaving a hole in the
 %% list.  Normally, the the slot list would look like this (with a 100
 %% msec slot period and a simple average value):
-%% 
+%%
 %% <pre lang="erlang">
 %%     [ { 1400, 23.2 }, { 1300, 23.1 }, { 1200, 22.8 }, { 1100, 23.0 } ]
 %% </pre>
@@ -95,7 +95,7 @@
 %% if it always covers the same time span into the past.
 %%
 %% == SLOT LISTS ==
-%% 
+%%
 %% The slotted slider stores its slots in two lists, list1, and list2.
 %% list1 contains the newest slots. Once the oldest element in list1
 %% is older than the time span covered by the histogram, the entire
@@ -106,14 +106,14 @@
 %% fold{l,r}(), or to_list()), the entire content of list1 is prepended to
 %% the part of list2 that is within than the time span covered by the
 %% histogram.
-%% 
+%%
 %% If the time span of the histogram is 5 seconds, with a 1 second
 %% slot period, list1 looks can like this :
-%% 
+%%
 %% <pre lang="erlang">
 %%     list1 = [ {5000, 1.2}, {4000, 2.1}, {3000, 2.0}, {2000, 2.3}, {1000, 2.8} ]
 %% </pre>
-%% 
+%%
 %% When the next slot is stored in the list, add_slot() will detect
 %% that the list is full since the oldest element ({1000, 20.8}) will
 %% fall outside the time span covered by the histogram.  List1 will
@@ -124,7 +124,7 @@
 %%     list1 = [ {6000, 1.8} ]
 %%     list2 = [ {5000, 1.2}, {4000, 2.1}, {3000, 2.0}, {2000, 2.3}, {1000, 2.8} ]
 %% </pre>
-%%     
+%%
 %% To_list() and fold{l,r}() will return list1, and the first four elements
 %% of list2 in order to get a complete histogram covering the entire
 %% time span:
@@ -158,7 +158,7 @@
 %% and is to be stored in the histogram. It will receive the current
 %% timestamp and slot state as arguments and returns the element to
 %% be stored (together with a slot timestamp) in the slot histogram.
-%% 
+%%
 %% <pre lang="erlang">
 %%     M:F(TimeStamp, State) -> Element
 %% </pre>
@@ -177,14 +177,14 @@
 
 
 -export([new/2, new/5,
-	 add_element/2,
-	 add_element/3,
-	 reset/1,
-	 to_list/1,
-	 foldl/3,
-	 foldl/4,
-	 foldr/3,
-	 foldr/4]).
+         add_element/2,
+         add_element/3,
+         reset/1,
+         to_list/1,
+         foldl/3,
+         foldl/4,
+         foldr/3,
+         foldr/4]).
 
 -export([test/0]).
 
@@ -203,49 +203,49 @@
 %% A slot is indexed by taking the current timestamp (in ms) divided by the slot_period
 %%
 -record(slide, {timespan = 0 :: integer(),  % How far back in time do we go, in slot period increments.
-		sample_fun :: sample_fun(),
-		transform_fun :: transform_fun(),
-		slot_period :: integer(),   % Period, in ms, of each slot
-		cur_slot = 0 :: integer(),  % Current slot as in 
-		cur_state = undefined :: any(), % Total for the current slot
-		list1_start_slot = 0 ::integer(),     % Slot of the first list1 element
-		list1 = []    :: list(),
-		list2 = []    :: list()}).
+                sample_fun :: sample_fun(),
+                transform_fun :: transform_fun(),
+                slot_period :: integer(),   % Period, in ms, of each slot
+                cur_slot = 0 :: integer(),  % Current slot as in
+                cur_state = undefined :: any(), % Total for the current slot
+                list1_start_slot = 0 ::integer(),     % Slot of the first list1 element
+                list1 = []    :: list(),
+                list2 = []    :: list()}).
 
--spec new(integer(), 
-	  integer(), 
-	  sample_fun(),
-	  transform_fun(),
-	  list()
-	 ) -> #slide{}.
+-spec new(integer(),
+          integer(),
+          sample_fun(),
+          transform_fun(),
+          list()
+         ) -> #slide{}.
 %%
 new(HistogramTimeSpan, SlotPeriod, SampleF, TransformF, _Options)
   when is_function(SampleF, 3), is_function(TransformF, 2) ->
     #slide{timespan = trunc(HistogramTimeSpan / SlotPeriod),
-	   sample_fun = SampleF,
-	   transform_fun = TransformF,
-	   slot_period = SlotPeriod,
-	   cur_slot = trunc(timestamp() / SlotPeriod),
-	   cur_state = undefined,
-	   list1_start_slot = 0,
-	   list1 = [],
-	   list2 = []}.
+           sample_fun = SampleF,
+           transform_fun = TransformF,
+           slot_period = SlotPeriod,
+           cur_slot = trunc(timestamp() / SlotPeriod),
+           cur_state = undefined,
+           list1_start_slot = 0,
+           list1 = [],
+           list2 = []}.
 
 
 new(HistogramTimeSpan, SlotPeriod) ->
     new(HistogramTimeSpan, SlotPeriod,
-	fun avg_sample/3, fun avg_transform/2, []).
-    
+        fun avg_sample/3, fun avg_transform/2, []).
+
 -spec add_element(any(), #slide{}) -> #slide{}.
-    
+
 add_element(Val, Slide) ->
     add_element(timestamp(), Val, Slide).
 
-add_element(TS, Val, #slide{cur_slot = CurrentSlot, 
-			    sample_fun = SampleF} = Slide) ->
+add_element(TS, Val, #slide{cur_slot = CurrentSlot,
+                            sample_fun = SampleF} = Slide) ->
 
     TSSlot = get_slot(TS, Slide),
-    
+
     %% We have two options here:
     %% 1. We have moved into a new slot since last call to add_element().
     %%    In this case, we invoke the transform MFA for the now completed slot
@@ -256,15 +256,15 @@ add_element(TS, Val, #slide{cur_slot = CurrentSlot,
     %% 2. We are in the same slot as during the last call to add_element().
     %%    In this case, we will simply call the sample MFA to update the
     %%    current slot state.
-    %% 
     %%
-    Slide1 = 
-	if TSSlot =/= CurrentSlot ->     
-		add_slot(TS, Slide);
-	   true -> 
-		Slide
-	end,
-    
+    %%
+    Slide1 =
+        if TSSlot =/= CurrentSlot ->
+                add_slot(TS, Slide);
+           true ->
+                Slide
+        end,
+
     %%
     %% Invoke the sample MFA to get a new state to work with
     %%
@@ -286,10 +286,10 @@ to_list(#slide{timespan = TimeSpan } = Slide) ->
 reset(#slide{} = Slide) ->
     Slide#slide { cur_state = undefined,
                   cur_slot = 0,
-		  list1 = [], 
-		  list2 = [],
-		  list1_start_slot = 0}.
-    
+                  list1 = [],
+                  list2 = [],
+                  list1_start_slot = 0}.
+
 
 foldl(TS, Fun, Acc, #slide{timespan = TimeSpan} = Slide) ->
     Oldest = get_slot(TS, Slide) - TimeSpan,
@@ -297,7 +297,7 @@ foldl(TS, Fun, Acc, #slide{timespan = TimeSpan} = Slide) ->
 
 foldl(Fun, Acc,  Slide) ->
     foldl(timestamp(), Fun, Acc, Slide).
-   
+
 
 foldr(TS, Fun, Acc, #slide{timespan = TimeSpan} = Slide) ->
     Oldest = get_slot(TS, Slide) - TimeSpan,
@@ -310,8 +310,8 @@ foldr(Fun, Acc, Slide) ->
 %% within the timespan ranging from Oldest up to the current timme.
 %%
 take_since(Oldest, #slide{cur_slot = CurrentSlot,
-			  cur_state = CurrentState,
-			  slot_period = SlotPeriod } =Slide) ->
+                          cur_state = CurrentState,
+                          slot_period = SlotPeriod } =Slide) ->
 
     %% Check if we need to add a slot for the current time period
     %% before we start to grab data.
@@ -319,13 +319,13 @@ take_since(Oldest, #slide{cur_slot = CurrentSlot,
     %% and the slot period has expired.
     TS = timestamp(),
     TSSlot = get_slot(TS, Slide),
-    #slide { list1 = List1, 
-	     list2 = List2} = 
-	if TSSlot =/= CurrentSlot, CurrentState =/= undefined ->     
-		add_slot(TS, Slide);
-	   true -> 
-		Slide
-	end,
+    #slide { list1 = List1,
+             list2 = List2} =
+        if TSSlot =/= CurrentSlot, CurrentState =/= undefined ->
+                add_slot(TS, Slide);
+           true ->
+                Slide
+        end,
 
     take_since(List2, Oldest, SlotPeriod, take_since(List1, Oldest, SlotPeriod, [])).
 
@@ -349,42 +349,42 @@ get_slot(TS, #slide{slot_period = Period}) ->
 %% and push that average to the new slot.
 %%
 add_slot(TS, #slide{timespan = TimeSpan,
-		    slot_period = SlotPeriod,
-		    cur_slot = CurrentSlot,
-		    cur_state = CurrentState,
-		    transform_fun = TransformF,
-		    list1 = List1,
-		    list1_start_slot = StartSlot} = Slide) ->
+                    slot_period = SlotPeriod,
+                    cur_slot = CurrentSlot,
+                    cur_state = CurrentState,
+                    transform_fun = TransformF,
+                    list1 = List1,
+                    list1_start_slot = StartSlot} = Slide) ->
 
     %% Transform current slot state to an element to be deposited
     %% in the histogram list
     TSSlot = trunc(TS / SlotPeriod),
-    case TransformF(TS, CurrentState) of 
-	undefined ->  %% Transformation function could not produce an element
-	    %% Reset the time slot to the current slot. Reset state./
-	    Slide#slide{ cur_slot = TSSlot,
-			 cur_state = undefined};   
-    
-	%% The transform function produced an element to store
-	Element ->
-	    %%
-	    %% Check if it is time to do a buffer swap.
-	    %% If the oldset element of list1, 
-	    %%
-	    if StartSlot < TSSlot - TimeSpan ->
-		    %% Shift list1 into list2.
-		    %% Add the new slot as the initial element of list1
-		    Slide#slide{ list1 = [{ CurrentSlot, Element }],
-				 list2 = List1,
-				 list1_start_slot = CurrentSlot, 
-				 cur_slot = TSSlot,
-				 cur_state = undefined};
-	       true ->
-		    %% No shift necessary. Tack on the new slot to list1.
-		    Slide#slide{ list1 = [{ CurrentSlot, Element } | List1 ],
-				 cur_slot = TSSlot,
-				 cur_state = undefined }
-	    end
+    case TransformF(TS, CurrentState) of
+        undefined ->  %% Transformation function could not produce an element
+            %% Reset the time slot to the current slot. Reset state./
+            Slide#slide{ cur_slot = TSSlot,
+                         cur_state = undefined};
+
+        %% The transform function produced an element to store
+        Element ->
+            %%
+            %% Check if it is time to do a buffer swap.
+            %% If the oldset element of list1,
+            %%
+            if StartSlot < TSSlot - TimeSpan ->
+                    %% Shift list1 into list2.
+                    %% Add the new slot as the initial element of list1
+                    Slide#slide{ list1 = [{ CurrentSlot, Element }],
+                                 list2 = List1,
+                                 list1_start_slot = CurrentSlot,
+                                 cur_slot = TSSlot,
+                                 cur_state = undefined};
+               true ->
+                    %% No shift necessary. Tack on the new slot to list1.
+                    Slide#slide{ list1 = [{ CurrentSlot, Element } | List1 ],
+                                 cur_slot = TSSlot,
+                                 cur_state = undefined }
+            end
     end.
 
 
@@ -409,7 +409,7 @@ avg_transform(_TS, { Count, Total }) ->
 
 
 
-    
+
 test() ->
     %% Create a slotted slide covering 2000 msec, where
     %% each slot is 100 msec wide.
@@ -429,16 +429,16 @@ build_histogram(S) ->
     %% the average of 100 msec * 10 (1000) elements.
     %%
     lists:foldl(fun({TS,Elem}, Acc) ->
-			add_element(TS,Elem, Acc)
-		end, S, [{TS, Elem} || TS <- lists:seq(1,4500),
-				       Elem <- lists:seq(1,10)]).
+                        add_element(TS,Elem, Acc)
+                end, S, [{TS, Elem} || TS <- lists:seq(1,4500),
+                                       Elem <- lists:seq(1,10)]).
 
 calc_avg(Slide) ->
-    {T, C} = foldr(4500, fun({_TS, Elem}, {Sum, Count}) -> 
-				    {Sum + Elem, Count + 1} end, {0, 0}, Slide),
+    {T, C} = foldr(4500, fun({_TS, Elem}, {Sum, Count}) ->
+                                    {Sum + Elem, Count + 1} end, {0, 0}, Slide),
     T / C.
 
-			    
+
 timestamp() ->
     %% Invented epoc is {1258,0,0}, or 2009-11-12, 4:26:40
     %% Millisecond resolution

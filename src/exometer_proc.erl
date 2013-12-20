@@ -29,10 +29,10 @@
 -module(exometer_proc).
 
 -export([spawn_process/2,
-	 cast/2,
-	 call/2,
-	 process_options/1,
-	 stop/0]).
+         cast/2,
+         call/2,
+         process_options/1,
+         stop/0]).
 
 -spec spawn_process(exometer:name(), fun(() -> no_return())) -> pid().
 %% @doc Spawn an `exometer_proc' process.
@@ -43,9 +43,9 @@
 %% @end
 spawn_process(Name, F) when is_function(F,0) ->
     proc_lib:spawn(fun() ->
-			   exometer_admin:monitor(Name, self()),
-			   F()
-		   end).
+                           exometer_admin:monitor(Name, self()),
+                           F()
+                   end).
 
 -spec cast(pid(), Msg::any()) -> ok.
 %% @doc Send an asynchronous message to an `exometer_proc' process.
@@ -75,13 +75,13 @@ call(Pid, Req) ->
     MRef = erlang:monitor(process, Pid),
     Pid ! {exometer_proc, {self(), MRef}, Req},
     receive
-	{MRef, Reply} ->
+        {MRef, Reply} ->
             erlang:demonitor(MRef, [flush]),
-	    Reply;
-	{'DOWN', MRef, _, _, Reason} ->
-	    error(Reason)
+            Reply;
+        {'DOWN', MRef, _, _, Reason} ->
+            error(Reason)
     after 5000 ->
-	    error(timeout)
+            error(timeout)
     end.
 
 -spec stop() -> no_return().
@@ -98,22 +98,22 @@ stop() ->
 %% @end
 process_options(Opts) ->
     Defaults = case application:get_env(exometer,probe_defaults) of
-		   {ok, L} when is_list(L) ->
-		       L;
-		   _ ->
-		       []
-	       end,
+                   {ok, L} when is_list(L) ->
+                       L;
+                   _ ->
+                       []
+               end,
     lists:foreach(
       fun({priority, P}) when P==low; P==normal; P==high; P==max ->
-	      process_flag(priority, P);
-	 ({min_heap_size, S}) when is_integer(S), S > 0 ->
-	      process_flag(min_heap_size, S);
-	 ({min_vheap_size, S}) when is_integer(S), S > 0 ->
-	      process_flag(min_vheap_size, S);
-	 ({sensitive, B}) when is_boolean(B) ->
-	      process_flag(sensitive, B);
-	 ({scheduler, I}) when is_integer(I), I >= 0 ->
-	      process_flag(scheduler, I);
-	 (_) ->
-	      ok
+              process_flag(priority, P);
+         ({min_heap_size, S}) when is_integer(S), S > 0 ->
+              process_flag(min_heap_size, S);
+         ({min_vheap_size, S}) when is_integer(S), S > 0 ->
+              process_flag(min_vheap_size, S);
+         ({sensitive, B}) when is_boolean(B) ->
+              process_flag(sensitive, B);
+         ({scheduler, I}) when is_integer(I), I >= 0 ->
+              process_flag(scheduler, I);
+         (_) ->
+              ok
       end, Opts ++ Defaults).

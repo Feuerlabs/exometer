@@ -13,13 +13,13 @@
 -behaviour(exometer_entry).
 
 -export([new/3,
-	 update/4,
-	 reset/3,
-	 get_value/4,
-	 get_datapoints/3,
-	 sample/3,
-	 delete/3,
-	 setopts/4]).
+         update/4,
+         reset/3,
+         get_value/4,
+         get_datapoints/3,
+         sample/3,
+         delete/3,
+         setopts/4]).
 
 -export([empty/0]).
 -export([test_mem_info/1]).
@@ -27,20 +27,20 @@
 -export_type([fun_spec/0, arg_spec/0, res_type/0]).
 
 -type arg() :: '$dp'
-	     | {'$call', atom(), atom(), arg_spec()}
-	     | any().
+             | {'$call', atom(), atom(), arg_spec()}
+             | any().
 -type arg_spec()     :: [arg()].
 -type datapoints()   :: [atom()].
 -type mod_name()     :: atom().
 -type fun_name()     :: atom().
 -type res_type()     :: value      %% The return value is the result
-		      | proplist   %% Pick the data point out of a proplist
-		      | tagged.    %% Either {DataPoint,Value} or {ok,Value}
+                      | proplist   %% Pick the data point out of a proplist
+                      | tagged.    %% Either {DataPoint,Value} or {ok,Value}
 -type simple_fun()   :: {mod_name(), fun_name()}.
 -type extended_fun() :: {function, mod_name(), fun_name(),
-			 arg_spec(), res_type(), datapoints()}.
+                         arg_spec(), res_type(), datapoints()}.
 -type int_extended() :: {function, mod_name(), fun_name(), each | once,
-			 arg_spec(), res_type(), datapoints()}.
+                         arg_spec(), res_type(), datapoints()}.
 -type fun_spec()     :: simple_fun() | extended_fun().
 -type fun_rep()      :: simple_fun() | int_extended().
 
@@ -116,34 +116,34 @@
 %% @end
 new(_Name, function, Opts) ->
     case lists:keyfind(type_arg, 1, Opts) of
-	{_, {function, M, F}} ->
-	    {ok, {M, F}};
-	{_, {function, M, F, ArgsP, Type, DPs}} ->
-	    {ok, {M, F, mode(ArgsP), ArgsP, Type, DPs}};
-	false ->
-	    {ok, {?MODULE, empty}}
+        {_, {function, M, F}} ->
+            {ok, {M, F}};
+        {_, {function, M, F, ArgsP, Type, DPs}} ->
+            {ok, {M, F, mode(ArgsP), ArgsP, Type, DPs}};
+        false ->
+            {ok, {?MODULE, empty}}
     end.
 
 get_value(_, function, {M, F, each, ArgsP, Type, DPs}, DataPoints) ->
     [{D,call(M,F,ArgsP,Type,D)} || D <- datapoints(DataPoints, DPs),
-				   lists:member(D, DPs)];
+                                   lists:member(D, DPs)];
 get_value(_, function, {M, F, once, ArgsP, Type, DPs}, DataPoints0) ->
     DataPoints = if DataPoints0 == default -> DPs;
-		    true ->
-			 [D || D <- datapoints(DataPoints0, DPs),
-			       lists:member(D, DPs)]
-		 end,
+                    true ->
+                         [D || D <- datapoints(DataPoints0, DPs),
+                               lists:member(D, DPs)]
+                 end,
     try call_once(M, F, ArgsP, Type, DataPoints)
     catch
-	error:_ ->
-	    {error, unavailable}
+        error:_ ->
+            {error, unavailable}
     end;
 get_value(_, function, {M, F}, DataPoints) ->
     if DataPoints == default ->
-	    M:F(DataPoints);
+            M:F(DataPoints);
        is_list(DataPoints) ->
-	    [D || {K,_} = D <- M:F(DataPoints),
-		  lists:member(K, DataPoints)]
+            [D || {K,_} = D <- M:F(DataPoints),
+                  lists:member(K, DataPoints)]
     end.
 
 get_datapoints(_Name, _Type, {_,_,_,_, DPs}) ->
@@ -175,12 +175,12 @@ datapoints(DataPoints,_) -> DataPoints.
 
 call(M,F,ArgsP,T,D) ->
     try begin
-	    Args = substitute(ArgsP, D),
-	    return_dp(apply(M, F, Args), T, D)
-	end
+            Args = substitute(ArgsP, D),
+            return_dp(apply(M, F, Args), T, D)
+        end
     catch
-	error:_ ->
-	    undefined
+        error:_ ->
+            undefined
     end.
 
 call_once(M,F,ArgsP,T,DPs) ->
@@ -217,8 +217,8 @@ return_dp(V, value, _) ->
     V;
 return_dp(L, proplist, D) ->
     case lists:keyfind(D, 1, L) of
-	false  -> undefined;
-	{_, V} -> V
+        false  -> undefined;
+        {_, V} -> V
     end.
 
 return_dps(L, value, _) ->
@@ -235,29 +235,29 @@ return_dps(L, proplist, DPs) ->
 
 get_dp(D, L) ->
     case lists:keyfind(D, 1, L) of
-	false ->
-	    {D, undefined};
-	V ->
-	    V
+        false ->
+            {D, undefined};
+        V ->
+            V
     end.
 
 mode(Args) ->
     case mode(Args, undefined) of
-	undefined -> once;
-	Other     -> Other
+        undefined -> once;
+        Other     -> Other
     end.
 
 mode(['$dp'|T], M) ->
     if M==each; M==undefined ->
-	    mode(T, each);
+            mode(T, each);
        true ->
-	    error(mode_conflict)
+            error(mode_conflict)
     end;
 mode(['$datapoints'|T], M) ->
     if M==once; M==undefined ->
-	    mode(T, once);
+            mode(T, once);
        true ->
-	    error(mode_conflict)
+            error(mode_conflict)
     end;
 mode([H|T], M) when is_list(H) ->
     mode(T, mode(H, M));

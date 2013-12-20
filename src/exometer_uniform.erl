@@ -14,43 +14,43 @@
 
 %% exometer_entry callbacks
 -export([new/3,
-	 delete/3,
-	 get_value/4,
-	 get_datapoints/3,
-	 update/4,
-	 reset/3,
-	 sample/3,
-	 setopts/4]).
+         delete/3,
+         get_value/4,
+         get_datapoints/3,
+         update/4,
+         reset/3,
+         sample/3,
+         setopts/4]).
 
 %% exometer_probe callbacks
 -export([probe_init/3,
-	 probe_terminate/1,
-	 probe_get_value/2,
-	 probe_get_datapoints/1,
-	 probe_update/2,
-	 probe_reset/1,
-	 probe_sample/1,
-	 probe_setopts/2,
-	 probe_handle_call/3,
-	 probe_handle_cast/2,
-	 probe_handle_info/2,
-	 probe_code_change/3]).
+         probe_terminate/1,
+         probe_get_value/2,
+         probe_get_datapoints/1,
+         probe_update/2,
+         probe_reset/1,
+         probe_sample/1,
+         probe_setopts/2,
+         probe_handle_call/3,
+         probe_handle_cast/2,
+         probe_handle_info/2,
+         probe_code_change/3]).
 
 
 -include("exometer.hrl").
 
 -record(st, {name,
-	     size = 1028,
-	     cur_sz = 0,
-	     percentiles = [ 99.0 ],
-	     ets_ref = undefined,
-	     opts = []}).
+             size = 1028,
+             cur_sz = 0,
+             percentiles = [ 99.0 ],
+             ets_ref = undefined,
+             opts = []}).
 
 -record(elem, { slot = 0,
-		val = undefined } ).
-		
--define(DATAPOINTS, 
-	[ min, max, median, mean, 50, 75, 90, 95, 99, 999 ]).
+                val = undefined } ).
+
+-define(DATAPOINTS,
+        [ min, max, median, mean, 50, 75, 90, 95, 99, 999 ]).
 
 %%
 %% exometer_entry callbacks
@@ -61,11 +61,11 @@ new(Name, Type, Options) ->
 probe_init(Name, _Type, Options) ->
     St = process_opts(#st { name = Name }, [ {percentiles, [ 50, 75, 90, 95, 99, 999 ]} ] ++ Options),
     EtsRef = ets:new(uniform, [ set, { keypos, 2 } ]),
-    
+
     %% Setup random seed, if not already done.
     case get(random_seed) of
-	undefined -> random:seed(now());
-	_ -> true
+        undefined -> random:seed(now());
+        _ -> true
     end,
     {ok, St#st{ ets_ref = EtsRef }}.
 
@@ -85,9 +85,9 @@ get_datapoints(_Name, _Type, _Ref) ->
 
 probe_get_value(St, DataPoints) ->
     {Length, Total, Lst} = ets:foldl(
-	    fun(#elem { val = Val }, {Length, Total, List}) -> 
-		    { Length + 1, Total + Val, [ Val | List ]}  end, 
-	    {0, 0.0, []}, St#st.ets_ref),
+            fun(#elem { val = Val }, {Length, Total, List}) ->
+                    { Length + 1, Total + Val, [ Val | List ]}  end,
+            {0, 0.0, []}, St#st.ets_ref),
 
     Sorted = lists:sort(Lst),
 
@@ -144,21 +144,21 @@ probe_code_change(_From, ModSt, _Extra) ->
 process_opts(St, Options) ->
     lists:foldl(
       fun
-	  %% Sample interval.
-	  ({size, Val}, St1) -> St1#st { size = Val };
-	  ({percentiles, Val}, St1) -> St1#st { percentiles = Val };
+          %% Sample interval.
+          ({size, Val}, St1) -> St1#st { size = Val };
+          ({percentiles, Val}, St1) -> St1#st { percentiles = Val };
 
-	  %% Unknown option, pass on to State options list, replacing
-	  %% any earlier versions of the same option.
-	  ({Opt, Val}, St1) ->
-	      St1#st{ opts = [ {Opt, Val}
-			       | lists:keydelete(Opt, 1, St1#st.opts) ] }
+          %% Unknown option, pass on to State options list, replacing
+          %% any earlier versions of the same option.
+          ({Opt, Val}, St1) ->
+              St1#st{ opts = [ {Opt, Val}
+                               | lists:keydelete(Opt, 1, St1#st.opts) ] }
       end, St, Options).
 
 
 perc(P, Len) when P > 1.0 ->
     round((P / 10) * Len);
-      
+
 perc(P, Len) ->
     round(P * Len).
 
@@ -175,18 +175,18 @@ get_datapoint_value(_Length, _Total, Sorted, min) ->
 
 get_datapoint_value(_Length, _Total, Sorted, max) ->
     { max, lists:last(Sorted) };
-    
+
 get_datapoint_value(Length, _Total, Sorted, median) ->
     %% Calc median. FIXME: Can probably be made faster.
     Median = case {Length, Length rem 2} of
-	{0, _} -> %% No elements
-	    0.0;
-	
-	{_, 0} -> %% Even number with at least two elements. Return average of two center elements
-	    lists:sum(lists:sublist(Sorted, trunc(Length / 2), 2)) / 2.0;
+        {0, _} -> %% No elements
+            0.0;
 
-	{_, 1}-> %% Odd number with at least one element. Return center element
-	    lists:nth(trunc(Length / 2) + 1, Sorted)
+        {_, 0} -> %% Even number with at least two elements. Return average of two center elements
+            lists:sum(lists:sublist(Sorted, trunc(Length / 2), 2)) / 2.0;
+
+        {_, 1}-> %% Odd number with at least one element. Return center element
+            lists:nth(trunc(Length / 2) + 1, Sorted)
     end,
     { median, Median };
 
@@ -196,9 +196,9 @@ get_datapoint_value(Length, Total, Sorted, arithmetic_mean) ->
 
 get_datapoint_value(Length, Total, _Sorted, mean) ->
     Mean = case Length of
-	       0 -> 0;
-	       _ -> Total / Length
-	   end,
+               0 -> 0;
+               _ -> Total / Length
+           end,
     { mean, Mean };
 
 get_datapoint_value(Length, _Total, _Sorted, Perc) when is_number(Perc) ->

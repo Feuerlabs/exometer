@@ -14,45 +14,45 @@
 
 %% exometer_entry callbacks
 -export([new/3,
-	 delete/3,
-	 get_value/3,
-	 get_value/4,
-	 get_datapoints/3,
-	 update/4,
-	 reset/3,
-	 sample/3,
-	 setopts/4]).
+         delete/3,
+         get_value/3,
+         get_value/4,
+         get_datapoints/3,
+         update/4,
+         reset/3,
+         sample/3,
+         setopts/4]).
 
 %% exometer_probe callbacks
 -export([probe_init/3,
-	 probe_terminate/1,
-	 probe_get_value/1,
-	 probe_get_value/2,
-	 probe_update/2,
-	 probe_reset/1,
-	 probe_sample/1,
-	 probe_setopts/2,
-	 probe_get_datapoints/1,
-	 probe_handle_call/3,
-	 probe_handle_cast/2,
-	 probe_handle_info/2,
-	 probe_code_change/3]).
+         probe_terminate/1,
+         probe_get_value/1,
+         probe_get_value/2,
+         probe_update/2,
+         probe_reset/1,
+         probe_sample/1,
+         probe_setopts/2,
+         probe_get_datapoints/1,
+         probe_handle_call/3,
+         probe_handle_cast/2,
+         probe_handle_info/2,
+         probe_code_change/3]).
 
 -export([count_sample/3,
-	 count_transform/2]).
+         count_transform/2]).
 
 -include("exometer.hrl").
 -import(netlink_stat, [get_value/1]).
 -record(st, {name,
-	     slide = undefined, %%
-	     slot_period = 1000, %% msec
-	     time_span = 60000, %% msec
-	     total = 0,
-	     opts = []}).
+             slide = undefined, %%
+             slot_period = 1000, %% msec
+             time_span = 60000, %% msec
+             total = 0,
+             opts = []}).
 
 
--define(DATAPOINTS, 
-	[ one, count ]).
+-define(DATAPOINTS,
+        [ one, count ]).
 
 %%
 %% exometer_entry callbacks
@@ -61,12 +61,12 @@ new(Name, Type, Options) ->
     exometer_probe:new(Name, Type, [{module, ?MODULE}|Options]).
 
 probe_init(Name, _Type, Options) ->
-    St = process_opts(#st { name = Name }, [ { time_span, 60000}, 
-					     { slot_period,1000 } ] ++ Options),
+    St = process_opts(#st { name = Name }, [ { time_span, 60000},
+                                             { slot_period,1000 } ] ++ Options),
     Slide = exometer_slot_slide:new(St#st.time_span,
-				    St#st.slot_period,
-				    fun count_sample/3,
-				    fun count_transform/2),
+                                    St#st.slot_period,
+                                    fun count_sample/3,
+                                    fun count_transform/2),
     {ok, St#st{ slide = Slide }}.
 
 delete(Name, Type, Ref) ->
@@ -90,7 +90,7 @@ probe_get_datapoints(_St) ->
     ?DATAPOINTS.
 
 probe_get_value(St) ->
-    { ok, {{count, St#st.total}, 
+    { ok, {{count, St#st.total},
       {one, sum_histogram(St#st.slide) } }}.
 
 probe_get_value(St, DataPoints) ->
@@ -101,7 +101,7 @@ get_datapoint_value(count, St) ->
 
 get_datapoint_value(one, St) ->
     { one, sum_histogram(St#st.slide)};
-    
+
 get_datapoint_value(Unknown, _St) ->
     { Unknown, { error, undefined }}.
 
@@ -149,19 +149,19 @@ probe_code_change(_From, ModSt, _Extra) ->
 process_opts(St, Options) ->
     lists:foldl(
       fun
-	  %% Sample interval.
-	  ({time_span, Val}, St1) -> St1#st { time_span = Val };
-	  ({slot_period, Val}, St1) -> St1#st { slot_period = Val };
+          %% Sample interval.
+          ({time_span, Val}, St1) -> St1#st { time_span = Val };
+          ({slot_period, Val}, St1) -> St1#st { slot_period = Val };
 
-	  %% Unknown option, pass on to State options list, replacing
-	  %% any earlier versions of the same option.
-	  ({Opt, Val}, St1) ->
-	      St1#st{ opts = [ {Opt, Val}
-			       | lists:keydelete(Opt, 1, St1#st.opts) ] }
+          %% Unknown option, pass on to State options list, replacing
+          %% any earlier versions of the same option.
+          ({Opt, Val}, St1) ->
+              St1#st{ opts = [ {Opt, Val}
+                               | lists:keydelete(Opt, 1, St1#st.opts) ] }
       end, St, Options).
 
 %% Simple sample processor that maintains a counter.
-%% of all 
+%% of all
 count_sample(_TS, Increment, undefined) ->
    Increment;
 
@@ -182,4 +182,4 @@ count_transform(_TS, Total) ->
 %% sum up all elements
 sum_histogram(Slide) ->
     exometer_slot_slide:foldl(fun({_TS, Val}, Acc) -> Acc + Val end,
-			      0, Slide).
+                              0, Slide).

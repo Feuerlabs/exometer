@@ -12,16 +12,16 @@
 -behaviour(exometer_entry).
 
 -export([new/3,
-	 delete/3,
-	 get_datapoints/3,
-	 get_value/4,
-	 update/4,
-	 reset/3,
-	 sample/3,
-	 setopts/4]).
+         delete/3,
+         get_datapoints/3,
+         get_value/4,
+         update/4,
+         reset/3,
+         sample/3,
+         setopts/4]).
 
 -define(DATAPOINTS,
-	[ counter, histogram, duration, meter, spiral ]).
+        [ counter, histogram, duration, meter, spiral ]).
 
 new(Name, counter, _Opts) ->
     folsom_metrics:new_counter(Name);
@@ -29,12 +29,12 @@ new(Name, spiral, _Opts) ->
     folsom_metrics:new_spiral(Name);
 new(Name, histogram, Opts) ->
     case lists:keysearch(type_arg, 1, Opts) of
-	{_, {histogram, SampleType, SampleArgs}} ->
-	    {folsom_metrics:new_histogram(Name, SampleType, SampleArgs),
-	     opt_ref(Opts)};
-	false ->
-	    {folsom_metrics:new_histogram(Name, slide_uniform, {60, 1028}),
-	     opt_ref(Opts)}
+        {_, {histogram, SampleType, SampleArgs}} ->
+            {folsom_metrics:new_histogram(Name, SampleType, SampleArgs),
+             opt_ref(Opts)};
+        false ->
+            {folsom_metrics:new_histogram(Name, slide_uniform, {60, 1028}),
+             opt_ref(Opts)}
     end;
 new(Name, meter, Opts) ->
     {folsom_metrics:new_meter(Name), opt_ref(Opts)};
@@ -43,10 +43,10 @@ new(Name, duration, Opts) ->
 
 opt_ref(Opts) ->
     case lists:keyfind(truncate, 1, Opts) of
-	false ->
-	    [{truncate,true}];
-	{_, B} when is_boolean(B) ->
-	    [{truncate,B}]
+        false ->
+            [{truncate,true}];
+        {_, B} when is_boolean(B) ->
+            [{truncate,B}]
     end.
 
 delete(Name, _Type, _Ref) ->
@@ -67,8 +67,8 @@ get_value(Name, Type, Ref, DataPoints) ->
     Vals = get_value_(Name, Type, Ref),
     try [filter_dp(D, Vals, Trunc) || D <- datapoints(Type, DataPoints)]
     catch
-	error:_Error ->
-	    unavailable
+        error:_Error ->
+            unavailable
     end.
 
 get_trunc_opt(undefined) -> true;
@@ -94,22 +94,22 @@ datapoints(meter) ->
 
 filter_dp(Mean, DPs, Trunc) when Mean==mean; Mean==arithmetic_mean ->
     case lists:keyfind(mean, 1, DPs) of
-	false ->
-	    case lists:keyfind(arithmetic_mean, 1, DPs) of
-		false -> {mean, zero(Trunc)};
-		{_,V} -> {mean, opt_trunc(Trunc, V)}
-	    end;
-	{_,V} -> {mean, opt_trunc(Trunc, V)}
+        false ->
+            case lists:keyfind(arithmetic_mean, 1, DPs) of
+                false -> {mean, zero(Trunc)};
+                {_,V} -> {mean, opt_trunc(Trunc, V)}
+            end;
+        {_,V} -> {mean, opt_trunc(Trunc, V)}
     end;
 filter_dp(H, DPs, Trunc) when is_integer(H) ->
     case lists:keyfind(H, 1, DPs) of
-	false ->
-	    case lists:keyfind(percentile, 1, DPs) of
-		false -> {H, zero(Trunc)};
-		{_, Ps} ->
-		    get_dp(H, Ps, Trunc)
-	    end;
-	{_,V} -> {H, opt_trunc(Trunc, V)}
+        false ->
+            case lists:keyfind(percentile, 1, DPs) of
+                false -> {H, zero(Trunc)};
+                {_, Ps} ->
+                    get_dp(H, Ps, Trunc)
+            end;
+        {_,V} -> {H, opt_trunc(Trunc, V)}
     end;
 filter_dp(H, DPs, Trunc) ->
     get_dp(H, DPs, Trunc).
@@ -121,8 +121,8 @@ opt_trunc(_, V) ->
 
 get_dp(K, DPs, Trunc) ->
     case lists:keyfind(K, 1, DPs) of
-	false -> {K, zero(Trunc)};
-	{_, V} -> {K, opt_trunc(Trunc, V)}
+        false -> {K, zero(Trunc)};
+        {_, V} -> {K, opt_trunc(Trunc, V)}
     end.
 
 zero(true) -> 0;
@@ -154,5 +154,5 @@ get_value_(Name, spiral, _Ref) ->
 calc_stats(Values) ->
     L = length(Values),
     exometer_util:get_statistics(L,
-				 lists:sum(Values),
-				 lists:sort(Values)).
+                                 lists:sum(Values),
+                                 lists:sort(Values)).

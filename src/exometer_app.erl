@@ -15,8 +15,8 @@
 
 %% Application callbacks
 -export([start/2,
-	 stop/1,
-	 start_phase/3]).
+         stop/1,
+         start_phase/3]).
 
 %% ===================================================================
 %% Application callbacks

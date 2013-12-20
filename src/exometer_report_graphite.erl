@@ -12,11 +12,11 @@
 -behaviour(exometer_report).
 
 %% gen_server callbacks
--export([exometer_init/1, 
-	 exometer_info/2,
-	 exometer_report/5,
-	 exometer_subscribe/5,
-	 exometer_unsubscribe/4]).
+-export([exometer_init/1,
+         exometer_info/2,
+         exometer_report/5,
+         exometer_subscribe/5,
+         exometer_unsubscribe/4]).
 
 -include("exometer.hrl").
 
@@ -25,14 +25,14 @@
 -define(DEFAULT_CONNECT_TIMEOUT, 5000).
 
 -record(st, {
-	  host = ?DEFAULT_HOST,
-	  port = ?DEFAULT_PORT,
-	  connect_timeout = ?DEFAULT_CONNECT_TIMEOUT,
-	  name,
-	  namespace = [],
-	  prefix = [],
-	  api_key = "",
-	  socket = undefined}).
+          host = ?DEFAULT_HOST,
+          port = ?DEFAULT_PORT,
+          connect_timeout = ?DEFAULT_CONNECT_TIMEOUT,
+          name,
+          namespace = [],
+          prefix = [],
+          api_key = "",
+          socket = undefined}).
 
 %% calendar:datetime_to_gregorian_seconds({{1970,1,1},{0,0,0}}).
 -define(UNIX_EPOCH, 62167219200).
@@ -50,29 +50,29 @@ exometer_init(Opts) ->
     ConnectTimeout = get_opt(connect_timeout, Opts, ?DEFAULT_CONNECT_TIMEOUT),
 
     case gen_tcp:connect(Host, Port,  [{mode, list}], ConnectTimeout) of
-	{ok, Sock} ->
-	    {ok, #st{prefix = Prefix,
-		     api_key = API_key,
-		     socket = Sock,
-		     host = Host,
-		     port = Port,
-		     connect_timeout = ConnectTimeout }};
-	{error, _} = Error ->
-	    Error
+        {ok, Sock} ->
+            {ok, #st{prefix = Prefix,
+                     api_key = API_key,
+                     socket = Sock,
+                     host = Host,
+                     port = Port,
+                     connect_timeout = ConnectTimeout }};
+        {error, _} = Error ->
+            Error
     end.
 
 
 exometer_report(Probe, DataPoint, _Extra, Value, #st{socket = Sock,
-						    api_key = APIKey,
-						    prefix = Prefix} = St) ->
+                                                    api_key = APIKey,
+                                                    prefix = Prefix} = St) ->
     Line = [prefix(Prefix, APIKey), ".", name(Probe, DataPoint), " ",
-	    value(Value), " ", timestamp(), $\n],
+            value(Value), " ", timestamp(), $\n],
     io:fwrite("L = ~s~n", [Line]),
     case gen_tcp:send(Sock, Line) of
-	ok ->
-	    {ok, St};
-	_ ->
-	    reconnect(St)
+        ok ->
+            {ok, St};
+        _ ->
+            reconnect(St)
     end.
 
 exometer_subscribe(_Metric, _DataPoint, _Extra, _Interval, St) ->
@@ -90,7 +90,7 @@ prefix([], []) -> [];
 prefix(Prefix , []) -> Prefix;
 prefix([]     , APIKey) -> APIKey;
 prefix(Prefix , APIKey) -> [APIKey, ".", Prefix].
-    
+
 %% Add probe and datapoint within probe
 name(Probe, DataPoint) -> [Probe, ".", atom_to_list(DataPoint)].
 
@@ -105,10 +105,10 @@ timestamp() ->
 
 reconnect(St) ->
     case gen_tcp:connect(St#st.host, St#st.port,  [{mode, list}], St#st.connect_timeout) of
-	{ok, Sock} ->
-	    {ok, St#st{socket = Sock}};
-	{error, _} = Error ->
-	    Error
+        {ok, Sock} ->
+            {ok, St#st{socket = Sock}};
+        {error, _} = Error ->
+            Error
     end.
 
 unix_time() ->
@@ -119,15 +119,15 @@ datetime_to_unix_time({{_,_,_},{_,_,_}} = DateTime) ->
 
 get_opt(K, Opts) ->
     case lists:keyfind(K, 1, Opts) of
-	{_, V} -> V;
-	false  -> error({required, K})
+        {_, V} -> V;
+        false  -> error({required, K})
     end.
 
 get_opt(K, Opts, Default) ->
     case lists:keyfind(K, 1, Opts) of
-	{_, V} -> V;
-	false  ->
-	    if is_function(Default,0) -> Default();
-	       true -> Default
-	    end
+        {_, V} -> V;
+        false  ->
+            if is_function(Default,0) -> Default();
+               true -> Default
+            end
     end.
