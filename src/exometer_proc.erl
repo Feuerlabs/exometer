@@ -76,6 +76,7 @@ call(Pid, Req) ->
     Pid ! {exometer_proc, {self(), MRef}, Req},
     receive
 	{MRef, Reply} ->
+            erlang:demonitor(MRef, [flush]),
 	    Reply;
 	{'DOWN', MRef, _, _, Reason} ->
 	    error(Reason)
