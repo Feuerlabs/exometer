@@ -108,12 +108,12 @@ process_options(Opts) ->
               process_flag(priority, P);
          ({min_heap_size, S}) when is_integer(S), S > 0 ->
               process_flag(min_heap_size, S);
-         ({min_vheap_size, S}) when is_integer(S), S > 0 ->
-              process_flag(min_vheap_size, S);
+         ({min_bin_vheap_size, S}) when is_integer(S), S > 0 ->
+              process_flag(min_bin_vheap_size, S);
          ({sensitive, B}) when is_boolean(B) ->
               process_flag(sensitive, B);
-         ({scheduler, I}) when is_integer(I), I >= 0 ->
-              process_flag(scheduler, I);
+         %% ({scheduler, I}) when is_integer(I), I >= 0 ->
+         %%      process_flag(scheduler, I);
          (_) ->
               ok
       end, Opts ++ Defaults).

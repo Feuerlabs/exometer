@@ -683,7 +683,8 @@ add_elem(K, V, Elems) ->
     lists:keystore(P, 1, Elems, {P, V}).
 
 pos(cache ) -> #exometer_entry.cache;
-pos(status) -> #exometer_entry.status.
+pos(status) -> #exometer_entry.status;
+pos(ref) -> #exometer_entry.ref.
 
 update_opts(New, Old) ->
     type_arg_first(lists:foldl(

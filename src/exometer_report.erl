@@ -174,13 +174,16 @@
 %% are invoked in-process.
 -callback exometer_init(options()) -> callback_result().
 
--callback exometer_report(metric(), datapoint(), value(), extra(), mod_state()) ->
+-callback exometer_report(metric(), datapoint(),
+                          value(), extra(), mod_state()) ->
     callback_result().
 
--callback exometer_subscribe(metric(), datapoint(), interval(), extra(), mod_state()) ->
+-callback exometer_subscribe(metric(), datapoint(),
+                             interval(), extra(), mod_state()) ->
     callback_result().
 
--callback exometer_unsubscribe(metric(), datapoint(), extra(), mod_state()) ->
+-callback exometer_unsubscribe(metric(), datapoint(),
+                               extra(), mod_state()) ->
     callback_result().
 
 -callback exometer_info(any(),mod_state()) ->
@@ -215,7 +218,8 @@
 
 %% Helper macro for declaring children of supervisor
 %% Used to start reporters, which are a part of the supervisor tree.
--define(CHILD(I, Type, OIpt), {I, {I, start_link, Opt}, permanent, 5000, Type, [I]}).
+-define(CHILD(I, Type, OIpt),
+        {I, {I, start_link, Opt}, permanent, 5000, Type, [I]}).
 
 %%%===================================================================
 %%% API
@@ -493,7 +497,7 @@ handle_info({ report, #key{ reporter = Reporter,
 
 handle_info({'DOWN', Ref, process, _Pid, _Reason}, S) ->
     Subs =
-        case lists:keytake(Ref, #reporter.mref, S#st.reporters) of
+        case lists:keyfind(Ref, #reporter.mref, S#st.reporters) of
             #reporter {module = Module} ->
                 purge_subscriptions(Module, S#st.subscribers);
             _ -> S#st.subscribers

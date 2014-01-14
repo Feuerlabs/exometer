@@ -48,6 +48,10 @@ set_default(NamePattern, Type, Opts) when is_list(NamePattern) ->
     set_default(NamePattern, Type, opts_to_rec(Opts)).
 
 preset_defaults() ->
+    load_defaults(),
+    load_predefined().
+
+load_defaults() ->
     case application:get_env(exometer, defaults) of
         {ok, Defaults} ->
             lists:foreach(
@@ -57,6 +61,33 @@ preset_defaults() ->
         _ ->
             ok
     end.
+
+load_predefined() ->
+    case application:get_env(exometer, predefined) of
+        {ok, L} when is_list(L) ->
+            lists:foreach(
+              fun(E) ->
+                      do_load_predef(get_predef(E))
+              end, L);
+        {ok, E} ->
+            do_load_predef(get_predef(E));
+        _ ->
+            ok
+    end.
+
+get_predef({consult, F}) -> ok(file:consult(F));
+get_predef({script, F} ) -> ok(file:script(F, []));
+get_predef({apply, M, F, A}) -> ok(apply(M, F, A)).
+
+do_load_predef(L) ->
+    lists:foreach(
+      fun({Name, Type, Options}) ->
+              new_entry(Name, Type, Options)
+      end, L).
+
+ok({ok, Res}) -> Res;
+ok({error, E}) ->
+    erlang:error(E).
 
 new_entry(Name, Type, Opts) ->
     case gen_server:call(?MODULE, {new_entry, Name, Type, Opts, false}) of
@@ -109,7 +140,7 @@ handle_call({new_entry, Name, Type, Opts, AllowExisting}, _From, S) ->
         #exometer_entry{options = OptsTemplate} = E =
             lookup_definition(Name, Type, Opts),
         case {ets:member(exometer_util:table(), Name), AllowExisting} of
-            {[_], false} -> {reply, {error, exists}, S};
+            {false, false} -> {reply, {error, exists}, S};
             _ ->
                 Res = exometer:create_entry(
                         process_opts(E, OptsTemplate ++ Opts)),
