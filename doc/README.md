@@ -2,9 +2,9 @@
 
 # Exometer - Erlang instrumentation package #
 
-Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved..
+Copyright (c) 2014 Basho Technologies, Inc.  All Rights Reserved.
 
-__Version:__ Dec 14 2013 21:10:16
+__Version:__ Jan 17 2014 14:45:42
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -26,15 +26,50 @@ with `exometer`.
 ### <a name="Table_of_Content">Table of Content</a> ###
 
 
-__1\. [Concept and definitions](#Concept_and_definitions)<br></br>1.1 [Metric](#Metric)<br></br>1.2 [Data Point](#Data_Point)<br></br>1.3 [Metric Type](#Metric_Type)<br></br>1.4 [Entry Callback](#Entry_Callback)<br></br>1.5 [Probe](#Probe)<br></br>1.6 [Caching](#Caching)<br></br>1.7 [Subscriptions and Reporters](#Subscriptions_and_Reporters)<br></br>2\. [Built-in entries and probes](#Built-in_entries_and_probes)<br></br>2.1 [counter (exometer native)](#counter_(exometer_native))<br></br>2.2 [fast_counter (exometer native)](#fast_counter_(exometer_native))<br></br>2.3 [exometer_histogram (probe)](#exometer_histogram_(probe))<br></br>2.4 [exometer_uniform (probe)](#exometer_uniform_(probe))<br></br>2.5 [exometer_spiral (probe)](#exometer_spiral_(probe))<br></br>2.6 [exometer_folsom [entry]](#exometer_folsom_[entry])<br></br>2.7 [exometer_function [entry]](#exometer_function_[entry])<br></br>3\. [Built in Reporters](#Built_in_Reporters)<br></br>3.1 [exometer_report_graphite](#exometer_report_graphite)<br></br>3.2 [exometer_report_collectd](#exometer_report_collectd)<br></br>4\. [Instrumenting Erlang code](#Instrumenting_Erlang_code)<br></br>4.1 [Exometer Start](#Exometer_Start)<br></br>4.2 [Creating metrics](#Creating_metrics)<br></br>4.3 [Deleting metrics](#Deleting_metrics)<br></br>4.4 [Setting metric values](#Setting_metric_values)<br></br>4.5 [Retrieving metric values](#Retrieving_metric_values)<br></br>4.6 [Setting up subscriptions](#Setting_up_subscriptions)<br></br>4.7 [Set metric options](#Set_metric_options)<br></br>5\. [Configuring Exometer](#Configuring_Exometer)<br></br>5.1 [Configuring type - entry maps](#Configuring_type_-_entry_maps)<br></br>5.2 [Configuring static subscriptions](#Configuring_static_subscriptions)<br></br>5.3 [Configuring reporter plugins](#Configuring_reporter_plugins)<br></br>5.4 [Configuring collectd reporter](#Configuring_collectd_reporter)<br></br>5.5 [Configuring graphite reporter](#Configuring_graphite_reporter)<br></br>6\. [Creating custom exometer entries](#Creating_custom_exometer_entries)<br></br>7\. [Creating custom probes](#Creating_custom_probes)<br></br>8\. [Creating custom reporter plugins](#Creating_custom_reporter_plugins)__
+1. [Concept and definitions](#Concept_and_definitions)
+    1. [Metric](#Metric)
+    2. [Data Point](#Data_Point)
+    3. [Metric Type](#Metric_Type)
+    4. [Entry Callback](#Entry_Callback)
+    5. [Probe](#Probe)
+    6. [Caching](#Caching)
+    7. [Subscriptions and Reporters](#Subscriptions_and_Reporters)
+2. [Built-in entries and probes](#Built-in_entries_and_probes)
+    1. [counter (exometer native)](#counter_(exometer_native))
+    2. [fast_counter (exometer native)](#fast_counter_(exometer_native))
+    3. [exometer_histogram (probe)](#exometer_histogram_(probe))
+    4. [exometer_uniform (probe)](#exometer_uniform_(probe))
+    5. [exometer_spiral (probe)](#exometer_spiral_(probe))
+    6. [exometer_folsom [entry]](#exometer_folsom_[entry])
+    7. [exometer_function [entry]](#exometer_function_[entry])
+3. [Built in Reporters](#Built_in_Reporters)
+    1. [exometer_report_graphite](#exometer_report_graphite)
+    2. [exometer_report_collectd](#exometer_report_collectd)
+4. [Instrumenting Erlang code](#Instrumenting_Erlang_code)
+    1. [Exometer Start](#Exometer_Start)
+    2. [Creating metrics](#Creating_metrics)
+    3. [Deleting metrics](#Deleting_metrics)
+    4. [Setting metric values](#Setting_metric_values)
+    5. [Retrieving metric values](#Retrieving_metric_values)
+    6. [Setting up subscriptions](#Setting_up_subscriptions)
+    7. [Set metric options](#Set_metric_options)
+5. [Configuring Exometer](#Configuring_Exometer)
+    1. [Configuring type - entry maps](#Configuring_type_-_entry_maps)
+    2. [Configuring static subscriptions](#Configuring_static_subscriptions)
+    3. [Configuring reporter plugins](#Configuring_reporter_plugins)
+    4. [Configuring collectd reporter](#Configuring_collectd_reporter)
+    5. [Configuring graphite reporter](#Configuring_graphite_reporter)
+6. [Creating custom exometer entries](#Creating_custom_exometer_entries)
+7. [Creating custom probes](#Creating_custom_probes)
+8. [Creating custom reporter plugins](#Creating_custom_reporter_plugins)
 
 
 ### <a name="Concepts_and_Definitions">Concepts and Definitions</a> ###
 
-Exometer introcuces a number of concepts and definitions used
+Exometer introduces a number of concepts and definitions used
 throughout the documentation and the code.
 
-![Overview](/doc/exometer_overview.png)
+![Overview](/doc/exometer_overview.png?raw=true)
 
 
 #### <a name="Metric">Metric</a> ####
@@ -77,7 +112,7 @@ The type of a metric, specified when the metric is created through
 callback to use.
 
 The link between the type and the entry to use is configured
-through the `exomter_admin` module, and its associated exometer
+through the `exometer_admin` module, and its associated exometer
 defaults configuration data.
 
 The metric type, in other words, is only used to map a metric to a
@@ -813,13 +848,11 @@ Please see @see exometer_report documentation for details.
 
 
 <table width="100%" border="0" summary="list of modules">
-<tr><td><a href="count_example.md" class="module">count_example</a></td></tr>
 <tr><td><a href="exometer.md" class="module">exometer</a></td></tr>
 <tr><td><a href="exometer_admin.md" class="module">exometer_admin</a></td></tr>
 <tr><td><a href="exometer_cache.md" class="module">exometer_cache</a></td></tr>
 <tr><td><a href="exometer_cpu.md" class="module">exometer_cpu</a></td></tr>
 <tr><td><a href="exometer_duration.md" class="module">exometer_duration</a></td></tr>
-<tr><td><a href="exometer_ebuf.md" class="module">exometer_ebuf</a></td></tr>
 <tr><td><a href="exometer_entry.md" class="module">exometer_entry</a></td></tr>
 <tr><td><a href="exometer_folsom.md" class="module">exometer_folsom</a></td></tr>
 <tr><td><a href="exometer_function.md" class="module">exometer_function</a></td></tr>
@@ -828,7 +861,6 @@ Please see @see exometer_report documentation for details.
 <tr><td><a href="exometer_netlink.md" class="module">exometer_netlink</a></td></tr>
 <tr><td><a href="exometer_probe.md" class="module">exometer_probe</a></td></tr>
 <tr><td><a href="exometer_proc.md" class="module">exometer_proc</a></td></tr>
-<tr><td><a href="exometer_reg.md" class="module">exometer_reg</a></td></tr>
 <tr><td><a href="exometer_report.md" class="module">exometer_report</a></td></tr>
 <tr><td><a href="exometer_report_collectd.md" class="module">exometer_report_collectd</a></td></tr>
 <tr><td><a href="exometer_report_graphite.md" class="module">exometer_report_graphite</a></td></tr>
