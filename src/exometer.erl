@@ -516,7 +516,10 @@ exo_proc_get_datapoints(default, #exometer_entry{name = Name,
                                                  ref = {_, Mod} = Ref}) ->
     Mod:get_datapoints(Name, Type, Ref);
 exo_proc_get_datapoints(D, _) when is_list(D) ->
-    D.
+    D;
+
+exo_proc_get_datapoints(D, _)  ->
+    [D].
 
 exo_proc_get_value(#exometer_entry{ref = {Pid,_}}, DPs) ->
     exo_proc_call(Pid, {get_value, DPs}).
