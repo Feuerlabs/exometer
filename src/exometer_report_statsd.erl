@@ -86,6 +86,9 @@ exometer_info(_, St) ->
 %%% Internal Functions
 %%%===================================================================
 
+get_opt(K, Opts, Def) ->
+    exometer_util:get_opt(K, Opts, Def).
+
 type(gauge) -> "g";
 type(counter) -> "c";
 type(timer) -> "ms";
@@ -101,15 +104,6 @@ name(Metric, DataPoint) ->
 value(V) when is_integer(V) -> integer_to_list(V);
 value(V) when is_float(V)   -> float_to_list(V);
 value(_)                    -> 0.
-
-get_opt(K, Opts, Default) ->
-    case lists:keyfind(K, 1, Opts) of
-	{_, V} -> V;
-	false  ->
-	    if is_function(Default,0) -> Default();
-	       true -> Default
-	    end
-    end.
 
 intersperse(_, [])         -> [];
 intersperse(_, [X])        -> [X];

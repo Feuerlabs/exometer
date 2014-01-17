@@ -81,6 +81,9 @@ handle_msg(Msg, St) ->
             reset_int(St);
         {exometer_proc, stop} ->
             exometer_proc:stop();
+        {exometer_proc, {From, Ref}, get_state} ->
+            From ! {Ref, St},
+            St;
         _ ->
             St
     end.

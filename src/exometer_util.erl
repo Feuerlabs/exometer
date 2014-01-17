@@ -33,6 +33,15 @@ timestamp_to_datetime(TS) ->
     %% return {Datetime, Milliseconds}
     {calendar:now_to_datetime({1258,S,0}), MS}.
 
+get_opt(K, Opts, Default) ->
+    case lists:keyfind(K, 1, Opts) of
+	{_, V} -> V;
+	false  ->
+	    if is_function(Default,0) -> Default();
+	       true -> Default
+	    end
+    end.
+
 tables() ->
     [table(S) || S <- lists:seq(1,erlang:system_info(schedulers))].
 

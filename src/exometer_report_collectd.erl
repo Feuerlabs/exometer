@@ -292,13 +292,7 @@ datetime_to_unix_time({{_,_,_},{_,_,_}} = DateTime) ->
     calendar:datetime_to_gregorian_seconds(DateTime) - ?UNIX_EPOCH.
 
 get_opt(K, Opts, Default) ->
-    case lists:keyfind(K, 1, Opts) of
-        {_, V} -> V;
-        false  ->
-            if is_function(Default,0) -> Default();
-               true -> Default
-            end
-    end.
+    exometer_util:get_opt(K, Opts, Default).
 
 check_instance("auto") ->
     get_default_instance();

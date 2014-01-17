@@ -457,7 +457,7 @@ update_entry_elems(Name, Elems) ->
     ok.
 
 -type info() :: name | type | module | value | cache
-              | status | timestamp | options | ref.
+              | status | timestamp | options | ref | datapoints.
 -spec info(name(), info()) -> any().
 %% @doc Retrieves information about a metric.
 %%
@@ -761,11 +761,10 @@ create_entry(#exometer_entry{name = Name, module = exometer,
                                                        Type==exometer_proc ->
     case lists:keyfind(type_arg, 1, Opts) of
         {_, Mod} when is_atom(Mod) ->
-            Pid = proc_lib:spawn(
-                    fun() ->
-                            exometer_admin:monitor(Name, self()),
-                            ok = Mod:init(Name, Type, Opts)
-                    end),
+            Pid = spawn_proc(fun() ->
+                                     exometer_admin:monitor(Name, self()),
+                                     ok = Mod:init(Name, Type, Opts)
+                             end, Opts),
             E1 = E#exometer_entry{ref = {Pid, Mod}},
             [ets:insert(T, E1) ||
                 T <- [?EXOMETER_ENTRIES|tables()]],
@@ -788,6 +787,11 @@ create_entry(#exometer_entry{module = M,
         Other ->
             Other
     end.
+
+spawn_proc(F, Opts) ->
+    SpawnOpts = exometer_util:get_opt(
+                  spawn_opt, Opts, [{fullsweep_after, 10}]),
+    proc_lib:spawn_opt(F, SpawnOpts).
 
 set_call_count({M, F}, Bool) ->
     set_call_count(M, F, Bool).

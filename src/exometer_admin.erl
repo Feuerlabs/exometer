@@ -139,8 +139,10 @@ handle_call({new_entry, Name, Type, Opts, AllowExisting}, _From, S) ->
     try
         #exometer_entry{options = OptsTemplate} = E =
             lookup_definition(Name, Type, Opts),
+        io:fwrite("Name = ~p~n"
+                  "Tab = ~p~n", [Name, ets:tab2list(exometer_util:table())]),
         case {ets:member(exometer_util:table(), Name), AllowExisting} of
-            {false, false} -> {reply, {error, exists}, S};
+            {true, false} -> {reply, {error, exists}, S};
             _ ->
                 Res = exometer:create_entry(
                         process_opts(E, OptsTemplate ++ Opts)),

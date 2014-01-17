@@ -186,11 +186,13 @@
          foldr/3,
          foldr/4]).
 
--export([test/0]).
-
 -compile(inline).
 
 -import(lists, [reverse/1, sublist/3]).
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+-endif.
 
 -type(timestamp() :: integer()).
 -type(value() :: any()).
@@ -408,15 +410,23 @@ avg_transform(_TS, { Count, Total }) ->
     Total / Count. %% Return the average value.
 
 
+timestamp() ->
+    %% Invented epoc is {1258,0,0}, or 2009-11-12, 4:26:40
+    %% Millisecond resolution
+    {MS,S,US} = os:timestamp(),
+    (MS-1258)*1000000000 + S*1000 + US div 1000.
 
+
+
+-ifdef(TEST).
 
 test() ->
     %% Create a slotted slide covering 2000 msec, where
     %% each slot is 100 msec wide.
     S = new(2000, 100),
-    {T1, S1 }= timer:tc(?MODULE, build_histogram, [S]),
+    {T1, S1} = timer:tc(?MODULE, build_histogram, [S]),
 
-    {T2, Avg } = timer:tc(?MODULE, calc_avg, [S1]),
+    {T2, Avg} = timer:tc(?MODULE, calc_avg, [S1]),
     io:format("Histogram creation: ~p~n", [ T1 ]),
     io:format("Avg calculation: ~p~n", [ T2 ]),
     io:format("Avg value: ~p~n", [ Avg ]).
@@ -438,9 +448,4 @@ calc_avg(Slide) ->
                                     {Sum + Elem, Count + 1} end, {0, 0}, Slide),
     T / C.
 
-
-timestamp() ->
-    %% Invented epoc is {1258,0,0}, or 2009-11-12, 4:26:40
-    %% Millisecond resolution
-    {MS,S,US} = os:timestamp(),
-    (MS-1258)*1000000000 + S*1000 + US div 1000.
+-endif.

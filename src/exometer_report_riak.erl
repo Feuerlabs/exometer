@@ -898,16 +898,16 @@ server_result(ok, Message) ->
     list_to_binary(?RESULT_OK ++ Message ++ "\n");
 
 server_result(syntax_error, Message) ->
-    list_to_binary(?RESULT_SYNTAX_ERROR ++ Message ++ "\n");
+    list_to_binary(?RESULT_SYNTAX_ERROR ++ Message ++ "\n").
 
-server_result(unknown_metric, Message) ->
-    list_to_binary(?RESULT_UNKNOWN_METRIC ++ Message ++ "\n");
+%% server_result(unknown_metric, Message) ->
+%%     list_to_binary(?RESULT_UNKNOWN_METRIC ++ Message ++ "\n");
 
-server_result(invalid_socket, Message) ->
-    list_to_binary(?RESULT_INVALID_SOCKET ++ Message ++ "\n");
+%% server_result(invalid_socket, Message) ->
+%%     list_to_binary(?RESULT_INVALID_SOCKET ++ Message ++ "\n");
 
-server_result(internal_error, Message) ->
-    list_to_binary(?RESULT_INVALID_SOCKET ++ Message ++ "\n").
+%% server_result(internal_error, Message) ->
+%%     list_to_binary(?RESULT_INVALID_SOCKET ++ Message ++ "\n").
 
 %% Construct a key to be used in the subscription table
 subscription_key(Metric, DataPoint, Socket) ->
@@ -950,13 +950,7 @@ datetime_to_unix_time({{_,_,_},{_,_,_}} = DateTime) ->
     calendar:datetime_to_gregorian_seconds(DateTime) - ?UNIX_EPOCH.
 
 get_opt(K, Opts, Default) ->
-    case lists:keyfind(K, 1, Opts) of
-        {_, V} -> V;
-        false  ->
-            if is_function(Default,0) -> Default();
-               true -> Default
-            end
-    end.
+    exometer_util:get_opt(K, Opts, Default).
 
 command_to_atom("subscribe") -> subscribe;
 command_to_atom("unsubscribe") -> unsubscribe;

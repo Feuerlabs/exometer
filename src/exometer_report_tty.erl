@@ -32,6 +32,7 @@
          exometer_subscribe/5,
          exometer_unsubscribe/4]).
 
+-compile(export_all).
 
 -define(SERVER, ?MODULE).
 
@@ -68,7 +69,7 @@ exometer_info(Unknown, St) ->
 report_exometer_(Metric, DataPoint, Value, #st{} = St) ->
     Str = [?MODULE_STRING, ": ", name(Metric, DataPoint), $\s,
            timestamp(), ":", value(Value), $\n],
-    io:fwrite(Str),
+    io:format(Str, []),
     St.
 
 %% Add metric and datapoint within metric
@@ -82,10 +83,11 @@ metric_to_string([H | T]) ->
 
 metric_elem_to_list(E) when is_atom(E) ->
     atom_to_list(E);
-metric_elem_to_list(E) when is_list(E) ->
+metric_elem_to_list(E) when is_list(E); is_binary(E) ->
     E;
 metric_elem_to_list(E) when is_integer(E) ->
     integer_to_list(E).
+
 
 
 

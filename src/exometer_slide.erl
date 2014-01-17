@@ -13,8 +13,10 @@
          foldl/3,
          foldl/4]).
 
-
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
 -export([test/0]).
+-endif.
 
 -compile(export_all).
 
@@ -106,6 +108,7 @@ n_diff(A, B) when is_integer(A) ->
 n_diff(_, B) ->
     B.
 
+-ifdef(TEST).
 
 test() ->
     %% Create a slotted slide covering 2000 msec, where
@@ -134,3 +137,5 @@ calc_avg(Slide) ->
     {T, C} = foldl(4500, fun({_TS, Elem}, {Sum, Count}) ->
                                     {Sum + Elem, Count + 1} end, {0, 0}, Slide),
     T / C.
+
+-endif.

@@ -167,7 +167,7 @@
 -type value() :: any().
 -type interval() :: integer().
 -type callback_result() :: {ok, mod_state()} | any().
--type key() :: {module(), metric(), datapoint()}.
+%% -type key() :: {module(), metric(), datapoint()}.
 -type extra() :: any().
 
 %% Callback for function, not cast-based, reports that
@@ -198,7 +198,7 @@
          }).
 
 -record(subscriber, {
-          key   :: key(),
+          key   :: #key{},
           interval :: integer(),
           t_ref :: reference()
          }).
@@ -575,7 +575,7 @@ subscribe_( Reporter, Metric, DataPoint, Interval, RetryFailedMetrics, Extra) ->
                },
 
     %% FIXME: Validate Metric and datapoint
-    ?info("Subscribe_(Intv(~p), self(~p))~n", [ Interval, self()]),
+    %% ?info("Subscribe_(Intv(~p), self(~p))~n", [ Interval, self()]),
     TRef = erlang:send_after(Interval, self(),
                              { report, Key, Interval }),
     #subscriber{ key = Key,
@@ -614,7 +614,7 @@ report_value(Reporter, Metric, DataPoint, Extra, Val) ->
         exit:_ -> false
     end.
 
-retrieve_metric({ Metric, Enabled}, Subscribers, Acc) ->
+retrieve_metric({Metric, _, Enabled}, Subscribers, Acc) ->
     [ { Metric, exometer:info(Metric, datapoints),
         get_subscribers(Metric, Subscribers), Enabled } | Acc ].
 
