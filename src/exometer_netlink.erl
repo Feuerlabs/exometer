@@ -105,7 +105,7 @@ sample(Name, Type, Ref) ->
     exometer_probe:sample(Name, Type, Ref).
 
 probe_sample(St) ->
-    [{_, Count}] = netlink_stat:get_value(St#st.netlink_element),
+    [{_, Count}] = get_value(St#st.netlink_element),
     Slide = exometer_slot_slide:add_element(Count - St#st.last_count, St#st.slide),
     {ok, St#st { slide = Slide, last_count = Count }}.
 

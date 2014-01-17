@@ -19,7 +19,7 @@
 -export([new/3,
          delete/3,
          get_datapoints/3,
-         get_value/4,
+         get_value/3, get_value/4,
          update/4,
          reset/3,
          sample/3,
@@ -87,6 +87,9 @@ new(Name, Type, Options) ->
 
 delete(_Name, _Type, Pid) when is_pid(Pid) ->
     gen_server:call(Pid, stop).
+
+get_value(_Name, _Type, Pid) when is_pid(Pid) ->
+    gen_server:call(Pid, {get_value, default}).
 
 get_value(_Name, _Type, Pid, DataPoints) when is_pid(Pid) ->
     gen_server:call(Pid, {get_value, DataPoints}).

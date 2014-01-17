@@ -172,11 +172,9 @@
 %% example of a simple average value implementation.
 %%
 %% @end
-
 -module(exometer_slot_slide).
 
-
--export([new/2, new/5,
+-export([new/2, new/4, new/5,
          add_element/2,
          add_element/3,
          reset/1,
@@ -212,13 +210,15 @@
                 list1 = []    :: list(),
                 list2 = []    :: list()}).
 
--spec new(integer(),
-          integer(),
-          sample_fun(),
-          transform_fun(),
-          list()
-         ) -> #slide{}.
-%%
+-spec new(integer(), integer()) -> #slide{}.
+new(HistogramTimeSpan, SlotPeriod) ->
+    new(HistogramTimeSpan, SlotPeriod, fun avg_sample/3, fun avg_transform/2).
+
+-spec new(integer(), integer(), sample_fun(), transform_fun()) -> #slide{}.
+new(HistogramTimeSpan, SlotPeriod, SampleF, TransformF) ->
+    new(HistogramTimeSpan, SlotPeriod, SampleF, TransformF, []).
+
+-spec new(integer(), integer(), sample_fun(), transform_fun(), list()) -> #slide{}.
 new(HistogramTimeSpan, SlotPeriod, SampleF, TransformF, _Options)
   when is_function(SampleF, 3), is_function(TransformF, 2) ->
     #slide{timespan = trunc(HistogramTimeSpan / SlotPeriod),
@@ -230,11 +230,6 @@ new(HistogramTimeSpan, SlotPeriod, SampleF, TransformF, _Options)
            list1_start_slot = 0,
            list1 = [],
            list2 = []}.
-
-
-new(HistogramTimeSpan, SlotPeriod) ->
-    new(HistogramTimeSpan, SlotPeriod,
-        fun avg_sample/3, fun avg_transform/2, []).
 
 -spec add_element(any(), #slide{}) -> #slide{}.
 
