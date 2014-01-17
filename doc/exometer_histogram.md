@@ -24,14 +24,14 @@ __Behaviours:__ [`exometer_entry`](exometer_entry.md).
 
 ### average_sample/3 ###
 
-`average_sample(TS, Val, X3) -> any()`
+`average_sample(TS, Val, Sample) -> any()`
 
 
 <a name="average_transform-2"></a>
 
 ### average_transform/2 ###
 
-`average_transform(TS, X2) -> any()`
+`average_transform(TS, Sample) -> any()`
 
 
 <a name="delete-3"></a>
