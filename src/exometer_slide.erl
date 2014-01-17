@@ -5,7 +5,7 @@
 
 -module(exometer_slide).
 
--export([new/5,
+-export([new/2, new/5,
          reset/1,
          add_element/2,
          add_element/3,
@@ -41,6 +41,11 @@
           sample_fun(), transform_fun(), list()) -> #slide{}.
 %%
 new(Size, _Period, _SampleFun, _TransformFun, Opts) ->
+    new(Size, Opts).
+
+-spec new(integer(), list()) -> #slide{}.
+%%
+new(Size, Opts) ->
     #slide{size = Size,
            max_n = proplists:get_value(max_n, Opts, infinity),
            last = timestamp(),
