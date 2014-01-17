@@ -7,15 +7,12 @@
 
 case os:getenv("EXOMETER_PACKAGES") of
     Str when is_list(Str) ->
-	io:fwrite("Str = ~p~n", [Str]),
 	L = string:tokens(Str, "\t, \n"),
-	io:fwrite("L = ~p~n", [L]),
 	{_, Deps} = lists:keyfind(deps, 1, CONFIG),
 	Deps1 = lists:filter(
 		  fun(D) when is_tuple(D) ->
 			  App = element(1,D),
 			  AppStr = atom_to_list(App),
-			  io:fwrite("AppStr = ~p~n", [AppStr]),
 			  case lists:member(AppStr, L) orelse
 			      lists:member("+" ++ AppStr, L) of
 			      false ->
@@ -24,7 +21,6 @@ case os:getenv("EXOMETER_PACKAGES") of
 				  true
 			  end
 		  end, Deps),
-	io:fwrite("Deps1 = ~p~n", [Deps1]),
 	lists:keyreplace(deps, 1, CONFIG, {deps, Deps1});
     false ->
 	CONFIG
