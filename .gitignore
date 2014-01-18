@@ -3,3 +3,4 @@ deps
 *.o
 *.beam
 *.plt
+*.app

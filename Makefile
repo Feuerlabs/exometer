@@ -7,8 +7,6 @@ compile:
 
 clean:
 	rebar clean
-# The files removed by clean are checked in??
-#	rm -f doc/exometer*.md doc/*.png doc/stylesheet.css
 
 test:
 	rebar eunit skip_deps=true
