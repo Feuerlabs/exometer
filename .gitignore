@@ -4,3 +4,6 @@ deps
 *.beam
 *.plt
 *.app
+include/EXOMETER-MIB.hrl
+priv/mibs/EXOMETER-MIB.bin
+log/

@@ -1,4 +1,4 @@
-.PHONY: all clean clean_plt deps compile test doc dialyzer
+.PHONY: all clean clean_plt deps compile test doc dialyzer xref devnode_snmp_agent devnode_snmp_manager
 
 EXOMETER_PLT=exometer.plt
 DIALYZER_OPTS = -Wunderspecs
@@ -38,3 +38,11 @@ clean_plt:
 
 dialyzer: $(EXOMETER_PLT)
 	dialyzer -r ebin --plt $(EXOMETER_PLT) $(DIALYZER_OPTS)
+
+devnode_snmp_agent:
+	erl -sname agent -pa deps/*/ebin ebin -config examples/snmp_agent/sys.config -boot start_sasl -s lager -s crypto -s exometer
+
+devnode_snmp_manager:
+	erlc +'{parse_transform, lager_transform}' -pz deps/lager/ebin -I src -o examples/snmp_manager/ examples/snmp_manager/*.erl
+	erl -sname manager -pz examples/snmp_manager -pz deps/*/ebin ebin -config examples/snmp_manager/sys.config \
+		-boot start_sasl -s lager -s crypto -s snmp

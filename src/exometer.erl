@@ -78,10 +78,12 @@
 
 start() ->
     lager:start(),
+    application:start(snmp),
     application:start(exometer).
 
 stop() ->
     application:stop(exometer),
+    application:stop(snmp),
     application:stop(lager).
 
 -spec new(name(), type()) -> ok.
