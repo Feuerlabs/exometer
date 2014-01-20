@@ -26,7 +26,8 @@
           value,
           timestamp,
           options = [],
-          ref
+          ref,
+          snmp = disabled
          }).
 
 %% Used to redirect lookup from the scheduler-specific tables to the shared

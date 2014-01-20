@@ -7,7 +7,7 @@
 %%   file, You can obtain one at http://mozilla.org/MPL/2.0/.
 %%
 %% -------------------------------------------------------------------
--module(test_manager).
+-module(exo_test_user).
 
 -behaviour(snmpm_user).
 

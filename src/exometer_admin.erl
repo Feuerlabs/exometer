@@ -10,16 +10,18 @@
 
 -module(exometer_admin).
 
+-compile(export_all).
+
 -export([new_entry/3,
          re_register_entry/3]).
 -export([set_default/3]).
 
--compile(export_all).
-
 -export([monitor/2, demonitor/1]).
 
--record(st, {}).
 -include("exometer.hrl").
+-include("log.hrl").
+
+-record(st, {}).
 
 -spec set_default([atom()], atom(), #exometer_entry{} | [{atom(),any()}]) ->
                          true.

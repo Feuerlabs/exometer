@@ -1,6 +1,6 @@
 %% -------------------------------------------------------------------
 %%
-%% Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved.
+%% Copyright (c) 2014 Basho Technologies, Inc.  All Rights Reserved.
 %%
 %%   This Source Code Form is subject to the terms of the Mozilla Public
 %%   License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -28,7 +28,7 @@
 %%     details.
 %%
 %% + Setup subscription<br/>When `exometer_report:subscribe()' is called, targeting the
-%%     custom report plugin, the gen_serve's `exometer_subscribe()' function
+%%     custom report plugin, the gen_server's `exometer_subscribe()' function
 %%     will be invoked to notify the plugin of the new metrics subscription.
 %%
 %% + Report Metrics<br/>Updated metrics are sent by exometer to the
@@ -143,31 +143,33 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0,
-         subscribe/4,
-         subscribe/5,
-         unsubscribe/3,
-         unsubscribe/4,
-         list_metrics/1,
-         list_metrics/0,
-         list_reporters/0,
-         add_reporter/2,
-         remove_reporter/1]).
+-export(
+   [
+    start_link/0,
+    subscribe/4, subscribe/5,
+    unsubscribe/3, unsubscribe/4,
+    unsubscribe_all/2,
+    list_metrics/0, list_metrics/1,
+    list_reporters/0,
+    add_reporter/2,
+    remove_reporter/1
+   ]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
 
+-include("log.hrl").
 
 -define(SERVER, ?MODULE).
+
 -type metric() :: list().
 -type datapoint() :: atom().
 -type options() :: [ { atom(), any()} ].
 -type mod_state() :: any().
 -type value() :: any().
--type interval() :: integer().
+-type interval() :: pos_integer().
 -type callback_result() :: {ok, mod_state()} | any().
-%% -type key() :: {module(), metric(), datapoint()}.
 -type extra() :: any().
 
 %% Callback for function, not cast-based, reports that
@@ -190,53 +192,50 @@
     callback_result().
 
 -record(key, {
-          reporter :: module(),
-          metric :: metric(),
-          datapoint :: datapoint(),
-          retry_failed_metrics :: true | false,
-          extra :: extra()
+          reporter              :: module(),
+          metric                :: metric(),
+          datapoint             :: datapoint(),
+          retry_failed_metrics  :: boolean(),
+          extra                 :: extra()
          }).
 
 -record(subscriber, {
-          key   :: #key{},
-          interval :: integer(),
-          t_ref :: reference()
+          key       :: #key{},
+          interval  :: interval(),
+          t_ref     :: reference()
          }).
 
 -record(reporter, {
-          pid   :: pid(),
-          mref :: reference(),
-          module :: module()
+          pid       :: pid(),
+          mref      :: reference(),
+          module    :: module()
          }).
 
 -record(st, {
-          subscribers:: [ #subscriber{} ],
-          reporters:: [ #reporter{} ]
+          subscribers   :: [#subscriber{}],
+          reporters     :: [#reporter{}]
          }).
-
--include("log.hrl").
-
-%% Helper macro for declaring children of supervisor
-%% Used to start reporters, which are a part of the supervisor tree.
--define(CHILD(I, Type, OIpt),
-        {I, {I, start_link, Opt}, permanent, 5000, Type, [I]}).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
 %%--------------------------------------------------------------------
-%% @doc
-%% Starts the server
-%%
-%% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
-%% @end
+%% @doc Starts the server
 %%--------------------------------------------------------------------
+-spec start_link() -> {ok, pid()} | ignore | {error, any()}.
 start_link() ->
     %% Launch the main server.
     Opts = get_env(report, []),
     gen_server:start_link({local, ?MODULE}, ?MODULE,  Opts, []).
 
+-spec subscribe(module(), metric(), datapoint(), interval()) -> 
+    ok | not_found | unknown_reporter.
+subscribe(Reporter, Metric, DataPoint, Interval) ->
+    subscribe(Reporter, Metric, DataPoint, Interval, undefined).
+
+-spec subscribe(module(), metric(), datapoint(), interval(), extra()) -> 
+    ok | not_found | unknown_reporter.
 subscribe(Reporter, Metric, DataPoint, Interval, Extra) ->
     call({subscribe, #key{reporter = Reporter,
                           metric = Metric,
@@ -244,24 +243,32 @@ subscribe(Reporter, Metric, DataPoint, Interval, Extra) ->
                           retry_failed_metrics = false,
                           extra = Extra}, Interval}).
 
-subscribe(Reporter, Metric, DataPoint, Interval) ->
-    subscribe(Reporter, Metric, DataPoint, Interval, undefined).
+-spec unsubscribe(module(), metric(), datapoint()) -> 
+    ok | not_found.
+unsubscribe(Reporter, Metric, DataPoint) ->
+    unsubscribe(Reporter, Metric, DataPoint, undefined).
 
+-spec unsubscribe(module(), metric(), datapoint(), extra()) -> 
+    ok | not_found.
 unsubscribe(Reporter, Metric, DataPoint, Extra) ->
     call({unsubscribe, #key{reporter = Reporter,
                             metric = Metric,
                             datapoint = DataPoint,
-                           extra = Extra}}).
+                            extra = Extra}}).
 
-unsubscribe(Reporter, Metric, DataPoint) ->
-    unsubscribe(Reporter, Metric, DataPoint, undefined).
+-spec unsubscribe_all(module(), metric()) -> ok.
+unsubscribe_all(Reporter, Metric) ->
+    call({unsubscribe_all, Reporter, Metric}).
 
+-spec list_metrics() -> [datapoint()].
 list_metrics()  ->
     list_metrics([]).
 
+-spec list_metrics(Path :: metric()) -> [datapoint()].
 list_metrics(Path)  ->
     call({list_metrics, Path}).
 
+-spec list_reporters() -> [module()].
 list_reporters() ->
     call(list_reporters).
 
@@ -270,9 +277,6 @@ add_reporter(Reporter, Options) ->
 
 remove_reporter(Reporter) ->
     call({remove_reporter, Reporter}).
-
-call(Req) ->
-    gen_server:call(?MODULE, Req).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -290,8 +294,6 @@ call(Req) ->
 %% @end
 %%--------------------------------------------------------------------
 init(Opts) ->
-
-
     ?info("Starting reporter with ~p~n", [ Opts ]),
     %% Dig out the mod opts.
     %% { reporters, [ {reporter1, [{opt1, val}, ...]}, {reporter2, [...]}]}
@@ -323,20 +325,6 @@ init(Opts) ->
             reporters = Reporters,
             subscribers = SubsList
            }}.
-
-
-init_subscriber({Reporter, Metric, DataPoint, Interval, RetryFailedMetrics}, Acc) ->
-    [subscribe_(Reporter, Metric, DataPoint, Interval, RetryFailedMetrics, undefined) | Acc];
-
-init_subscriber({Reporter, Metric, DataPoint, Interval, RetryFailedMetrics, Extra}, Acc) ->
-    [subscribe_(Reporter, Metric, DataPoint, Interval, RetryFailedMetrics, Extra) | Acc];
-
-init_subscriber({Reporter, Metric, DataPoint, Interval}, Acc) ->
-    [subscribe_(Reporter, Metric, DataPoint, Interval, true, undefined) | Acc];
-init_subscriber(Other, Acc) ->
-    ?warning("Incorrect static subscriber spec ~p. "
-             "Use { Reporter, Metric, DataPoint, Interval [, Extra ]}~n", [ Other ]),
-    Acc.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -377,16 +365,30 @@ handle_call({subscribe,
             {reply, unknown_reporter, St}
     end;
 
-%%
-handle_call({ unsubscribe,
-              #key{ reporter = Reporter,
-                    metric = Metric,
-                    datapoint = DataPoint,
+handle_call({unsubscribe,
+             #key{reporter = Reporter,
+                  metric = Metric,
+                  datapoint = DataPoint,
                   extra = Extra}}, _,
-            #st{ subscribers = Subs} = St) ->
+            #st{subscribers = Subs} = St) ->
 
-    { Res, NSubs} = unsubscribe_(Reporter, Metric, DataPoint, Extra, Subs),
+    {Res, NSubs} = unsubscribe_(Reporter, Metric, DataPoint, Extra, Subs),
     {reply, Res, St#st{ subscribers = NSubs } };
+
+handle_call({unsubscribe_all, Reporter, Metric}, _,
+            #st{subscribers=Subs0}=St) ->
+    Subs1 = lists:foldl(
+              fun
+                  (#subscriber{key=#key{metric=Metric1}=Key, t_ref=TRef}, Acc) 
+                    when Metric == Metric1 ->
+                      #key{datapoint=Dp, extra=Extra} = Key,
+                      Reporter ! {exometer_unsubscribe, Metric, Dp, Extra},
+                      cancel_timer(TRef),
+                      Acc;
+                  (Sub, Acc) ->
+                      [Sub | Acc]
+              end, [], Subs0),
+    {reply, ok, St#st{subscribers=Subs1}};
 
 handle_call({list_metrics, Path}, _, St) ->
     DP = lists:foldr(fun(Metric, Acc) ->
@@ -536,6 +538,7 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
 assert_no_duplicates([{R,_}|T]) ->
     case lists:keymember(R, 1, T) of
         true -> error({duplicate_reporter, R});
@@ -585,26 +588,23 @@ subscribe_( Reporter, Metric, DataPoint, Interval, RetryFailedMetrics, Extra) ->
 unsubscribe_(Reporter, Metric, DataPoint, Extra, Subs) ->
     ?info("unsubscribe_(~p, ~p, ~p, ~p, ~p)~n",
           [ Reporter, Metric, DataPoint, Extra, Subs]),
-    case lists:keytake(#key { reporter = Reporter,
-                              metric = Metric,
-                              datapoint = DataPoint,
-                              extra = Extra},
+    case lists:keytake(#key{reporter = Reporter,
+                            metric = Metric,
+                            datapoint = DataPoint,
+                            extra = Extra},
                        #subscriber.key, Subs) of
-
         {value, #subscriber{t_ref = TRef}, Rem} ->
             %% FIXME: Validate Metric and datapoint
             Reporter ! { exometer_unsubscribe, Metric, DataPoint, Extra },
             cancel_timer(TRef),
             {ok, Rem};
         _ ->
-            {not_found, Subs }
+            {not_found, Subs}
     end.
-
 
 cancel_timer(undefined) -> ok;
 cancel_timer(TRef) ->
     erlang:cancel_timer(TRef).
-
 
 report_value(Reporter, Metric, DataPoint, Extra, Val) ->
     try Reporter ! {exometer_report, Metric, DataPoint, Extra, Val},
@@ -708,3 +708,19 @@ reporter_loop(Module, St) ->
                 end
         end,
     reporter_loop(Module, NSt).
+
+call(Req) ->
+    gen_server:call(?MODULE, Req).
+
+init_subscriber({Reporter, Metric, DataPoint, Interval, RetryFailedMetrics}, Acc) ->
+    [subscribe_(Reporter, Metric, DataPoint, Interval, RetryFailedMetrics, undefined) | Acc];
+
+init_subscriber({Reporter, Metric, DataPoint, Interval, RetryFailedMetrics, Extra}, Acc) ->
+    [subscribe_(Reporter, Metric, DataPoint, Interval, RetryFailedMetrics, Extra) | Acc];
+
+init_subscriber({Reporter, Metric, DataPoint, Interval}, Acc) ->
+    [subscribe_(Reporter, Metric, DataPoint, Interval, true, undefined) | Acc];
+init_subscriber(Other, Acc) ->
+    ?warning("Incorrect static subscriber spec ~p. "
+             "Use { Reporter, Metric, DataPoint, Interval [, Extra ]}~n", [ Other ]),
+    Acc.

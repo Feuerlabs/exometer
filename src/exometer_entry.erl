@@ -258,7 +258,7 @@
 %%
 %% @end
 -module(exometer_entry).
--export_type([name/0, type/0, options/0, datapoints/0, value/0, ref/0, error/0]).
+-export_type([name/0, type/0, options/0, datapoint/0, datapoints/0, value/0, ref/0, error/0]).
 
 -type name()     :: list().
 -type type()     :: atom().

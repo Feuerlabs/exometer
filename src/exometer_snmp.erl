@@ -11,8 +11,7 @@
 
 -behaviour(gen_server).
 
--export([start_link/0]).
-
+%% gen_server API
 -export(
    [
     init/1,
@@ -23,26 +22,43 @@
     code_change/3
    ]).
 
+-export(
+   [
+    start_link/0,
+    enable_metric/1,
+    disable_metric/1
+   ]).
+
 -include_lib("exometer/include/EXOMETER-MIB.hrl").
 -include("log.hrl").
 
 -define(SERVER, ?MODULE).
--define(MANAGER_DISCOVERY_TIMEOUT, 1000).
+-define(HEARTBEAT_TIMEOUT, 10000).
 
 -record(st, {
           manager = "exomanager",
           manager_engine
          }).
 
-%% API
+%%%===================================================================
+%%% API
+%%%===================================================================
 
 start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, noargs, []).
 
-%% gen_server API
+enable_metric(_) ->
+    todo.
+
+disable_metric(_) ->
+    todo.
+
+%%%===================================================================
+%%% gen_server API
+%%%===================================================================
 
 init(noargs) ->
-    erlang:send_after(?MANAGER_DISCOVERY_TIMEOUT, ?SERVER, discover_manager),
+    %erlang:send_after(?HEARTBEAT_TIMEOUT, ?SERVER, heartbeat),
     {ok, #st{}}.
 
 handle_call(_Msg, _From, S) ->
@@ -51,17 +67,11 @@ handle_call(_Msg, _From, S) ->
 handle_cast(_Msg, S) ->
     {noreply, S}.
 
-handle_info(discover_manager, #st{manager=Manager}=S0) ->
-    S1 = case snmpa:discovery(Manager, exometerHeartbeat) of
-             {ok, EngineId} ->
-                 ?info("SNMP manager discovery succeeded with ManagerEngineID=~p", [EngineId]),
-                 S0#st{manager_engine=EngineId};
-             {error, Reason} ->
-                 ?error("SNMP manager discovery failed with ~p", [Reason]),
-                 erlang:send_after(?MANAGER_DISCOVERY_TIMEOUT, ?SERVER, discover_manager),
-                 S0
-         end,
-    {noreply, S1};
+handle_info(heartbeat, S) ->
+    snmpa:send_notification(snmp_master_agent, exometerHeartbeat, no_receiver, "exometerHeartbeat", []),
+    ?info("heartbeat to SNMP manager sent", []),
+    erlang:send_after(?HEARTBEAT_TIMEOUT, ?SERVER, heartbeat),
+    {noreply, S};
 
 handle_info(_Msg, S) ->
     {noreply, S}.
