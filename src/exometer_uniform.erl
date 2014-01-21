@@ -9,18 +9,8 @@
 %% -------------------------------------------------------------------
 
 -module(exometer_uniform).
--behaviour(exometer_entry).
 -behaviour(exometer_probe).
 
-%% exometer_entry callbacks
--export([new/3,
-         delete/3,
-         get_value/4,
-         get_datapoints/3,
-         update/4,
-         reset/3,
-         sample/3,
-         setopts/4]).
 
 %% exometer_probe callbacks
 -export([probe_init/3,
@@ -31,9 +21,7 @@
          probe_reset/1,
          probe_sample/1,
          probe_setopts/2,
-         probe_handle_call/3,
-         probe_handle_cast/2,
-         probe_handle_info/2,
+         probe_handle_msg/2,
          probe_code_change/3]).
 
 
@@ -55,8 +43,6 @@
 %%
 %% exometer_entry callbacks
 %%
-new(Name, Type, Options) ->
-    exometer_probe:new(Name, Type, [{module, ?MODULE}|Options]).
 
 probe_init(Name, _Type, Options) ->
     St = process_opts(#st { name = Name }, [ {percentiles, [ 50, 75, 90, 95, 99, 999 ]} ] ++ Options),
@@ -69,21 +55,12 @@ probe_init(Name, _Type, Options) ->
     end,
     {ok, St#st{ ets_ref = EtsRef }}.
 
-delete(Name, Type, Ref) ->
-    exometer_probe:delete(Name, Type, Ref).
 
 probe_terminate(ModSt) ->
     ets:delete(ModSt#st.ets_ref),
     ok.
 
-get_value(Name, Type, Ref, DataPoints) ->
-    exometer_probe:get_value(Name, Type, Ref, DataPoints).
-
-get_datapoints(_Name, _Type, _Ref) ->
-    ?DATAPOINTS.
-
-
-probe_get_value(St, DataPoints) ->
+probe_get_value(DataPoints, St) ->
     {Length, Total, Lst} = ets:foldl(
             fun(#elem { val = Val }, {Length, Total, List}) ->
                     { Length + 1, Total + Val, [ Val | List ]}  end,
@@ -96,14 +73,8 @@ probe_get_value(St, DataPoints) ->
 probe_get_datapoints(_St) ->
     { ok, ?DATAPOINTS }.
 
-setopts(_Name, _Options, _Type, _Ref)  ->
-    { error, unsupported }.
-
 probe_setopts(_Opts, _St) ->
     error(unsupported).
-
-update(Name, Value, Type, Ref) ->
-    exometer_probe:update(Name, Value, Type, Ref).
 
 probe_update(Value, St) when St#st.cur_sz < St#st.size ->
     NewSz = St#st.cur_sz + 1,
@@ -115,28 +86,14 @@ probe_update(Value, St) ->
     ets:insert(St#st.ets_ref, #elem { slot = Slot, val = Value }),
     ok.
 
-reset(Name, Type, Ref) ->
-    exometer_probe:reset(Name, Type, Ref).
-
 probe_reset(St) ->
     ets:delete(St#st.ets_ref),
     EtsRef = ets:new(uniform, [ set, { keypos, 2 } ]),
     {ok, St#st { ets_ref = EtsRef, cur_sz = 0 }}.
 
-sample(_Name, _Type, _Ref) ->
-    { error, unsupported }.
-
 probe_sample(_St) ->
     error(unsupported).
 
-probe_handle_call(_, _, _) ->
-    {ok, error}.
-
-probe_handle_cast(_, _) ->
-    ok.
-
-probe_handle_info(_, _) ->
-    ok.
 
 probe_code_change(_From, ModSt, _Extra) ->
     {ok, ModSt}.
@@ -155,6 +112,9 @@ process_opts(St, Options) ->
                                | lists:keydelete(Opt, 1, St1#st.opts) ] }
       end, St, Options).
 
+
+probe_handle_msg(_, S) ->
+    {ok, S}.
 
 perc(P, Len) when P > 1.0 ->
     round((P / 10) * Len);
