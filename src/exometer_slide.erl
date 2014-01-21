@@ -9,6 +9,7 @@
          reset/1,
          add_element/2,
          add_element/3,
+         add_element/4,
          to_list/1,
          foldl/3,
          foldl/4]).
@@ -31,7 +32,7 @@
 
 %% Fixed size event buffer
 -record(slide, {size = 0 :: integer(),  % ms window
-                n = 0    :: integer(), % number of elements in buf1
+                n = 0    :: integer(),  % number of elements in buf1
                 max_n    :: undefined | integer(),  % max no of elements
                 last = 0 :: integer(), % millisecond timestamp
                 buf1 = []    :: list(),
@@ -57,25 +58,68 @@ new(Size, Opts) ->
 reset(Slide) ->
     Slide#slide{n = 0, buf1 = [], buf2 = [], last = 0}.
 
--spec add_element(any(), #slide{}) -> #slide{}.
+-spec add_element(value(), #slide{}) -> #slide{}.
+%% @doc Add an element to the buffer, tagging it with the current time.
+%%
+%% Note that the buffer is a sliding window. Values will be discarded as they
+%% move out of the specified time span.
+%% @end
 %%
 add_element(Evt, Slide) ->
-    add_element(timestamp(), Evt, Slide).
-add_element(_TS, _Evt, Slide) when Slide#slide.size == 0 ->
-    Slide;
+    add_element(timestamp(), Evt, Slide, false).
+
+-spec add_element(timestamp(), value(), #slide{}) -> #slide{}.
+%% @doc Add an element to the buffer, tagged with the given timestamp.
+%%
+%% Apart from the specified timestamp, this function works just like
+%% {@link add_element/2}.
+%% @end
+%%
+add_element(TS, Evt, Slide) ->
+    add_element(TS, Evt, Slide, false).
+
+-spec add_element(timestamp(), value(), #slide{}, true) ->
+                         {boolean(), #slide{}};
+                 (timestamp(), value(), #slide{}, false) ->
+                         #slide{}.
+%% @doc Add an element to the buffer, optionally indicating if a swap occurred.
+%%
+%% This function works like {@link add_element/3}, but will also indicate
+%% whether the sliding window buffer swapped lists (this means that the
+%% 'primary' buffer list became full and was swapped to 'secondary', starting
+%% over with an empty primary list. If `Wrap == true', the return value will be
+%% `{Bool,Slide}', where `Bool==true' means that a swap occurred, and
+%% `Bool==false' means that it didn't.
+%%
+%% If `Wrap == false', this function works exactly like {@link add_element/3}.
+%%
+%% One possible use of the `Wrap == true' option could be to keep a sliding
+%% window buffer of values that are pushed e.g. to an external stats service.
+%% The swap indication could be a trigger point where values are pushed in order
+%% to not lose entries.
+%% @end
+%%
+add_element(_TS, _Evt, Slide, Wrap) when Slide#slide.size == 0 ->
+    add_ret(Wrap, false, Slide);
 add_element(TS, Evt, #slide{last = Last, size = Sz,
                             n = N, max_n = MaxN,
-                            buf1 = Buf1} = Slide) ->
+                            buf1 = Buf1} = Slide, Wrap) ->
     N1 = N+1,
     if TS - Last > Sz; N1 > MaxN ->
             %% swap
-            Slide#slide{last = TS,
-                        n = 1,
-                        buf1 = [{TS, Evt}],
-                        buf2 = Buf1};
+            add_ret(Wrap, true, Slide#slide{last = TS,
+                                            n = 1,
+                                            buf1 = [{TS, Evt}],
+                                            buf2 = Buf1});
        true ->
-            Slide#slide{n = N1, buf1 = [{TS, Evt} | Buf1]}
+            add_ret(Wrap, false, Slide#slide{n = N1, buf1 = [{TS, Evt} | Buf1]})
     end.
+
+add_ret(false, _, Slide) ->
+    Slide;
+add_ret(true, Flag, Slide) ->
+    {Flag, Slide}.
+
 
 -spec to_list(#slide{}) -> list().
 %%
