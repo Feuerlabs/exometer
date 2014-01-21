@@ -495,12 +495,24 @@ options.
 
 
 
+### <a name="type-datapoint">datapoint()</a> ###
+
+
+
+<pre><code>
+datapoint() = atom()
+</code></pre>
+
+
+
+
+
 ### <a name="type-datapoints">datapoints()</a> ###
 
 
 
 <pre><code>
-datapoints() = [atom()]
+datapoints() = [<a href="#type-datapoint">datapoint()</a>]
 </code></pre>
 
 

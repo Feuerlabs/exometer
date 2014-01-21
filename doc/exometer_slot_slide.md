@@ -319,7 +319,7 @@ value() = any()
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#add_element-2">add_element/2</a></td><td></td></tr><tr><td valign="top"><a href="#add_element-3">add_element/3</a></td><td></td></tr><tr><td valign="top"><a href="#foldl-3">foldl/3</a></td><td></td></tr><tr><td valign="top"><a href="#foldl-4">foldl/4</a></td><td></td></tr><tr><td valign="top"><a href="#foldr-3">foldr/3</a></td><td></td></tr><tr><td valign="top"><a href="#foldr-4">foldr/4</a></td><td></td></tr><tr><td valign="top"><a href="#new-2">new/2</a></td><td></td></tr><tr><td valign="top"><a href="#new-5">new/5</a></td><td></td></tr><tr><td valign="top"><a href="#reset-1">reset/1</a></td><td></td></tr><tr><td valign="top"><a href="#test-0">test/0</a></td><td></td></tr><tr><td valign="top"><a href="#to_list-1">to_list/1</a></td><td></td></tr></table>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#add_element-2">add_element/2</a></td><td></td></tr><tr><td valign="top"><a href="#add_element-3">add_element/3</a></td><td></td></tr><tr><td valign="top"><a href="#foldl-3">foldl/3</a></td><td></td></tr><tr><td valign="top"><a href="#foldl-4">foldl/4</a></td><td></td></tr><tr><td valign="top"><a href="#foldr-3">foldr/3</a></td><td></td></tr><tr><td valign="top"><a href="#foldr-4">foldr/4</a></td><td></td></tr><tr><td valign="top"><a href="#new-2">new/2</a></td><td></td></tr><tr><td valign="top"><a href="#new-4">new/4</a></td><td></td></tr><tr><td valign="top"><a href="#new-5">new/5</a></td><td></td></tr><tr><td valign="top"><a href="#reset-1">reset/1</a></td><td></td></tr><tr><td valign="top"><a href="#to_list-1">to_list/1</a></td><td></td></tr></table>
 
 
 <a name="functions"></a>
@@ -378,7 +378,26 @@ add_element(Val::any(), Slide::#slide{}) -&gt; #slide{}
 
 ### new/2 ###
 
-`new(HistogramTimeSpan, SlotPeriod) -> any()`
+
+<pre><code>
+new(HistogramTimeSpan::integer(), SlotPeriod::integer()) -&gt; #slide{}
+</code></pre>
+
+<br></br>
+
+
+
+<a name="new-4"></a>
+
+### new/4 ###
+
+
+<pre><code>
+new(HistogramTimeSpan::integer(), SlotPeriod::integer(), SampleF::<a href="#type-sample_fun">sample_fun()</a>, TransformF::<a href="#type-transform_fun">transform_fun()</a>) -&gt; #slide{}
+</code></pre>
+
+<br></br>
+
 
 
 <a name="new-5"></a>
@@ -405,13 +424,6 @@ reset(Slide::#slide{}) -&gt; #slide{}
 
 <br></br>
 
-
-
-<a name="test-0"></a>
-
-### test/0 ###
-
-`test() -> any()`
 
 
 <a name="to_list-1"></a>

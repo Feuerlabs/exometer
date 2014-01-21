@@ -1,8 +1,31 @@
-%%% File    : exometer_ebuf.erl
-%%% Author  : Tony Rogvall <tony@rogvall.se>
-%%% Description : Double event buffering
-%%% Created : 29 Sep 2009 by Tony Rogvall <tony@rogvall.se>
-
+%% -------------------------------------------------------------------
+%%
+%% Copyright (c) 2014 Basho Technologies, Inc.  All Rights Reserved.
+%%
+%%   This Source Code Form is subject to the terms of the Mozilla Public
+%%   License, v. 2.0. If a copy of the MPL was not distributed with this
+%%   file, You can obtain one at http://mozilla.org/MPL/2.0/.
+%%
+%% -------------------------------------------------------------------
+%% @author Tony Rogvall <tony@rogvall.se>
+%% @author Ulf Wiger <ulf@feuerlabs.com>
+%% @author Magnus Feuer <magnus@feuerlabs.com>
+%%
+%% @doc Efficient sliding-window buffer
+%%
+%% Initial implementation: 29 Sep 2009 by Tony Rogvall
+%%
+%% This module implements an efficient sliding window, maintaining
+%% two lists - a primary and a secondary. Values are paired with a
+%% timestamp (millisecond resolution, see `exometer_util:timestamp/0')
+%% and prepended to the primary list. When the time span between the oldest
+%% and the newest entry in the primary list exceeds the given window size,
+%% the primary list is shifted into the secondary list position, and the
+%% new entry is added to a new (empty) primary list.
+%%
+%% The window can be converted to a list using `to_list/1' or folded
+%% over using `foldl/3'.
+%% @end
 -module(exometer_slide).
 
 -export([new/2, new/5,
@@ -24,11 +47,14 @@
 -import(lists, [reverse/1, sublist/3]).
 -import(exometer_util, [timestamp/0]).
 
--type(timestamp() :: integer()).
--type(value() :: any()).
--type(cur_state() :: any()).
--type(sample_fun() :: fun((timestamp(), value(), cur_state()) -> cur_state())).
+-type timestamp() :: integer().
+-type value() :: any().
+-type cur_state() :: any().
+-type sample_fun() :: fun((timestamp(), value(), cur_state()) -> cur_state()).
 -type transform_fun() :: fun((timestamp(), cur_state()) -> cur_state()).
+
+-type fold_acc() :: any().
+-type fold_fun() :: fun(({timestamp(),value()}, fold_acc()) -> fold_acc()).
 
 %% Fixed size event buffer
 -record(slide, {size = 0 :: integer(),  % ms window
@@ -40,12 +66,25 @@
 
 -spec new(integer(), integer(),
           sample_fun(), transform_fun(), list()) -> #slide{}.
+%% @doc Callback function for exometer_histogram
 %%
+%% This function is not intended to be used directly. The arguments
+%% `_SampleFun' and `_TransformFun' are ignored.
+%% @end
 new(Size, _Period, _SampleFun, _TransformFun, Opts) ->
     new(Size, Opts).
 
--spec new(integer(), list()) -> #slide{}.
+-spec new(_Size::integer(), _Options::list()) -> #slide{}.
+%% @doc Create a new sliding-window buffer.
 %%
+%% `Size' determines the size in milliseconds of the sliding window.
+%% The implementation prepends values into a primary list until the oldest
+%% element in the list is `Size' ms older than the current value. It then
+%% swaps the primary list into a secondary list, and starts prepending to
+%% a new primary list. This means that more data than fits inside the window
+%% will be kept - upwards of twice as much. On the other hand, updating the
+%% buffer is very cheap.
+%% @end
 new(Size, Opts) ->
     #slide{size = Size,
            max_n = proplists:get_value(max_n, Opts, infinity),
@@ -54,6 +93,7 @@ new(Size, Opts) ->
            buf2 = []}.
 
 -spec reset(#slide{}) -> #slide{}.
+%% @doc Empty the buffer
 %%
 reset(Slide) ->
     Slide#slide{n = 0, buf1 = [], buf2 = [], last = 0}.
@@ -121,23 +161,36 @@ add_ret(true, Flag, Slide) ->
     {Flag, Slide}.
 
 
--spec to_list(#slide{}) -> list().
-%%
+-spec to_list(#slide{}) -> [{timestamp(), value()}].
+%% @doc Convert the sliding window into a list of timestamped values.
+%% @end
 to_list(#slide{size = Sz}) when Sz == 0 ->
     [];
 to_list(#slide{size = Sz, n = N, max_n = MaxN, buf1 = Buf1, buf2 = Buf2}) ->
     Start = timestamp() - Sz,
     take_since(Buf2, Start, n_diff(MaxN, N), reverse(Buf1)).
 
-foldl(_TS, _Fun, _Acc, #slide{size = Sz}) when Sz == 0 ->
+-spec foldl(timestamp(), fold_fun(), fold_acc(), #slide{}) -> fold_acc().
+%% @doc Fold over the sliding window, starting from `Timestamp'.
+%%
+%% The fun should as `fun({Timestamp, Value}, Acc) -> NewAcc'.
+%% The values are processed in order from oldest to newest.
+%% @end
+foldl(_Timestamp, _Fun, _Acc, #slide{size = Sz}) when Sz == 0 ->
     [];
-foldl(TS, Fun, Acc, #slide{size = Sz, n = N, max_n = MaxN,
+foldl(Timestamp, Fun, Acc, #slide{size = Sz, n = N, max_n = MaxN,
                            buf1 = Buf1, buf2 = Buf2}) ->
-    Start = TS - Sz,
+    Start = Timestamp - Sz,
     lists:foldr(
       Fun, lists:foldl(Fun, Acc, take_since(
                                    Buf2, Start, n_diff(MaxN,N), [])), Buf1).
 
+-spec foldl(fold_fun(), fold_acc(), #slide{}) -> fold_acc().
+%% @doc Fold over all values in the sliding window.
+%%
+%% The fun should as `fun({Timestamp, Value}, Acc) -> NewAcc'.
+%% The values are processed in order from oldest to newest.
+%% @end
 foldl(Fun, Acc, Slide) ->
     foldl(timestamp(), Fun, Acc, Slide).
 
@@ -159,6 +212,7 @@ n_diff(_, B) ->
 
 -ifdef(TEST).
 
+%% @private
 test() ->
     %% Create a slotted slide covering 2000 msec, where
     %% each slot is 100 msec wide.
