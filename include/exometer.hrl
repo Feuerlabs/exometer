@@ -27,7 +27,7 @@
           timestamp,
           options = [],
           ref,
-          snmp = disabled :: disabled | [snmp_option()]
+          snmp = disabled :: disabled | [exometer_report_snmp:snmp_option()]
          }).
 
 %% Used to redirect lookup from the scheduler-specific tables to the shared

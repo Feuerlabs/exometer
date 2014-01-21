@@ -17,7 +17,7 @@ clean: clean_plt
 	rebar clean
 
 test:
-	rebar eunit skip_deps=true
+	rebar ct skip_deps=true
 
 xref:
 	ERL_LIBS=./deps rebar xref skip_deps=true

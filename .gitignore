@@ -7,3 +7,4 @@ deps
 include/EXOMETER-MIB.hrl
 priv/mibs/EXOMETER-MIB.bin
 log/
+logs/
