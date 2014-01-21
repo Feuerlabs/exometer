@@ -9,18 +9,8 @@
 %% -------------------------------------------------------------------
 
 -module(exometer_netlink).
--behaviour(exometer_entry).
 -behaviour(exometer_probe).
 
-%% exometer_entry callbacks
--export([new/3,
-         delete/3,
-         get_value/4,
-         get_datapoints/3,
-         update/4,
-         reset/3,
-         sample/3,
-         setopts/4]).
 
 %% exometer_probe callbacks
 -export([probe_init/3,
@@ -31,9 +21,7 @@
          probe_reset/1,
          probe_sample/1,
          probe_setopts/2,
-         probe_handle_call/3,
-         probe_handle_cast/2,
-         probe_handle_info/2,
+         probe_handle_msg/2,
          probe_code_change/3]).
 
 -export([count_sample/3,
@@ -49,12 +37,9 @@
              last_count = 0, %% last value retrieved for netlink_element
              opts = []}).
 
+-define(DATAPOINTS,
+        [ element ]).
 
-%%
-%% exometer_entry callbacks
-%%
-new(Name, Type, Options) ->
-    exometer_probe:new(Name, Type, [{module, ?MODULE}|Options]).
 
 probe_init(Name, _Type, Options) ->
     St = process_opts(#st { name = Name }, Options),
@@ -64,59 +49,33 @@ probe_init(Name, _Type, Options) ->
                                     fun count_transform/2, []),
     {ok, St#st{ slide = Slide }}.
 
-delete(Name, Type, Ref) ->
-    exometer_probe:delete(Name, Type, Ref).
-
 probe_terminate(_ModSt) ->
     ok.
 
-get_value(Name, Type, Ref, DataPoints) ->
-    exometer_probe:get_value(Name, Type, Ref, DataPoints).
 
-get_datapoints(_Name, _Type, _Ref) ->
-    [].
-
-probe_get_value(St, _DataPoints) ->
-    { ok, exometer_slot_slide:to_list(St#st.slide) }.
+probe_get_value(_, _) ->
+    { error, unknown_metric }.
 
 probe_get_datapoints(_St) ->
-    {ok, []}.
-
-setopts(_Name, _Options, _Type, _Ref)  ->
-    { error, unsupported }.
+    {ok, ?DATAPOINTS}.
 
 probe_setopts(_Opts, _St) ->
     error(unsupported).
-
-update(_Name, _Value, _Type, _Ref) ->
-    { error, unsupported }.
 
 probe_update(_Value, _St) ->
     error(unsupported).
 
 
-reset(Name, Type, Ref) ->
-    exometer_probe:reset(Name, Type, Ref).
-
 probe_reset(St) ->
     { ok, St#st { slide = exometer_slot_slide:reset(St#st.slide)} }.
 
-sample(Name, Type, Ref) ->
-    exometer_probe:sample(Name, Type, Ref).
+probe_handle_msg(_, S) ->
+    {ok, S}.
 
 probe_sample(St) ->
     [{_, Count}] = get_value(St#st.netlink_element),
     Slide = exometer_slot_slide:add_element(Count - St#st.last_count, St#st.slide),
     {ok, St#st { slide = Slide, last_count = Count }}.
-
-probe_handle_call(_, _, _) ->
-    {ok, error}.
-
-probe_handle_cast(_, _) ->
-    ok.
-
-probe_handle_info(_, _) ->
-    ok.
 
 probe_code_change(_From, ModSt, _Extra) ->
     {ok, ModSt}.

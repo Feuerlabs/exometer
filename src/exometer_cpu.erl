@@ -24,9 +24,7 @@
          probe_reset/1,
          probe_sample/1,
          probe_setopts/2,
-         probe_handle_call/3,
-         probe_handle_cast/2,
-         probe_handle_info/2,
+         probe_handle_msg/2,
          probe_code_change/3]).
 
 -record(st, {datapoints,
@@ -41,8 +39,8 @@ probe_init(_, _, Opts) ->
 
 probe_terminate(_) -> ok.
 
-probe_get_value(#st{data = Data0,
-                    datapoints = DPs0} = S, DPs) ->
+probe_get_value(DPs, #st{data = Data0,
+                    datapoints = DPs0} = S) ->
     Data1 = if Data0 == undefined -> sample(DPs0);
                true -> Data0
             end,
@@ -71,17 +69,14 @@ probe_sample(#st{datapoints = DPs} = S) ->
                     end),
     {ok, S#st{ref = Ref}}.
 
-probe_setopts(Opts, S) ->
+probe_setopts(S, Opts) ->
     DPs = proplists:get_value(datapoints, Opts, S#st.datapoints),
     {ok, S#st{datapoints = DPs}}.
 
-probe_handle_call(_, _, S) -> {ok, error, S}.
-
-probe_handle_cast(_, S)    -> {ok, S}.
-
-probe_handle_info({'DOWN', Ref, _, _, {sample,Data}}, #st{ref = Ref} = S) ->
+probe_handle_msg({'DOWN', Ref, _, _, {sample,Data}}, #st{ref = Ref} = S) ->
     {ok, S#st{ref = undefined, data = Data}};
-probe_handle_info(_, S) ->
+
+probe_handle_msg(_, S) ->
     {ok, S}.
 
 probe_code_change(_, S, _) -> {ok, S}.
