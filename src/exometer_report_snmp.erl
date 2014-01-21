@@ -21,7 +21,8 @@
     exometer_info/2,
     exometer_report/5,
     exometer_subscribe/5,
-    exometer_unsubscribe/4
+    exometer_unsubscribe/4,
+    exometer_terminate/2
    ]).
 
 -export(
@@ -38,20 +39,32 @@
                        {exometer_entry:datapoint(), exometer_report:interval(), exometer_report:extra()}.
 -type snmp()        :: disabled | [snmp_option()].
 
--record(st, {}).
+-record(st, {
+          leave_snmp_running
+         }).
 
 %%%===================================================================
 %%% exometer_report API
 %%%===================================================================
 
 exometer_init(Opts) ->
+    RunningApps = application:which_applications(),
+    LeaveRunning = case lists:keymember(snmp, 1, RunningApps) of
+                       true ->
+                           true;
+                       false ->
+                           application:start(snmp),
+                           false
+                   end,
     ?info("~p(~p): Starting~n", [?MODULE, Opts]),
-    {ok, #st{}}.
+    {ok, #st{leave_snmp_running=LeaveRunning}}.
 
-exometer_subscribe(_Metric, _DataPoint, _Extra, _Interval, St) ->
+exometer_subscribe(Metric, DataPoint, Extra, _Interval, St) ->
+    exometer_snmp:enable_inform(Metric, DataPoint, Extra),
     {ok, St}.
 
-exometer_unsubscribe(_Metric, _DataPoint, _Extra, St) ->
+exometer_unsubscribe(Metric, DataPoint, Extra, St) ->
+    exometer_snmp:disable_inform(Metric, DataPoint, Extra),
     {ok, St}.
 
 exometer_report(Metric, DataPoint, _Extra, Value, St)  ->
@@ -62,6 +75,14 @@ exometer_report(Metric, DataPoint, _Extra, Value, St)  ->
 exometer_info(Unknown, St) ->
     ?info("Unknown: ~p~n", [Unknown]),
     St.
+
+exometer_terminate(_, #st{leave_snmp_running=Leave}) ->
+    case Leave of
+        true ->
+            ok;
+        false ->
+            application:stop(snmp)
+    end.
 
 %%%===================================================================
 %%% external API
@@ -113,7 +134,7 @@ compare_options(Old, New) ->
           end, [], Old),
     {A, R, Ch, Co}.
 
--spec update_subscriptions(exometer_report:metric(), {[snmp_option()], [snmp_option()], [{snmp_option(), snmp_option()}], [snmp_option()]}) -> ok.
+-spec update_subscriptions(exometer_report:metric(), {[snmp_option()], [snmp_option()], list({snmp_option(), snmp_option()}), [snmp_option()]}) -> ok.
 update_subscriptions(_, {[], [], [], _}) ->
     ok;
 update_subscriptions(M, {[], [], [{New, Old} | Ch], Co}) ->
@@ -131,6 +152,6 @@ update_subscriptions(M, {[Opt | A], R, Ch, Co}) ->
     exometer_report:subscribe(?MODULE, M, Dp, Int, Extra),
     update_subscriptions(M, {A, R, Ch, Co}).
 
--spec option(Option :: tuple()) -> tuple().
+-spec option({_, _} | {_, _, _}) -> {_, _, _}.
 option({Dp, Int}) -> {Dp, Int, undefined};
 option({_, _, _}=Opt) -> Opt.

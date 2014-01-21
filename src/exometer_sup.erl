@@ -34,11 +34,16 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
-    Children = [
+    Children0 = [
                 ?CHILD(exometer_admin, worker),
                 ?CHILD(exometer_cache, worker),
-                ?CHILD(exometer_report, worker),
-                ?CHILD(exometer_snmp, worker)
+                ?CHILD(exometer_report, worker)
                ],
-    {ok, {{one_for_one, 5, 10}, Children}}.
+    Children1 = case application:get_env(exometer, snmp_export) of
+                    {ok, true} ->
+                        Children0 ++ [?CHILD(exometer_snmp, worker)];
+                    _ ->
+                        Children0
+                end,
+    {ok, {{one_for_one, 5, 10}, Children1}}.
 

@@ -140,8 +140,7 @@ table(N) when is_integer(N), N > 20 ->
 %% Elements which are not tuples will be dropped as well. 
 %% If called with a non-list argument, the argument is returned as is.
 %% @end
--spec drop_duplicates(List0 :: [tuple()]) -> [tuple()];
-                     (Any) -> Any.
+-spec drop_duplicates(List0 :: [tuple()]) -> [tuple()].
 drop_duplicates(List0) when is_list(List0) ->
     List1 = lists:foldl(
               fun

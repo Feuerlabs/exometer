@@ -12,11 +12,15 @@
 -behaviour(exometer_report).
 
 %% gen_server callbacks
--export([exometer_init/1,
-         exometer_info/2,
-         exometer_report/5,
-         exometer_subscribe/5,
-         exometer_unsubscribe/4]).
+-export(
+   [
+    exometer_init/1,
+    exometer_info/2,
+    exometer_report/5,
+    exometer_subscribe/5,
+    exometer_unsubscribe/4,
+    exometer_terminate/2
+   ]).
 
 -include("exometer.hrl").
 
@@ -84,6 +88,8 @@ exometer_unsubscribe(_Metric, _DataPoint, _Extra, St) ->
 exometer_info(_, St) ->
     {ok, St }.
 
+exometer_terminate(_, _) ->
+    ignore.
 
 %% Add prefix and API key, if non-empty.
 prefix([], []) -> [];

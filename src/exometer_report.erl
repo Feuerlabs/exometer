@@ -191,6 +191,9 @@
 -callback exometer_info(any(),mod_state()) ->
     callback_result().
 
+-callback exometer_terminate(any(), mod_state()) ->
+    any().
+
 -record(key, {
           reporter              :: module(),
           metric                :: metric(),
@@ -299,20 +302,29 @@ init(Opts) ->
     %% { reporters, [ {reporter1, [{opt1, val}, ...]}, {reporter2, [...]}]}
     %% Traverse list of reporter and launch reporter gen servers as dynamic
     %% supervisor children.
-    Reporters =
-        case lists:keyfind(reporters, 1, Opts) of
-            {reporters, ReporterList} ->
-                assert_no_duplicates(ReporterList),
-                lists:foldr(
-                      fun({Reporter, Opt}, Acc) ->
-                              {Pid, MRef} = spawn_reporter(Reporter, Opt),
-                              [ #reporter { module = Reporter,
-                                            pid = Pid,
-                                            mref = MRef} | Acc]
-                      end, [], ReporterList);
-            false -> []
-        end,
-
+    Reporters0 = case lists:keyfind(reporters, 1, Opts) of
+                     {reporters, ReporterList} ->
+                         assert_no_duplicates(ReporterList),
+                         lists:foldr(
+                           fun({Reporter, Opt}, Acc) ->
+                                   {Pid, MRef} = spawn_reporter(Reporter, Opt),
+                                   [ #reporter { module = Reporter,
+                                                 pid = Pid,
+                                                 mref = MRef} | Acc]
+                           end, [], ReporterList);
+                     false -> 
+                         []
+                 end,
+    %% start internal reporters
+    Reporters1 = case application:get_env(exometer, snmp_export) of
+                     {ok, true} ->
+                         {Pid, MRef} = spawn_reporter(exometer_report_snmp, []),
+                         [#reporter{module = exometer_report_snmp,
+                                    pid = Pid,
+                                    mref = MRef} | Reporters0];
+                     _ ->
+                         Reporters0
+                 end,
     %% Dig out configured 'static' subscribers
     SubsList =
         case lists:keyfind(subscribers, 1, Opts) of
@@ -322,7 +334,7 @@ init(Opts) ->
         end,
 
     {ok, #st {
-            reporters = Reporters,
+            reporters = Reporters1,
             subscribers = SubsList
            }}.
 
@@ -554,7 +566,7 @@ spawn_reporter(Reporter, Opt) ->
                   end).
 
 terminate_reporter(#reporter{pid = Pid, mref = MRef} = R, #st{} = S) ->
-    exit(Pid, shutdown),
+    Pid ! {exometer_terminate, shutdown},
     receive
         {'DOWN', MRef, _, _, _} ->
             remove_reporter(R, S)
@@ -672,42 +684,47 @@ purge_subscriptions(Module, Subs) ->
 %% Module is expected to implement exometer_report behavior
 reporter_launch(Module, Opts) ->
     case Module:exometer_init(Opts) of
-        {ok, St} -> reporter_loop(Module, St);
+        {ok, St} -> 
+            reporter_loop(Module, St);
         {error, Reason} ->
             ?error("Failed to start reporter ~p: ~p~n", [Module, Reason]),
             exit(Reason)
     end.
 
 reporter_loop(Module, St) ->
-    NSt =
-        receive
-            { exometer_report, Metric, DataPoint, Extra, Value } ->
-                case Module:exometer_report(Metric, DataPoint, Extra, Value, St) of
-                    { ok, St1 } -> St1;
-                    _ -> St
-                end;
-
-            { exometer_unsubscribe, Metric, DataPoint, Extra } ->
-                case Module:exometer_unsubscribe(Metric, DataPoint, Extra, St) of
-                    { ok, St1 } -> St1;
-                    _ -> St
-                end;
-
-            { exometer_subscribe, Metric, DataPoint, Extra, Interval } ->
-                case Module:exometer_subscribe(Metric, DataPoint, Extra, Interval, St) of
-                    { ok, St1 } -> St1;
-                    _ -> St
-                end;
-
-            %% Allow reporters to generate their own callbacks.
-            Other ->
-                ?info("Custom invocation: ~p(~p)~n", [ Module, Other]),
-                case Module:exometer_info(Other, St) of
-                    { ok, St1 } -> St1;
-                    _ -> St
-                end
-        end,
-    reporter_loop(Module, NSt).
+    NSt = receive
+              {exometer_report, Metric, DataPoint, Extra, Value } ->
+                  case Module:exometer_report(Metric, DataPoint, Extra, Value, St) of
+                      {ok, St1} -> {ok, St1};
+                      _ -> {ok, St}
+                  end;
+              {exometer_unsubscribe, Metric, DataPoint, Extra } ->
+                  case Module:exometer_unsubscribe(Metric, DataPoint, Extra, St) of
+                      {ok, St1} -> {ok, St1};
+                      _ -> {ok, St}
+                  end;
+              {exometer_subscribe, Metric, DataPoint, Extra, Interval } ->
+                  case Module:exometer_subscribe(Metric, DataPoint, Extra, Interval, St) of
+                      {ok, St1} -> {ok, St1};
+                      _ -> {ok, St}
+                  end;
+              {exometer_terminate, Reason} ->
+                  Module:exometer_terminate(Reason, St),
+                  terminate;
+              %% Allow reporters to generate their own callbacks.
+              Other ->
+                  ?info("Custom invocation: ~p(~p)~n", [ Module, Other]),
+                  case Module:exometer_info(Other, St) of
+                      {ok, St1} -> {ok, St1};
+                      _ -> {ok, St}
+                  end
+          end,
+    case NSt of
+        {ok, St2} ->
+            reporter_loop(Module, St2);
+        _ ->
+            ok
+    end.
 
 call(Req) ->
     gen_server:call(?MODULE, Req).

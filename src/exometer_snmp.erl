@@ -26,7 +26,9 @@
    [
     start_link/0,
     enable_metric/1,
-    disable_metric/1
+    disable_metric/1,
+    enable_inform/3,
+    disable_inform/3
    ]).
 
 -include_lib("exometer/include/EXOMETER-MIB.hrl").
@@ -51,6 +53,12 @@ enable_metric(_) ->
     todo.
 
 disable_metric(_) ->
+    todo.
+
+enable_inform(_, _, _) ->
+    todo.
+
+disable_inform(_, _, _) ->
     todo.
 
 %%%===================================================================

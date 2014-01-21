@@ -2,7 +2,7 @@
 
 EXOMETER_PLT=exometer.plt
 DIALYZER_OPTS = -Wunderspecs
-DIALYZER_APPS = erts kernel stdlib syntax_tools \
+DIALYZER_APPS = erts kernel stdlib syntax_tools snmp \
 		lager afunix netlink folsom exo
 
 all: deps compile xref test

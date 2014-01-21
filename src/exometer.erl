@@ -78,12 +78,10 @@
 
 start() ->
     lager:start(),
-    application:start(snmp),
     application:start(exometer).
 
 stop() ->
     application:stop(exometer),
-    application:stop(snmp),
     application:stop(lager).
 
 -spec new(name(), type()) -> ok.
@@ -179,11 +177,11 @@ fast_incr(0, _, _) ->
 %% (non-zero) cache lifetime, and a value resides in the cache, the cached
 %% value will be returned.
 %% @end
--spec get_value(name()) -> {ok, value()} | error().
+-spec get_value(name()) -> {ok, value()} | {error, not_found}.
 get_value(Name) when is_list(Name) ->
     get_value(Name, default).
 
--spec get_value(name(), atom() | [atom()]) -> {ok, value()} | error().
+-spec get_value(name(), atom() | [atom()]) -> {ok, value()} | {error, not_found}.
 get_value(Name, DataPoint) when is_list(Name), is_atom(DataPoint),
                                 DataPoint=/=default ->
     get_value(Name, [DataPoint]);
