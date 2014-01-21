@@ -2,6 +2,8 @@
 
 EXOMETER_PLT=exometer.plt
 DIALYZER_OPTS = -Wunderspecs
+DIALYZER_APPS = erts kernel stdlib syntax_tools \
+		lager afunix netlink folsom exo
 
 all: deps compile xref test
 
@@ -29,7 +31,7 @@ doc: edown_deps
 $(EXOMETER_PLT):
 	rebar get-deps compile
 	ERL_LIBS=deps dialyzer --build_plt --output_plt $(EXOMETER_PLT) \
-	--apps erts kernel stdlib -r deps
+	--apps $(DIALYZER_APPS)
 
 clean_plt:
 	rm -f $(EXOMETER_PLT)
