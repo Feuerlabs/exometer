@@ -532,10 +532,12 @@ exo_proc_call(Pid, Req) ->
     Pid ! {exometer_proc, {self(), MRef}, Req},
     receive
         {MRef, Res} ->
+            erlang:demonitor(MRef, [flush]),
             Res;
         {'DOWN', MRef, _, _, _} ->
             {error, unavailable}
     after 5000 ->
+            erlang:demonitor(MRef, [flush]),
             {error, unavailable}
     end.
 
