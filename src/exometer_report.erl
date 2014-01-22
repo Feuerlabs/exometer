@@ -229,7 +229,7 @@
 -spec start_link() -> {ok, pid()} | ignore | {error, any()}.
 start_link() ->
     %% Launch the main server.
-    Opts = get_env(report, []),
+    Opts = exometer_util:get_env(report, []),
     gen_server:start_link({local, ?MODULE}, ?MODULE,  Opts, []).
 
 -spec subscribe(module(), metric(), datapoint(), interval()) -> 
@@ -316,8 +316,8 @@ init(Opts) ->
                          []
                  end,
     %% start internal reporters
-    Reporters1 = case application:get_env(exometer, snmp_export) of
-                     {ok, true} ->
+    Reporters1 = case exometer_util:get_env(snmp_export, false) of
+                     true ->
                          {Pid, MRef} = spawn_reporter(exometer_report_snmp, []),
                          [#reporter{module = exometer_report_snmp,
                                     pid = Pid,
@@ -561,7 +561,7 @@ assert_no_duplicates([]) ->
 
 spawn_reporter(Reporter, Opt) ->
     spawn_monitor(fun() ->
-                          register(Reporter,self()),
+                          true = register(Reporter, self()),
                           reporter_launch(Reporter, Opt)
                   end).
 
@@ -654,14 +654,6 @@ get_subscribers(Metric, [ #subscriber {
     ?debug("get_subscribers(~p, ~p, ~p) nomatch(~p) ~n",
               [ SMetric, SDataPoint, SReporter, Metric]),
     get_subscribers(Metric, T).
-
-get_env(Key, Default) ->
-    case application:get_env(exometer, Key) of
-        {ok, Value} ->
-            Value;
-        _ ->
-            Default
-    end.
 
 %% Purge all subscriptions associated with a specific reporter
 %% (that just went down).

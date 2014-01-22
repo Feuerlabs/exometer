@@ -53,7 +53,7 @@ exometer_init(Opts) ->
                        true ->
                            true;
                        false ->
-                           application:start(snmp),
+                           ok = application:ensure_started(snmp),
                            false
                    end,
     ?info("~p(~p): Starting~n", [?MODULE, Opts]),

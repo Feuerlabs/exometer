@@ -16,6 +16,7 @@
     timestamp/0,
     timestamp_to_datetime/1,
     get_opt/3,
+    get_env/2,
     tables/0,
     table/0,
     get_statistics/3,
@@ -53,13 +54,21 @@ timestamp_to_datetime(TS) ->
     %% return {Datetime, Milliseconds}
     {calendar:now_to_datetime({1258,S,0}), MS}.
 
+get_env(Key, Default) ->
+    case application:get_env(exometer, Key) of
+        {ok, Value} ->
+            Value;
+        _ ->
+            Default
+    end.
+
 get_opt(K, Opts, Default) ->
     case lists:keyfind(K, 1, Opts) of
-	{_, V} -> V;
-	false  ->
-	    if is_function(Default,0) -> Default();
-	       true -> Default
-	    end
+        {_, V} -> V;
+        false  ->
+            if is_function(Default,0) -> Default();
+               true -> Default
+            end
     end.
 
 tables() ->

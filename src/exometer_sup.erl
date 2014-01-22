@@ -39,8 +39,8 @@ init([]) ->
                 ?CHILD(exometer_cache, worker),
                 ?CHILD(exometer_report, worker)
                ],
-    Children1 = case application:get_env(exometer, snmp_export) of
-                    {ok, true} ->
+    Children1 = case exometer_util:get_env(snmp_export, false) of
+                    true ->
                         Children0 ++ [?CHILD(exometer_snmp, worker)];
                     _ ->
                         Children0

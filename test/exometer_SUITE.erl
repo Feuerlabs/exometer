@@ -247,7 +247,6 @@ load_data(F, M) ->
     Stats.
 
 load_data(F, Rate, M) ->
-    erlang:display(file:get_cwd()),
     {ok, [Values]} = file:consult(F),
     Stats = bear:get_statistics(Values),
     pace(Rate, fun([V|Vs]) ->
