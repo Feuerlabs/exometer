@@ -5,6 +5,9 @@
 @title Exometer - Erlang instrumentation package
 
 @doc 
+
+[![Build Status](https://travis-ci.org/Feuerlabs/exometer.png?branch=master)](https://travis-ci.org/Feuerlabs/exometer)
+
 The Exometer package allows for easy and efficient instrumentation of
 Erlang code, allowing crucial data on system performance to be
 exported to a wide variety of monitoring systems.
