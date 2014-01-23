@@ -1,7 +1,7 @@
 %% -*- erlang -*-
 %%---- BEGIN COPYRIGHT -------------------------------------------------------
 %%
-%% Copyright (C) 2013 Feuerlabs Inc. All rights reserved.
+%% Copyright (C) 2014 Feuerlabs Inc. All rights reserved.
 %%
 %% This Source Code Form is subject to the terms of the Mozilla Public
 %% License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -12,18 +12,23 @@
 Script = fun(D,S,Vs) ->
 		 Scr = filename:join(D, S),
 		 case file:script(Scr, orddict:store('SCRIPT', Scr, Vs)) of
-		     {ok, Res} -> Res;
+		     {ok, Res} -> 
+                 Res;
 		     {error,_} = Err ->
-			 io:fwrite("Error evaluating script ~s~n", [S]),
+                 io:fwrite("Error evaluating script ~s~n", [S]),
 			 Err
 		 end
 	 end.
+
 CFG1 = case os:getenv("REBAR_DEPS") of
-	   false -> CONFIG;
-	   [] -> CONFIG;
-	   Dir ->
-	       lists:keystore(deps_dir, 1, CONFIG, {deps_dir, Dir})
+           false -> 
+               CONFIG;
+           [] -> 
+               CONFIG;
+           Dir ->
+               lists:keystore(deps_dir, 1, CONFIG, {deps_dir, Dir})
        end.
+
 Priv = filename:join(filename:dirname(SCRIPT), "priv").
 CFG2 = Script(Priv, "check_edown.script", [{'CONFIG', CFG1}]).
 Script(Priv, "check_packages.script", [{'CONFIG', CFG2}]).

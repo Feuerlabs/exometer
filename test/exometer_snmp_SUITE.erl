@@ -26,6 +26,12 @@
     test_agent_manager_communication_example/1
    ]).
 
+%% utility exports
+-export(
+   [
+    snmp_init_testcase/0
+   ]).
+
 -include_lib("common_test/include/ct.hrl").
 
 %%%===================================================================
@@ -54,21 +60,8 @@ init_per_testcase(test_snmp_export_disabled, Config) ->
     exometer:start(),
     Config;
 init_per_testcase(_Case, Config) ->
-    AgentConfPath = "../../test/config/snmp_agent.config",
-    ManagerConfPath = "../../test/config/snmp_manager.config",
-    reset_snmp_dirs(AgentConfPath, ManagerConfPath),
-    application:load(exometer),
-    application:set_env(exometer, snmp_export, true),
-    {ok, [FileConf]} = file:consult(AgentConfPath),
-    SnmpConf = proplists:get_value(snmp, FileConf),
-    application:load(snmp),
-    [ok = application:set_env(snmp, K, V) || {K, V} <- SnmpConf],
-    ok = application:start(snmp),
-    exometer:start(),
-    true = is_app_running(snmp, 10, 10000),
-    true = is_process_running(snmp_master_agent, 10, 10000),
-    [{agent_conf_path, AgentConfPath}, 
-     {manager_conf_path, ManagerConfPath} | Config].
+    Conf = exometer_snmp_SUITE:snmp_init_testcase(),
+    Conf ++ Config.
 
 end_per_testcase(_Case, _Config) ->
     exometer:stop(),
@@ -82,12 +75,14 @@ end_per_testcase(_Case, _Config) ->
 test_snmp_export_disabled(_Config) ->
     undefined = whereis(exometer_report_snmp),
     undefined = whereis(exometer_snmp),
+    undefined = whereis(exometer_snmpc),
     false = lists:keymember(snmp, 1, application:which_applications()),
     ok.
 
 test_snmp_export_enabled(_Config) ->
     true = is_pid(whereis(exometer_report_snmp)),
     true = is_pid(whereis(exometer_snmp)),
+    true = is_pid(whereis(exometer_snmpc)),
     ok.
 
 test_agent_manager_communication_example(Config) ->
@@ -114,8 +109,30 @@ test_agent_manager_communication_example(Config) ->
     ok.
 
 %%%===================================================================
+%%% utility API
+%%%===================================================================
+
+snmp_init_testcase() ->
+    AgentConfPath = "../../test/config/snmp_agent.config",
+    ManagerConfPath = "../../test/config/snmp_manager.config",
+    reset_snmp_dirs(AgentConfPath, ManagerConfPath),
+    application:load(exometer),
+    application:set_env(exometer, snmp_export, true),
+    {ok, [FileConf]} = file:consult(AgentConfPath),
+    SnmpConf = proplists:get_value(snmp, FileConf),
+    application:load(snmp),
+    [ok = application:set_env(snmp, K, V) || {K, V} <- SnmpConf],
+    ok = application:start(snmp),
+    exometer:start(),
+    true = is_app_running(snmp, 10, 10000),
+    true = is_process_running(snmp_master_agent, 10, 10000),
+    [{agent_conf_path, AgentConfPath}, 
+     {manager_conf_path, ManagerConfPath}].
+
+%%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
 is_app_running(_, _, Count) when Count < 0 ->
     false;
 is_app_running(App, Step, Count) ->
@@ -138,7 +155,6 @@ is_process_running(Name, Step, Count) ->
 
 reset_snmp_dirs(AgentConfPath, ManagerConfPath) ->
     {ok, [AgentFileConf]} = file:consult(AgentConfPath),
-    erlang:display({conf, AgentFileConf}),
     AgentDir = ?config(db_dir, ?config(agent, ?config(snmp, AgentFileConf))),
     del_dir(AgentDir),
     ok = filelib:ensure_dir(filename:join([AgentDir, "foo"])),
