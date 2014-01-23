@@ -48,10 +48,11 @@ with ``exometer''.
     7. {@section Set metric options}
 5. {@section Configuring Exometer}
     1. {@section Configuring type - entry maps}
-    2. {@section Configuring static subscriptions }
-    3. {@section Configuring reporter plugins}
-    4. {@section Configuring collectd reporter}
-    5. {@section Configuring graphite reporter}
+    2. {@section Configuring statically defined entries}
+    3. {@section Configuring static subscriptions }
+    4. {@section Configuring reporter plugins}
+    5. {@section Configuring collectd reporter}
+    6. {@section Configuring graphite reporter}
 6. {@section Creating custom exometer entries}
 7. {@section Creating custom probes}
 8. {@section Creating custom reporter plugins}
@@ -512,6 +513,20 @@ exometer.template.spiral.module    = exometer_spiral
 exometer.template.duration.module  = exometer_folsom
 exometer.template.meter.module     = exometer_folsom
 exometer.template.gauge.module     = exometer_folsom</pre>
+
+=== Configuring statically defined entries ===
+
+Using the `exometer' environment variable `predefined', entries can be added
+at application startup. The variable should have one of the following values:
+
+* `{script, File}' - `File' will be processed using `file:script/2'. The return
+  value (the result of the last expression in the script) should be a list of
+  `{Name, Type, Options}' tuples.
+
+* `{apply, M, F, A}' - The result of `apply(M, F, A)' should be `{ok, L}' where
+  `L' is a list of `{Name, Type, Options}' tuples.
+
+* `L', where L is a list of `{Name, Type, Options}' tuples.
 
 === Configuring static subscriptions  ===
 Static subscriptions, which are automatically setup at exometer
