@@ -1,14 +1,20 @@
-.PHONY: all clean compile test doc
+.PHONY: all clean clean_plt deps compile test doc dialyzer
 
-all: compile xref test
+EXOMETER_PLT=exometer.plt
+DIALYZER_OPTS = -Wunderspecs
+DIALYZER_APPS = erts kernel stdlib syntax_tools \
+		lager afunix netlink folsom exo
 
-compile:
+all: deps compile xref test
+
+deps:
+	rebar get-deps
+
+compile: deps
 	rebar compile
 
-clean:
+clean: clean_plt
 	rebar clean
-# The files removed by clean are checked in??
-#	rm -f doc/exometer*.md doc/*.png doc/stylesheet.css
 
 test:
 	rebar eunit skip_deps=true
@@ -21,3 +27,14 @@ edown_deps:
 
 doc: edown_deps
 	rebar doc edown=true skip_deps=true
+
+$(EXOMETER_PLT):
+	rebar get-deps compile
+	ERL_LIBS=deps dialyzer --build_plt --output_plt $(EXOMETER_PLT) \
+	--apps $(DIALYZER_APPS)
+
+clean_plt:
+	rm -f $(EXOMETER_PLT)
+
+dialyzer: $(EXOMETER_PLT)
+	dialyzer -r ebin --plt $(EXOMETER_PLT) $(DIALYZER_OPTS)

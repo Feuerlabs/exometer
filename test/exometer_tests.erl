@@ -11,10 +11,10 @@ counter_test_() ->
     {foreach,
      fun() ->
 	     io:fwrite(user, "starting exometer~n", []),
-	     ok = application:start(exometer)
+	     ok = exometer:start()
      end,
      fun(_) ->
-	     ok = application:stop(exometer)
+	     ok = exometer:stop()
      end,
      [?_test(t_std_counter()),
       ?_test(t_fast_counter())
@@ -23,12 +23,12 @@ counter_test_() ->
 histogram_test_() ->
     {foreach,
      fun() ->
-	     ok = application:start(folsom),
-	     ok = application:start(exometer)
+	     ok = folsom:start(),
+	     ok = exometer:start()
      end,
      fun(_) ->
-	     ok = application:stop(exometer),
-	     ok = application:stop(folsom)
+	     ok = exometer:stop(),
+	     ok = folsom:stop()
      end,
      [?_test(t_histogram()),
       ?_test(t_folsom_histogram()),

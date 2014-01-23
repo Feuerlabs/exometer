@@ -23,8 +23,8 @@ folsom_update(W, Ps, N) ->
     end.
 
 reset(App) ->
-    application:stop(App),
-    application:start(App).
+    App:stop(),
+    App:start().
 
 my_slide(W, Int) ->
     my_slide(W, Int, full).
