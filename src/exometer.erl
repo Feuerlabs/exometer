@@ -108,11 +108,7 @@ new(Name, Type) ->
 %% and calls to {@link update/2} and {@link sample/1} will return `ok' but
 %% will do nothing.
 %% @end
-new(Name, Type0, Opts0) when is_list(Name), is_list(Opts0) ->
-    {Type,Opts} = if is_tuple(Type0) -> {element(1,Type0),
-                                         [{type_arg, Type0}|Opts0]};
-                     true -> {Type0, Opts0}
-                  end,
+new(Name, Type, Opts) when is_list(Name), is_list(Opts) ->
     exometer_admin:new_entry(Name, Type, Opts).
 
 -spec re_register(name(), type(), options()) -> ok.
@@ -122,11 +118,7 @@ new(Name, Type0, Opts0) when is_list(Name), is_list(Opts0) ->
 %% with the same name already exists. Instead, the old entry will be replaced
 %% by the new.
 %% @end
-re_register(Name, Type0, Opts0) when is_list(Name), is_list(Opts0) ->
-    {Type,Opts} = if is_tuple(Type0) -> {element(1,Type0),
-                                         [{type_arg, Type0}|Opts0]};
-                     true -> {Type0, Opts0}
-                  end,
+re_register(Name, Type, Opts) when is_list(Name), is_list(Opts) ->
     exometer_admin:re_register_entry(Name, Type, Opts).
 
 

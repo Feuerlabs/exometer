@@ -303,7 +303,7 @@ Equivalent to [`new(Name, Type, [])`](#new-3).
 
 
 <pre><code>
-new(Name::<a href="#type-name">name()</a>, Type0::<a href="#type-type">type()</a>, Opts0::<a href="#type-options">options()</a>) -&gt; ok
+new(Name::<a href="#type-name">name()</a>, Type::<a href="#type-type">type()</a>, Opts::<a href="#type-options">options()</a>) -&gt; ok
 </code></pre>
 
 <br></br>
@@ -340,7 +340,7 @@ will do nothing.
 
 
 <pre><code>
-re_register(Name::<a href="#type-name">name()</a>, Type0::<a href="#type-type">type()</a>, Opts0::<a href="#type-options">options()</a>) -&gt; ok
+re_register(Name::<a href="#type-name">name()</a>, Type::<a href="#type-type">type()</a>, Opts::<a href="#type-options">options()</a>) -&gt; ok
 </code></pre>
 
 <br></br>

@@ -90,7 +90,8 @@ ok({error, E}) ->
     erlang:error(E).
 
 new_entry(Name, Type, Opts) ->
-    case gen_server:call(?MODULE, {new_entry, Name, Type, Opts, false}) of
+    {Type1, Opt1} = check_type_arg(Type, Opts),
+    case gen_server:call(?MODULE, {new_entry, Name, Type1, Opt1, false}) of
         {error, Reason} ->
             error(Reason);
         ok ->
@@ -98,12 +99,18 @@ new_entry(Name, Type, Opts) ->
     end.
 
 re_register_entry(Name, Type, Opts) ->
-    case gen_server:call(?MODULE, {new_entry, Name, Type, Opts, true}) of
+    {Type1, Opts1} = check_type_arg(Type, Opts),
+    case gen_server:call(?MODULE, {new_entry, Name, Type1, Opts1, true}) of
         {error, Reason} ->
             error(Reason);
         ok ->
             ok
     end.
+
+check_type_arg(Type, Opts) when is_tuple(Type) ->
+    {element(1, Type), [{type_arg, Type}|Opts]};
+check_type_arg(Type, Opts) when is_atom(Type) ->
+    {Type, Opts}.
 
 monitor(Name, Pid) when is_pid(Pid) ->
     gen_server:cast(?MODULE, {monitor, Name, Pid}).
@@ -139,8 +146,6 @@ handle_call({new_entry, Name, Type, Opts, AllowExisting}, _From, S) ->
     try
         #exometer_entry{options = OptsTemplate} = E =
             lookup_definition(Name, Type, Opts),
-        io:fwrite("Name = ~p~n"
-                  "Tab = ~p~n", [Name, ets:tab2list(exometer_util:table())]),
         case {ets:member(exometer_util:table(), Name), AllowExisting} of
             {true, false} -> {reply, {error, exists}, S};
             _ ->
