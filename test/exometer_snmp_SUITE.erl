@@ -60,7 +60,7 @@ init_per_testcase(test_snmp_export_disabled, Config) ->
     exometer:start(),
     Config;
 init_per_testcase(_Case, Config) ->
-    Conf = exometer_snmp_SUITE:snmp_init_testcase(),
+    Conf = snmp_init_testcase(),
     Conf ++ Config.
 
 end_per_testcase(_Case, _Config) ->
@@ -115,15 +115,17 @@ test_agent_manager_communication_example(Config) ->
 snmp_init_testcase() ->
     AgentConfPath = "../../test/config/snmp_agent.config",
     ManagerConfPath = "../../test/config/snmp_manager.config",
+    MibTemplate = "../../mibs/EXOMETER-METRICS-MIB.mib",
     reset_snmp_dirs(AgentConfPath, ManagerConfPath),
     application:load(exometer),
-    application:set_env(exometer, snmp_export, true),
+    ok = application:set_env(exometer, snmp_export, true),
+    ok = application:set_env(exometer, snmp_mib_template, MibTemplate),
     {ok, [FileConf]} = file:consult(AgentConfPath),
     SnmpConf = proplists:get_value(snmp, FileConf),
     application:load(snmp),
     [ok = application:set_env(snmp, K, V) || {K, V} <- SnmpConf],
     ok = application:start(snmp),
-    exometer:start(),
+    ok = exometer:start(),
     true = is_app_running(snmp, 10, 10000),
     true = is_process_running(snmp_master_agent, 10, 10000),
     [{agent_conf_path, AgentConfPath}, 

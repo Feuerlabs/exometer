@@ -36,9 +36,12 @@
 
 -define(SERVER, ?MODULE).
 
+-define(MIB_TEMPLATE, "mibs/EXOMETER-METRICS-MIB.mib").
+-define(MIB_DIR, "tmp/" ++ erlang:atom_to_list(?MODULE)).
+
 -record(st, {
-          manager = "exomanager",
-          manager_engine
+          abstract_mib :: exometer_snmpc:abstract_mib(),
+
          }).
 
 %%%===================================================================
@@ -65,7 +68,12 @@ disable_inform(_, _, _) ->
 %%%===================================================================
 
 init(noargs) ->
-    {ok, #st{}}.
+    % load MIB template which is used through the operation of 
+    % the process to dynamically export metrics
+    MibPath = exometer_util:get_env(snmp_mib_template, ?MIB_TEMPLATE),
+    MibWorkPath = exometer_util:get_env(snmp_mib_dir, ?MIB_DIR),
+    {ok, MibAbstract} = exometer_snmpc:load(MibPath),
+    {ok, #st{abstract_mib=MibAbstract}}.
 
 handle_call(_Msg, _From, S) ->
     {noreply, S}.

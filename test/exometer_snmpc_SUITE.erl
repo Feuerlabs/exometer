@@ -61,9 +61,12 @@ end_per_testcase(_Case, _Config) ->
 %%%===================================================================
 
 test_mib_load(_Config) ->
-    TestMibPath = "../../test/data/EXOTEST-MIB.mib",
-    {ok, #pdata{}=Pdata} = exometer_snmpc:load(TestMibPath),
-    ct:log("Loaded test MIB: ~p", [Pdata]),
+    Paths = ["../../test/data/EXOTEST-MIB.mib", "../../mibs/EXOMETER-METRICS-MIB.mib"],
+    lists:map(
+      fun(P) ->
+              {ok, #pdata{}=Pdata} = exometer_snmpc:load(P),
+              ct:log("Loaded test MIB: ~p", [Pdata])
+      end, Paths),
     ok.
 
 test_mib_load_errors(_Config) ->

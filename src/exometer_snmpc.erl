@@ -29,12 +29,19 @@
     load/1
    ]).
 
+-export_type(
+   [
+    abstract_mib/0
+   ]).
+
 %% we use the same definitions as the OTP snmpc
 -include_lib("snmp/src/compiler/snmpc.hrl").
 
 -include("log.hrl").
 
 -define(SERVER, ?MODULE).
+
+-type abstract_mib() :: #pdata{}.
 
 -record(st, {}).
 
@@ -46,7 +53,7 @@ start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, noargs, []).
 
 %% @doc Loads and parses a .mib file. The abstract representation is returned for further processing.
--spec load(MibPath :: string()) -> {ok, #pdata{}} | 
+-spec load(MibPath :: string()) -> {ok, abstract_mib()} | 
                                    {error, badarg} |
                                    {error, load_error} |
                                    {error, parse_error} |
