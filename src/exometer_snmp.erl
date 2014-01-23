@@ -35,7 +35,6 @@
 -include("log.hrl").
 
 -define(SERVER, ?MODULE).
--define(HEARTBEAT_TIMEOUT, 10000).
 
 -record(st, {
           manager = "exomanager",
@@ -66,7 +65,6 @@ disable_inform(_, _, _) ->
 %%%===================================================================
 
 init(noargs) ->
-    %erlang:send_after(?HEARTBEAT_TIMEOUT, ?SERVER, heartbeat),
     {ok, #st{}}.
 
 handle_call(_Msg, _From, S) ->
@@ -75,10 +73,10 @@ handle_call(_Msg, _From, S) ->
 handle_cast(_Msg, S) ->
     {noreply, S}.
 
+%% used for testing
 handle_info(heartbeat, S) ->
     snmpa:send_notification(snmp_master_agent, exometerHeartbeat, no_receiver, "exometerHeartbeat", []),
     ?info("heartbeat to SNMP manager sent", []),
-    erlang:send_after(?HEARTBEAT_TIMEOUT, ?SERVER, heartbeat),
     {noreply, S};
 
 handle_info(_Msg, S) ->

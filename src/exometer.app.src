@@ -12,7 +12,6 @@
    ]},
   {included_applications, 
    [
-    snmp
    ]},
   {mod, {exometer_app, []}},
   {start_phases, [{preset_defaults, []}]},

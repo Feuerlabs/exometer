@@ -48,16 +48,15 @@
 %%%===================================================================
 
 exometer_init(Opts) ->
-    RunningApps = application:which_applications(),
-    LeaveRunning = case lists:keymember(snmp, 1, RunningApps) of
-                       true ->
-                           true;
-                       false ->
-                           ok = application:ensure_started(snmp),
-                           false
-                   end,
     ?info("~p(~p): Starting~n", [?MODULE, Opts]),
-    {ok, #st{leave_snmp_running=LeaveRunning}}.
+    RunningApps = application:which_applications(),
+    case lists:keymember(snmp, 1, RunningApps) of
+        true ->
+            ok;
+        false ->
+            ?warning("~p(~p): Application SNMP not started. Ensure that a usable SNMP agent is configured.")
+    end,
+    {ok, #st{}}.
 
 exometer_subscribe(Metric, DataPoint, Extra, _Interval, St) ->
     exometer_snmp:enable_inform(Metric, DataPoint, Extra),
@@ -76,13 +75,8 @@ exometer_info(Unknown, St) ->
     ?info("Unknown: ~p~n", [Unknown]),
     St.
 
-exometer_terminate(_, #st{leave_snmp_running=Leave}) ->
-    case Leave of
-        true ->
-            ok;
-        false ->
-            application:stop(snmp)
-    end.
+exometer_terminate(_, #st{}) ->
+    ok.
 
 %%%===================================================================
 %%% external API
