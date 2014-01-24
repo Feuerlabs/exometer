@@ -1,9 +1,12 @@
 %% erl -config app.config
 
 lager:start().
+application:start(sasl).
 application:start(exometer).
 
 exometer:new([a,b,c], histogram).
+
+
 exometer:new([a,b,d], counter).
 
 exometer_report:subscribe(exometer_report_collectd, [a,b,c], max, 5000).

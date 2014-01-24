@@ -19,9 +19,10 @@
 	 event}).
 
 -record(exometer_entry, {
-	  name,
-	  type,
-	  module = exometer,
+	  name, %% Path
+	  type, %% Type
+	  module = exometer, %% To be used by entry, or sent to proc
+	  behaviour = undefined, %% Is this proc or entry
 	  status = enabled,
 	  cache = 0,
 	  value,

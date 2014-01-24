@@ -15,7 +15,8 @@
 -behaviour(exometer_entry).
 
 % exometer_entry callb
--export([new/3,
+-export([behaviour/0,
+	 new/3,
          delete/3,
          get_datapoints/3,
          get_value/4,
@@ -35,20 +36,21 @@
              sample_interval = infinity, %% msec. infinity = disable probe_sample() peridoc calls.
              opts = []}).
 
--type name()        :: exometer:name().
--type options()     :: exometer:options().
--type type()        :: exometer:type().
--type mod_state()   :: any().
--type data_points() :: [atom()].
--type probe_reply() :: ok
-                     | {ok, mod_state()}
-                     | {ok, any(), mod_state()}
-                     | {noreply, mod_state()}
-                     | {error, any()}.
--type probe_noreply() :: ok
-                       | {ok, mod_state()}
-                       | {error, any()}.
+-type name()            :: exometer:name().
+-type options()         :: exometer:options().
+-type type()            :: exometer:type().
+-type mod_state()       :: any().
+-type data_points()     :: [atom()].
+-type probe_reply()     :: ok
+			 | {ok, mod_state()}
+			 | {ok, any(), mod_state()}
+			 | {noreply, mod_state()}
+			 | {error, any()}.
+-type probe_noreply()   :: ok
+			 | {ok, mod_state()}
+			 | {error, any()}.
 
+-callback behaviour() -> probe.
 -callback probe_init(name(), type(), options()) -> probe_noreply().
 -callback probe_terminate(mod_state()) -> probe_noreply().
 -callback probe_setopts(options(), mod_state()) -> probe_reply().
@@ -62,20 +64,22 @@
 %% FIXME: Invoke this.
 -callback probe_code_change(any(), mod_state(), any()) -> {ok, mod_state()}.
 
-%%
-%% exometer_entry callbacks
-%%
 new(Name, Type, [{type_arg, Module}|Opts]) ->
     { ok, exometer_proc:spawn_process(
            Name, fun() ->
-                         init_(Name, Type, Module, Opts)
+                         init(Name, Type, Module, Opts)
                  end)
     };
+
 
 new(Name, Type, Options) ->
     %% Extract the module to use.
     {value, { module, Module }, Opts1 } = lists:keytake(module, 1, Options),
     new(Name, Type, [{type_arg, Module} | Opts1]).
+
+%% Should never be called directly for exometer_probe.
+behaviour() ->
+    undefined.
 
 delete(_Name, _Type, Pid) when is_pid(Pid) ->
     exometer_proc:call(Pid, delete).
@@ -98,11 +102,13 @@ reset(_Name, _Type, Pid) when is_pid(Pid) ->
 sample(_Name, _Type, Pid) when is_pid(Pid) ->
     exometer_proc:call(Pid, sample).
 
-init_(Name, Type, Mod, Opts) ->
+init(Name, Type, Mod, Opts) ->
+    process_flag(min_heap_size, 40000), 
     {St0, Opts1} = process_opts(Opts, #st{name = Name,
                                           type = Type,
                                           module = Mod}),
     St = St0#st{opts = Opts1},
+
     %% Create a new state for the module
     case {Mod:probe_init(Name, Type, St#st.opts), St#st.sample_interval} of
         { ok, infinity} ->
@@ -191,8 +197,9 @@ handle_msg(Msg, St) ->
 	{timeout, _TRef, sample} ->
 	    sample(St);
 
-        {exometer_proc, stop} ->
-		exometer_proc:stop();
+        {exometer_proc, delete} ->
+	    Module:probe_terminate(St),
+	    exometer_proc:stop();
 	     
         {exometer_proc, code_change} ->
 	    Module:probe_terminate(St),
@@ -264,3 +271,4 @@ process_opts([Opt|T], St, Acc) ->
     process_opts(T, St, [Opt | Acc]);
 process_opts([], St, Acc) ->
     {St, lists:reverse(Acc)}.
+

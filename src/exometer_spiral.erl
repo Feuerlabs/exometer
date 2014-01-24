@@ -12,7 +12,8 @@
 -behaviour(exometer_entry).
 
 %% exometer_entry callbacks
--export([new/3,
+-export([behaviour/0,
+new/3,
          delete/3,
          get_value/4,
          get_datapoints/3,
@@ -46,6 +47,9 @@
              opts = []}).
 
 -define(DATAPOINTS, [ count, one ]).
+
+behaviour()->
+    entry.
 
 init(Name, Type, Options) ->
     {ok, St} = init_int(Name, Type, Options),

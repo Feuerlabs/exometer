@@ -10,12 +10,19 @@
 
 -module(exometer_admin).
 
+-export([init/1,
+	 handle_call/3,
+	 handle_cast/2, 
+	 handle_info/2,
+	 terminate/2, 
+	 code_change/3]).
+
 -export([new_entry/3,
          re_register_entry/3]).
 -export([set_default/3]).
 
 -compile(export_all).
-
+-behavior(gen_server).
 -export([monitor/2, demonitor/1]).
 
 -record(st, {}).
@@ -107,7 +114,7 @@ init(_) ->
 handle_call({new_entry, Name, Type, Opts, AllowExisting}, _From, S) ->
     try
         #exometer_entry{options = OptsTemplate} = E =
-            lookup_definition(Name, Type, Opts),
+            lookup_definition(Name, Type, Opts), %% #exometer_entry record returned.
         case {ets:member(exometer_util:table(), Name), AllowExisting} of
             {[_], false} -> {reply, {error, exists}, S};
             _ ->
@@ -237,19 +244,14 @@ exometer_default(Name, Type) ->
                             module = M}
     end.
 
-%% Be sure to specify { module, exometer_ctr } in Options when
-%% creating a ticker metrics through exometer:new().
 module(counter )      -> exometer;
 module(fast_counter)  -> exometer;
-module(exometer_proc) -> exometer;
-module(ticker  )      -> exometer_probe;
 module(uniform)       -> exometer_uniform;
-module(histogram)     -> {exometer, exometer_histogram};
+module(duration)      -> exometer_duration;
+module(histogram)     -> exometer_histogram;
 module(spiral   )     -> exometer_spiral;
-%% module(spiral   )     -> {exometer, exometer_spiral};
 module(netlink  )     -> exometer_netlink;
-module(probe    )     -> exometer_probe;
-module(cpu      )     -> {exometer_probe, exometer_cpu};
+module(cpu      )     -> exometer_cpu;
 module(function )     -> exometer_function.
 
 
@@ -305,3 +307,4 @@ process_opts(Entry, Options) ->
           ({_Opt, _Val}, #exometer_entry{} = Entry1) ->
               Entry1
       end, Entry#exometer_entry{options = Options}, Options).
+
