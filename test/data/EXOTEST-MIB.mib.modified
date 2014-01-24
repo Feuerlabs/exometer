@@ -1,4 +1,3 @@
-
 EXOTEST DEFINITIONS ::= BEGIN
 
 IMPORTS
@@ -33,22 +32,22 @@ test.app.one OBJECT-TYPE
 -- METRIC test.app.one END
 
 -- METRIC test.app.three START
-test.app.one OBJECT-TYPE
+test.app.three OBJECT-TYPE
     SYNTAX Counter
     ACCESS read-only
     STATUS mandatory
     DESCRIPTION ""
     ::= { exotest 3 }
--- METRIC test.app.one END
+-- METRIC test.app.three END
 
 -- METRIC test.app.four START
-test.app.one OBJECT-TYPE
+test.app.four OBJECT-TYPE
     SYNTAX Counter
     ACCESS read-only
     STATUS mandatory
     DESCRIPTION ""
     ::= { exotest 2 }
--- METRIC test.app.one END
+-- METRIC test.app.four END
 
 -- CONTENT END
 

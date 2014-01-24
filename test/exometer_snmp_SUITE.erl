@@ -110,13 +110,14 @@ test_agent_manager_communication_example(Config) ->
 
 test_mib_modification(Config) ->
     {ok, ExpectedMib} = file:read_file("../../test/data/EXOTEST-MIB.mib.modified"),
-    ct:log("Expected MIB: ~p", [ExpectedMib]),
-    ok = exometer:new([test, app, one], counter, []),
-    ok = exometer:new([test, app, two], fast_counter, [{snmp, []}]),
+    ct:log("Expected MIB: ~s", [binary_to_list(ExpectedMib)]),
+    ok = exometer:new([test, app, one], counter, [{snmp, []}]),
+    ok = exometer:new([test, app, two], fast_counter, [{snmp, []}, {function, {erlang, now}}]),
     ok = exometer:new([test, app, three], counter, [{snmp, []}]),
-    ok = exometer:new([test, app, four], fast_counter, [{snmp, []}]),
+    ok = exometer:setopts([test, app, two], [{snmp, disabled}]),
+    ok = exometer:new([test, app, four], fast_counter, [{snmp, []}, {function, {erlang, now}}]),
     {ok, ModifiedMib} = file:read_file("tmp/exometer_snmp/EXOTEST-MIB.mib"),
-    ct:log("Modified MIB: ~p", [ModifiedMib]),
+    ct:log("Modified MIB: ~s", [binary_to_list(ModifiedMib)]),
     ExpectedMib = ModifiedMib,
     ok.
 

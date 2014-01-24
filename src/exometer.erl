@@ -52,7 +52,7 @@
     find_entries/1,
     select/1, select/2, select_cont/1,
     info/1, info/2,
-    snmp_bin/3
+    snmp_bin/2
    ]).
 
 -export([create_entry/1]).  % called only from exometer_admin.erl
@@ -492,15 +492,14 @@ info(Name, Item) ->
             undefined
     end.
 
-snmp_bin(Name, Nr, #exometer_entry{type=Type}) when
+snmp_bin(Name, #exometer_entry{type=Type}) when
       Type == counter; Type == fast_counter ->
     B = [
          Name, <<" OBJECT-TYPE\n">>,
-         <<"\tSYNTAX Counter\n">>,
-         <<"\tACCESS read-only\n">>,
-         <<"\tSTATUS mandatory\n">>,
-         <<"\tDESCRIPTION \"\"\n">>,
-         <<"\t::= { exometerMetrics ">>, Nr, <<" }\n">>
+         <<"    SYNTAX Counter\n">>,
+         <<"    ACCESS read-only\n">>,
+         <<"    STATUS mandatory\n">>,
+         <<"    DESCRIPTION \"\"\n">>
         ],
     binary:list_to_bin(B).
 
@@ -692,11 +691,11 @@ process_setopts(#exometer_entry{options = OldOpts} = Entry, Options) ->
               ({snmp, Snmp}, {#exometer_entry{snmp = Snmp0} = E0, Elems} = Acc) ->
                   Snmp1 = exometer_util:drop_duplicates(Snmp),
                   if 
-                      Snmp1 =/= Snmp0 and (Snmp1 == disabled or is_list(Snmp1)) ->
+                      Snmp1 =/= Snmp0, (Snmp1 == disabled orelse is_list(Snmp1)) ->
                           E1 = E0#exometer_entry{snmp = Snmp},
-                          exometer_report_snmp:status_change(E0, E1),
+                          exometer_snmp:status_change(E0, E1),
                           {E1, add_elem(snmp, Snmp, Elems)};
-                      Snmp1 =/= Snmp0 ->
+                      Snmp1 == Snmp0, (Snmp1 == disabled orelse is_list(Snmp1)) ->
                           Acc;
                       true ->
                           error({illegal, {snmp, Snmp}})
@@ -761,16 +760,23 @@ get_fctr_datapoint(#exometer_entry{ }, Undefined) ->
     {Undefined, undefined}.
 
 
-create_entry(#exometer_entry{module = exometer,
-                             type = counter} = E) ->
+create_entry(#exometer_entry{module = exometer, status = Status,
+                             type = counter, snmp = Snmp} = E) ->
     E1 = E#exometer_entry{value = 0, timestamp = exometer_util:timestamp()},
     [ets:insert(T, E1) || T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
+    if
+        Status == enabled, is_list(Snmp) ->
+            exometer_snmp:enable_metric(E);
+        true ->
+            ok
+    end,
     ok;
 create_entry(#exometer_entry{module = exometer,
-                             status = Status,
+                             status = Status, snmp = Snmp,
                              type = fast_counter, options = Opts} = E) ->
     case lists:keyfind(function, 1, Opts) of
-        false -> error({required, function});
+        false -> 
+            error({required, function});
         {_, {M,F}} when is_atom(M), M =/= '_',
                         is_atom(F), M =/= '_' ->
             code:ensure_loaded(M),  % module must be loaded for trace_pattern
@@ -779,6 +785,12 @@ create_entry(#exometer_entry{module = exometer,
             set_call_count(M, F, Status == enabled),
             [ets:insert(T, E1) ||
                 T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
+            if
+                Status == enabled, is_list(Snmp) ->
+                    exometer_snmp:enable_metric(E);
+                true ->
+                    ok
+            end,
             ok;
         Other ->
             error({badarg, {function, Other}})
