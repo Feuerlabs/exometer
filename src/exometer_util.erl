@@ -1,6 +1,6 @@
 %% -------------------------------------------------------------------
 %%
-%% Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved.
+%% Copyright (c) 2014 Basho Technologies, Inc.  All Rights Reserved.
 %%
 %%   This Source Code Form is subject to the terms of the Mozilla Public
 %%   License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -8,22 +8,40 @@
 %%
 %% -------------------------------------------------------------------
 
+%% @doc Exometer utility functions.
+%% @end
+
 -module(exometer_util).
 
--compile(export_all).
+-export([timestamp/0,
+         timestamp_to_datetime/1,
+         get_opt/3,
+         get_statistics/3,
+         tables/0,
+         table/0]).
+
+-export_type([timestamp/0]).
 
 -include("exometer.hrl").
 
-start() ->
-    application:start(exometer).
+-type timestamp() :: pos_integer().
 
-
+-spec timestamp() -> timestamp().
+%% @doc Generate a millisecond-resolution timestamp.
+%%
+%% This timestamp format is used e.g. by the `exometer_slide' and
+%% `exometer_histogram' implementations.
+%% @end
 timestamp() ->
     %% Invented epoc is {1258,0,0}, or 2009-11-12, 4:26:40
     %% Millisecond resolution
     {MS,S,US} = os:timestamp(),
     (MS-1258)*1000000000 + S*1000 + US div 1000.
 
+-spec timestamp_to_datetime(exometer_util:timestamp()) -> calendar:datetime().
+%% @doc Convert timestamp to a regular datetime.
+%%
+%% The timestamp is expected 
 timestamp_to_datetime(TS) ->
     %% Our internal timestamps are relative to Now = {1258,0,0}
     %% It doesn't really matter much how we construct a now()-like tuple,

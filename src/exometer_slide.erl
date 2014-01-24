@@ -42,16 +42,16 @@
 -export([test/0]).
 -endif.
 
--compile(export_all).
-
 -import(lists, [reverse/1, sublist/3]).
 -import(exometer_util, [timestamp/0]).
 
--type timestamp() :: integer().
 -type value() :: any().
 -type cur_state() :: any().
--type sample_fun() :: fun((timestamp(), value(), cur_state()) -> cur_state()).
--type transform_fun() :: fun((timestamp(), cur_state()) -> cur_state()).
+-type timestamp() :: exometer_util:timestamp().
+-type sample_fun() :: fun((timestamp(), value(), cur_state()) ->
+                                 cur_state()).
+-type transform_fun() :: fun((timestamp(), cur_state()) ->
+                                    cur_state()).
 
 -type fold_acc() :: any().
 -type fold_fun() :: fun(({timestamp(),value()}, fold_acc()) -> fold_acc()).

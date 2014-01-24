@@ -71,11 +71,6 @@ load_defaults() ->
 
 load_predefined() ->
     case application:get_env(exometer, predefined) of
-        {ok, L} when is_list(L) ->
-            lists:foreach(
-              fun(E) ->
-                      do_load_predef(get_predef(E))
-              end, L);
         {ok, E} ->
             do_load_predef(get_predef(E));
         _ ->
@@ -84,9 +79,10 @@ load_predefined() ->
 
 get_predef({consult, F}) -> ok(file:consult(F));
 get_predef({script, F} ) -> ok(file:script(F, []));
-get_predef({apply, M, F, A}) -> ok(apply(M, F, A)).
+get_predef({apply, M, F, A}) -> ok(apply(M, F, A));
+get_predef(L) when is_list(L) -> L.
 
-do_load_predef(L) ->
+do_load_predef(L) when is_list(L) ->
     lists:foreach(
       fun({Name, Type, Options}) ->
               new_entry(Name, Type, Options)
