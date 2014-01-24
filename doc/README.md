@@ -4,10 +4,11 @@
 
 Copyright (c) 2014 Basho Technologies, Inc.  All Rights Reserved.
 
-__Version:__ Jan 21 2014 17:26:47
+__Version:__ Jan 24 2014 00:21:17
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
+[![Build Status](https://travis-ci.org/Feuerlabs/exometer.png?branch=master)](https://travis-ci.org/Feuerlabs/exometer)
 
 The Exometer package allows for easy and efficient instrumentation of
 Erlang code, allowing crucial data on system performance to be
@@ -55,10 +56,11 @@ with `exometer`.
     7. [Set metric options](#Set_metric_options)
 5. [Configuring Exometer](#Configuring_Exometer)
     1. [Configuring type - entry maps](#Configuring_type_-_entry_maps)
-    2. [Configuring static subscriptions](#Configuring_static_subscriptions)
-    3. [Configuring reporter plugins](#Configuring_reporter_plugins)
-    4. [Configuring collectd reporter](#Configuring_collectd_reporter)
-    5. [Configuring graphite reporter](#Configuring_graphite_reporter)
+    2. [Configuring statically defined entries](#Configuring_statically_defined_entries)
+    3. [Configuring static subscriptions](#Configuring_static_subscriptions)
+    4. [Configuring reporter plugins](#Configuring_reporter_plugins)
+    5. [Configuring collectd reporter](#Configuring_collectd_reporter)
+    6. [Configuring graphite reporter](#Configuring_graphite_reporter)
 6. [Creating custom exometer entries](#Creating_custom_exometer_entries)
 7. [Creating custom probes](#Creating_custom_probes)
 8. [Creating custom reporter plugins](#Creating_custom_reporter_plugins)
@@ -589,6 +591,19 @@ exometer.template.duration.module  = exometer_folsom
 exometer.template.meter.module     = exometer_folsom
 exometer.template.gauge.module     = exometer_folsom
 ```
+
+
+#### <a name="Configuring_statically_defined_entries">Configuring statically defined entries</a> ####
+
+Using the `exometer` environment variable `predefined`, entries can be added
+at application startup. The variable should have one of the following values:
+
+* `{script, File}` - `File` will be processed using `file:script/2`. The return
+  value (the result of the last expression in the script) should be a list of`{Name, Type, Options}` tuples.
+
+* `{apply, M, F, A}` - The result of `apply(M, F, A)` should be `{ok, L}` where`L` is a list of `{Name, Type, Options}` tuples.
+
+* `L`, where L is a list of `{Name, Type, Options}` tuples.
 
 
 #### <a name="Configuring_static_subscriptions">Configuring static subscriptions</a> ####
