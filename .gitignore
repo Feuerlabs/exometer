@@ -5,6 +5,6 @@ deps
 *.plt
 *.app
 include/EXOMETER-MIB.hrl
-priv/mibs/EXOMETER-MIB.bin
+priv/mibs
 log/
 logs/

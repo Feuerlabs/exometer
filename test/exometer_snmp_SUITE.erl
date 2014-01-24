@@ -23,7 +23,8 @@
    [
     test_snmp_export_disabled/1,
     test_snmp_export_enabled/1,
-    test_agent_manager_communication_example/1
+    test_agent_manager_communication_example/1,
+    test_mib_modification/1
    ]).
 
 %% utility exports
@@ -42,7 +43,8 @@ all() ->
     [
      test_snmp_export_disabled,
      test_snmp_export_enabled,
-     test_agent_manager_communication_example
+     test_agent_manager_communication_example,
+     test_mib_modification
     ].
 
 suite() ->
@@ -75,14 +77,12 @@ end_per_testcase(_Case, _Config) ->
 test_snmp_export_disabled(_Config) ->
     undefined = whereis(exometer_report_snmp),
     undefined = whereis(exometer_snmp),
-    undefined = whereis(exometer_snmpc),
     false = lists:keymember(snmp, 1, application:which_applications()),
     ok.
 
 test_snmp_export_enabled(_Config) ->
     true = is_pid(whereis(exometer_report_snmp)),
     true = is_pid(whereis(exometer_snmp)),
-    true = is_pid(whereis(exometer_snmpc)),
     ok.
 
 test_agent_manager_communication_example(Config) ->
@@ -108,6 +108,18 @@ test_agent_manager_communication_example(Config) ->
     {ok, _} = ct_slave:stop(Node),
     ok.
 
+test_mib_modification(Config) ->
+    {ok, ExpectedMib} = file:read_file("../../test/data/EXOTEST-MIB.mib.modified"),
+    ct:log("Expected MIB: ~p", [ExpectedMib]),
+    ok = exometer:new([test, app, one], counter, []),
+    ok = exometer:new([test, app, two], fast_counter, [{snmp, []}]),
+    ok = exometer:new([test, app, three], counter, [{snmp, []}]),
+    ok = exometer:new([test, app, four], fast_counter, [{snmp, []}]),
+    {ok, ModifiedMib} = file:read_file("tmp/exometer_snmp/EXOTEST-MIB.mib"),
+    ct:log("Modified MIB: ~p", [ModifiedMib]),
+    ExpectedMib = ModifiedMib,
+    ok.
+
 %%%===================================================================
 %%% utility API
 %%%===================================================================
@@ -115,7 +127,7 @@ test_agent_manager_communication_example(Config) ->
 snmp_init_testcase() ->
     AgentConfPath = "../../test/config/snmp_agent.config",
     ManagerConfPath = "../../test/config/snmp_manager.config",
-    MibTemplate = "../../mibs/EXOMETER-METRICS-MIB.mib",
+    MibTemplate = "../../test/data/EXOTEST-MIB.mib",
     reset_snmp_dirs(AgentConfPath, ManagerConfPath),
     application:load(exometer),
     ok = application:set_env(exometer, snmp_export, true),

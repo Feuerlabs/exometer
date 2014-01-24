@@ -1,3 +1,4 @@
+
 EXOTEST DEFINITIONS ::= BEGIN
 
 IMPORTS
@@ -21,6 +22,33 @@ exotestMIB MODULE-IDENTITY
 exotest OBJECT IDENTIFIER ::= { experimental 7 }
 
 -- CONTENT START
+
+-- METRIC test.app.one START
+test.app.one OBJECT-TYPE
+    SYNTAX Counter
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION ""
+    ::= { exotest 1 }
+-- METRIC test.app.one END
+
+-- METRIC test.app.three START
+test.app.one OBJECT-TYPE
+    SYNTAX Counter
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION ""
+    ::= { exotest 3 }
+-- METRIC test.app.one END
+
+-- METRIC test.app.four START
+test.app.one OBJECT-TYPE
+    SYNTAX Counter
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION ""
+    ::= { exotest 2 }
+-- METRIC test.app.one END
 
 -- CONTENT END
 

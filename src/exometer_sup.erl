@@ -43,7 +43,6 @@ init([]) ->
                     true ->
                         Children0 ++ 
                         [
-                         ?CHILD(exometer_snmpc, worker),
                          ?CHILD(exometer_snmp, worker)
                         ];
                     _ ->

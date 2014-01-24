@@ -39,21 +39,21 @@
 %% @end
 -module(exometer).
 
--export([new/2,
-         new/3,
-         re_register/3,
-         update/2,
-         get_value/1,
-         get_value/2,
-         sample/1,
-         delete/1,
-         reset/1,
-         setopts/2,
-         find_entries/1,
-         get_values/1,
-         select/1, select/2, select_cont/1,
-         info/1,
-         info/2]).
+-export(
+   [
+    new/2, new/3,
+    re_register/3,
+    update/2,
+    get_value/1, get_value/2, get_values/1,
+    sample/1,
+    delete/1,
+    reset/1,
+    setopts/2,
+    find_entries/1,
+    select/1, select/2, select_cont/1,
+    info/1, info/2,
+    snmp_bin/3
+   ]).
 
 -export([create_entry/1]).  % called only from exometer_admin.erl
 
@@ -491,6 +491,18 @@ info(Name, Item) ->
         _ ->
             undefined
     end.
+
+snmp_bin(Name, Nr, #exometer_entry{type=Type}) when
+      Type == counter; Type == fast_counter ->
+    B = [
+         Name, <<" OBJECT-TYPE\n">>,
+         <<"\tSYNTAX Counter\n">>,
+         <<"\tACCESS read-only\n">>,
+         <<"\tSTATUS mandatory\n">>,
+         <<"\tDESCRIPTION \"\"\n">>,
+         <<"\t::= { exometerMetrics ">>, Nr, <<" }\n">>
+        ],
+    binary:list_to_bin(B).
 
 datapoints(default, E) ->
     get_datapoints_(E);
