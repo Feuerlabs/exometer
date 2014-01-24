@@ -16,6 +16,7 @@
 -export([timestamp/0,
          timestamp_to_datetime/1,
          get_opt/3,
+         get_statistics/3,
          tables/0,
          table/0]).
 
@@ -37,7 +38,10 @@ timestamp() ->
     {MS,S,US} = os:timestamp(),
     (MS-1258)*1000000000 + S*1000 + US div 1000.
 
--spec timestamp_to_date
+-spec timestamp_to_datetime(exometer_util:timestamp()) -> calendar:datetime().
+%% @doc Convert timestamp to a regular datetime.
+%%
+%% The timestamp is expected 
 timestamp_to_datetime(TS) ->
     %% Our internal timestamps are relative to Now = {1258,0,0}
     %% It doesn't really matter much how we construct a now()-like tuple,

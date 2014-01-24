@@ -47,9 +47,10 @@
 
 -type value() :: any().
 -type cur_state() :: any().
--type sample_fun() :: fun((exometer_util:timestamp(), value(), cur_state()) ->
+-type timestamp() :: exometer_util:timestamp().
+-type sample_fun() :: fun((timestamp(), value(), cur_state()) ->
                                  cur_state()).
--type transform_fun() :: fun((exometer_util:timestamp(), cur_state()) ->
+-type transform_fun() :: fun((timestamp(), cur_state()) ->
                                     cur_state()).
 
 -type fold_acc() :: any().
