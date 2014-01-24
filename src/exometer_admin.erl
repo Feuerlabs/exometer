@@ -68,14 +68,12 @@ preset_defaults() ->
 
 load_defaults() ->
     case application:get_env(exometer, defaults) of
-        {ok, Defaults} ->
-            lists:foreach(
-              fun({NamePattern, Type, Spec}) ->
-                      set_default(NamePattern, Type, Spec)
-              end, Defaults);
+        {ok, E} ->
+            do_load_defaults(get_predef(E));
         _ ->
             ok
-    end.
+    end,
+    do_load_defaults(get_ext_predef(exometer_defaults)).
 
 load_predefined() ->
     case application:get_env(exometer, predefined) of
@@ -83,12 +81,29 @@ load_predefined() ->
             do_load_predef(get_predef(E));
         _ ->
             ok
-    end.
+    end,
+    do_load_predef(get_ext_predef(exometer_predefined)).
 
-get_predef({consult, F}) -> ok(file:consult(F));
+
 get_predef({script, F} ) -> ok(file:script(F, []));
 get_predef({apply, M, F, A}) -> ok(apply(M, F, A));
 get_predef(L) when is_list(L) -> L.
+
+get_ext_predef(Var) ->
+    try
+        lists:flatten(
+          [get_predef(E) || {_, E} <- setup:find_env_vars(Var)])
+    catch
+        error:undef ->
+            []
+    end.
+
+do_load_defaults(L) when is_list(L) ->
+    lists:foreach(
+      fun({NamePattern, Type, Spec}) ->
+              set_default(NamePattern, Type, Spec)
+      end, L).
+    
 
 do_load_predef(L) when is_list(L) ->
     lists:foreach(

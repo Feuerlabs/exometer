@@ -134,7 +134,7 @@ behaviour() ->
 %%      match, {gcs,reclaimed,'_'} }, []).
 %% </pre>
 %% @end
-new(_Name, function, Opts) ->
+new(_Name, _, Opts) ->
     case lists:keyfind(type_arg, 1, Opts) of
         {_, {function, M, F}} ->
             {ok, {M, F}};
@@ -144,11 +144,10 @@ new(_Name, function, Opts) ->
             {ok, {?MODULE, empty}}
     end.
 
-get_value(_, function, {M, F, each, ArgsP, Type, DPs}, DataPoints) ->
+get_value(_, _, {M, F, each, ArgsP, Type, DPs}, DataPoints) ->
     [{D,call(M,F,ArgsP,Type,D)} || D <- datapoints(DataPoints, DPs),
                                    lists:member(D, DPs)];
-get_value(_, function, {M, F, once, ArgsP, Type, DPs}, DataPoints0)
-  when is_list(DPs) ->
+get_value(_, _, {M, F, once, ArgsP, Type, DPs}, DataPoints0) ->
     DataPoints = if DataPoints0 == default -> DPs;
                     true ->
                          [D || D <- datapoints(DataPoints0, DPs),
@@ -170,7 +169,7 @@ get_value(_, function, {M, F, once, ArgsP, match, Pat}, DataPoints0) ->
         error:_ ->
             {error, unavailable}
     end;
-get_value(_, function, {M, F}, DataPoints) ->
+get_value(_, _, {M, F}, DataPoints) ->
     if DataPoints == default ->
             M:F(DataPoints);
        is_list(DataPoints) ->
