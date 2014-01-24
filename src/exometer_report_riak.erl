@@ -456,7 +456,7 @@ exometer_unsubscribe(_Metric, _DataPoint, _Extra, St) ->
     { ok, St }.
 
 exometer_init(Opts) ->
-    ?info("exomoeter_report_riak(~p): Starting~n", [Opts]),
+    ?info("exometer_report_riak(~p): Starting~n", [Opts]),
     %% [ { metric, type }, ... ]
     ets:new(?SUBSCRIPTION_TABLE, [ named_table, { keypos, #subscription.key},
                                  public, set ]),

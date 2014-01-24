@@ -16,7 +16,8 @@
 
 %% exometer_entry callbacks
 %% exometer_probe callbacks
--export([probe_init/3,
+-export([behaviour/0,
+	 probe_init/3,
          probe_terminate/1,
          probe_get_value/2,
          probe_get_datapoints/1,
@@ -32,6 +33,9 @@
              ref}).
 
 -define(DATAPOINTS, [nprocs, avg1, avg5, avg15]).
+
+behaviour() ->
+    probe.
 
 probe_init(_, _, Opts) ->
     DP = proplists:get_value(datapoints, Opts, ?DATAPOINTS),

@@ -13,7 +13,8 @@
 
 
 %% exometer_probe callbacks
--export([probe_init/3,
+-export([behaviour/0,
+	 probe_init/3,
          probe_terminate/1,
          probe_get_value/2,
          probe_get_datapoints/1,
@@ -40,6 +41,9 @@
 -define(DATAPOINTS,
         [ element ]).
 
+
+behaviour() ->
+    probe.
 
 probe_init(Name, _Type, Options) ->
     St = process_opts(#st { name = Name }, Options),

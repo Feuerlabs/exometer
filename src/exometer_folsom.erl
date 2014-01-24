@@ -11,7 +11,8 @@
 -module(exometer_folsom).
 -behaviour(exometer_entry).
 
--export([new/3,
+-export([behaviour/0,
+	 new/3,
          delete/3,
          get_datapoints/3,
          get_value/4,
@@ -23,6 +24,8 @@
 -define(DATAPOINTS,
         [ counter, histogram, duration, meter, spiral ]).
 
+behaviour() -> entry.
+     
 new(Name, counter, _Opts) ->
     folsom_metrics:new_counter(Name);
 new(Name, spiral, _Opts) ->

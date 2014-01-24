@@ -10,32 +10,31 @@
 
 %% @doc Exometer histogram probe behavior
 -module(exometer_histogram).
--behaviour(exometer_entry).
+-behaviour(exometer_probe).
 
 %% exometer_entry callbacks
--export([new/3,
-         delete/3,
-         get_value/4,
-         get_datapoints/3,
-         update/4,
-         reset/3,
-         sample/3,
-         setopts/4]).
-
-%% exometer_proc callback
--export([init/3]).
-
--export([average_sample/3,
-         average_transform/2]).
+-export([behaviour/0,
+	 probe_init/3,
+	 probe_terminate/1,
+	 probe_setopts/2,
+	 probe_update/2,
+	 probe_get_value/2,
+	 probe_get_datapoints/1,
+	 probe_reset/1,
+	 probe_code_change/3,
+	 probe_sample/1,
+	 probe_handle_msg/2]).
 
 -compile(inline).
+-export([average_sample/3,
+	 average_transform/2]).
 
--compile({parse_transform, exometer_igor}).
--compile({igor, [{files, ["src/exometer_util.erl"
-                          , "src/exometer_proc.erl"
-                          , "src/exometer_slot_slide.erl"
-                          , "src/exometer_slide.erl"
-                         ]}]}).
+%% -compile({parse_transform, exometer_igor}).
+%% -compile({igor, [{files, ["src/exometer_util.erl"
+%%                           , "src/exometer_proc.erl"
+%%                           , "src/exometer_slot_slide.erl"
+%%                           , "src/exometer_slide.erl"
+%%                          ]}]}).
 
 -include("exometer.hrl").
 
@@ -51,79 +50,38 @@
 -define(DATAPOINTS,
         [n, mean, min, max, median, 50, 75, 90, 95, 99, 999 ]).
 
+behaviour() ->
+    probe.
 
-init(Name, Type, Options) ->
-    {ok, St} = init_int(Name, Type, Options),
-    process_flag(min_heap_size, 40000),
-    loop(St).
+probe_init(Name, _Type, Options) ->
+     St = process_opts(#st{name = Name}, [{histogram_module, exometer_slot_slide},
+					      {time_span, 60000},
+					      {slot_period, 10}] ++ Options),
 
-loop(St) ->
-    receive Msg ->
-            loop(handle_msg(Msg, St))
-    end.
-
-handle_msg(Msg, St) ->
-    case Msg of
-        {exometer_proc, {update, Val}} ->
-            update_int(Val, St);
-        {exometer_proc, {update, Val, TS}} ->
-            update_int(Val, TS, St);
-        {exometer_proc, sample} ->
-            %% ignore
-            St;
-        {exometer_proc, {From,Ref}, {get_value, DPs}} ->
-            From ! {Ref, get_value_int(St, DPs)},
-            St;
-        {exometer_proc, {From,Ref}, {setopts, _Opts}} ->
-            From ! {Ref, {error, unsupported}},
-            St;
-        {exometer_proc, reset} ->
-            reset_int(St);
-        {exometer_proc, stop} ->
-            exometer_proc:stop();
-        {exometer_proc, {From, Ref}, get_state} ->
-            From ! {Ref, St},
-            St;
-        _ ->
-            St
-    end.
+     Slide = (St#st.histogram_module):new(St#st.time_span,
+					  St#st.slot_period,
+					  fun average_sample/3,
+					  fun average_transform/2,
+					  Options),
+     {ok, St#st{slide = Slide } }.
 
 
-%%
-%% exometer_entry callbacks
-%%
-new(Name, Type, Options) ->
-    {ok, exometer_proc:spawn_process(Name, fun() ->
-                                                   init(Name, Type, Options)
-                                           end)}.
+probe_terminate(_St) ->
+    ok.
 
-delete(_Name, _Type, Pid) ->
-    exometer_proc:cast(Pid, stop).
+probe_get_value(DataPoints, St) ->
+    {ok, get_value_int(St, DataPoints), St}.
 
-get_value(_Name, _Type, Pid, DataPoints) ->
-    exometer_proc:call(Pid, {get_value, DataPoints}).
+probe_get_datapoints(_St) ->
+    {ok, ?DATAPOINTS}.
 
-%% No need to go through the process for this one.
-get_datapoints(_Name, _Type, _Ref) ->
-    ?DATAPOINTS.
-
-
-init_int(Name, _Type, Options) ->
-    St = process_opts(#st{name = Name}, [{histogram_module, exometer_slot_slide},
-                                         {time_span, 60000},
-                                         {slot_period, 10}] ++ Options),
-
-    Slide = (St#st.histogram_module):new(St#st.time_span,
-                                         St#st.slot_period,
-                                         fun average_sample/3,
-                                         fun average_transform/2,
-                                         Options),
-    {ok, St#st{slide = Slide}}.
 
 get_value_int(St, default) ->
     get_value_int_(St, ?DATAPOINTS);
+
 get_value_int(_, []) ->
     [];
+
 get_value_int(St, DataPoints) ->
     get_value_int_(St, DataPoints).
 
@@ -195,36 +153,26 @@ get_dp(K, L, Trunc) ->
             opt_trunc(Trunc, DP)
     end.
 
-perc(P, Len) when P > 1.0 ->
-    round((P / 10) * Len);
-
-perc(P, Len) ->
-    round(P * Len).
-
-setopts(_Name, _Opts, _Type, _Ref)  ->
+probe_setopts(_Opts, _St)  ->
     {error, unsupported}.
 
-update(_Name, Value, _Type, Pid) ->
-    exometer_proc:cast(Pid, {update, Value, exometer_util:timestamp()}).
-
-update_int(Value, #st{slide = Slide,
-                      histogram_module = Module} = St) ->
-    St#st{slide = Module:add_element(Value, Slide)}.
-
-update_int(Value, TS, #st{slide = Slide,
-                      histogram_module = Module} = St) ->
-    St#st{slide = Module:add_element(TS, Value, Slide)}.
+probe_update(Value, #st{slide = Slide,
+			histogram_module = Module} = St) ->
+    {ok, St#st{ slide = Module:add_element( exometer_util:timestamp(), Value, Slide)}}.
 
 
-reset(_Name, _Type, Pid) ->
-    exometer_proc:cast(Pid, reset).
+probe_reset(#st{slide = Slide,
+		histogram_module = Module} = St) ->
+    {ok, St#st{slide = Module:reset(Slide)}}.
 
-reset_int(#st{slide = Slide,
-              histogram_module = Module} = St) ->
-    St#st{slide = Module:reset(Slide)}.
-
-sample(_Name, _Type, _Ref) ->
+probe_sample(_St) ->
     {error, unsupported}.
+
+probe_handle_msg(_, S) ->
+    {ok, S}.
+
+probe_code_change(_, S, _) -> 
+    {ok, S}.
 
 process_opts(St, Options) ->
     exometer_proc:process_options(Options),
@@ -281,16 +229,8 @@ average_transform(_TS, #sample{count = Count,
     %% Return the sum of all counter increments received during this slot
     {Total / Count, Min, Max, X}.
 
-nth(_, []) ->
-    0;
-nth(N, [_|_] = L) ->
-    lists:nth(N, L).
-
 
 opt_trunc(true, {K,V}) when is_float(V) ->
     {K, trunc(V)};
 opt_trunc(_, V) ->
     V.
-
-dbg(_) ->
-    ok.

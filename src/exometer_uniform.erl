@@ -13,7 +13,8 @@
 
 
 %% exometer_probe callbacks
--export([probe_init/3,
+-export([behaviour/0,
+	 probe_init/3,
          probe_terminate/1,
          probe_get_value/2,
          probe_get_datapoints/1,
@@ -40,9 +41,12 @@
 -define(DATAPOINTS,
         [ min, max, median, mean, 50, 75, 90, 95, 99, 999 ]).
 
+
 %%
-%% exometer_entry callbacks
+%% exometer_probe callbacks
 %%
+behaviour() ->
+    probe.
 
 probe_init(Name, _Type, Options) ->
     St = process_opts(#st { name = Name }, [ {percentiles, [ 50, 75, 90, 95, 99, 999 ]} ] ++ Options),
@@ -62,9 +66,9 @@ probe_terminate(ModSt) ->
 
 probe_get_value(DataPoints, St) ->
     {Length, Total, Lst} = ets:foldl(
-            fun(#elem { val = Val }, {Length, Total, List}) ->
-                    { Length + 1, Total + Val, [ Val | List ]}  end,
-            {0, 0.0, []}, St#st.ets_ref),
+			     fun(#elem { val = Val }, {Length, Total, List}) ->
+				     { Length + 1, Total + Val, [ Val | List ]}  end,
+			     {0, 0.0, []}, St#st.ets_ref),
 
     Sorted = lists:sort(Lst),
 
