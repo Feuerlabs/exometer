@@ -188,7 +188,8 @@ have_worker(Name, #st{workers = Ws}) ->
 start_worker(Name, M, Type, Ref, DP, #st{workers = Ws} = S) ->
     {Pid, MRef} = spawn_monitor(
                     fun() ->
-                            get_value_(M, Name, Type, Ref, DP)
+                            exit({get_value, Name,
+                                  get_value_(M, Name, Type, Ref, DP)})
                     end),
     S#st{workers = [{Name, Pid, MRef}|Ws]}.
 
@@ -196,13 +197,12 @@ remove_worker(Ref, #st{workers = Ws} = S) ->
     S#st{workers = lists:keydelete(Ref, 3, Ws)}.
 
 get_value_(M, Name, Type, Ref, DP) ->
-    Res = try begin
-                  Value = M:get_value(Name, Type, Ref, DP),
-                  write(Name, Value),
-                  Value
-              end
-          catch
-              _:_ ->
-                  unavailable
-          end,
-    exit({get_value, Name, Res}).
+    try begin
+            Value = M:get_value(Name, Type, Ref, DP),
+            write(Name, Value),
+            Value
+        end
+    catch
+        _:_ ->
+            unavailable
+    end.

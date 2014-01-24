@@ -263,7 +263,8 @@
 -type name()     :: list().
 -type type()     :: atom().
 -type options()  :: [{atom(), any()}].
--type datapoints()  :: [atom()].
+-type datapoints()  :: [datapoint()].
+-type datapoint() :: atom().
 -type value()    :: any().
 -type ref()      :: any().
 -type error()   :: { error, any() }.
@@ -278,7 +279,7 @@
     ok | error().
 
 -callback get_value(name(), type(), ref(), datapoints()) ->
-    {ok, value()} | error().
+    [{datapoint(), value()}].
 
 -callback update(name(), value(), type(), ref()) ->
     ok | {ok, value()} | error().

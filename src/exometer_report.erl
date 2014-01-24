@@ -167,20 +167,23 @@
 -type value() :: any().
 -type interval() :: integer().
 -type callback_result() :: {ok, mod_state()} | any().
--type key() :: {module(), metric(), datapoint()}.
+%% -type key() :: {module(), metric(), datapoint()}.
 -type extra() :: any().
 
 %% Callback for function, not cast-based, reports that
 %% are invoked in-process.
 -callback exometer_init(options()) -> callback_result().
 
--callback exometer_report(metric(), datapoint(), value(), extra(), mod_state()) ->
+-callback exometer_report(metric(), datapoint(),
+                          value(), extra(), mod_state()) ->
     callback_result().
 
--callback exometer_subscribe(metric(), datapoint(), interval(), extra(), mod_state()) ->
+-callback exometer_subscribe(metric(), datapoint(),
+                             interval(), extra(), mod_state()) ->
     callback_result().
 
--callback exometer_unsubscribe(metric(), datapoint(), extra(), mod_state()) ->
+-callback exometer_unsubscribe(metric(), datapoint(),
+                               extra(), mod_state()) ->
     callback_result().
 
 -callback exometer_info(any(),mod_state()) ->
@@ -195,7 +198,7 @@
          }).
 
 -record(subscriber, {
-          key   :: key(),
+          key   :: #key{},
           interval :: integer(),
           t_ref :: reference()
          }).
@@ -215,7 +218,8 @@
 
 %% Helper macro for declaring children of supervisor
 %% Used to start reporters, which are a part of the supervisor tree.
--define(CHILD(I, Type, OIpt), {I, {I, start_link, Opt}, permanent, 5000, Type, [I]}).
+-define(CHILD(I, Type, OIpt),
+        {I, {I, start_link, Opt}, permanent, 5000, Type, [I]}).
 
 %%%===================================================================
 %%% API
@@ -493,7 +497,7 @@ handle_info({ report, #key{ reporter = Reporter,
 
 handle_info({'DOWN', Ref, process, _Pid, _Reason}, S) ->
     Subs =
-        case lists:keytake(Ref, #reporter.mref, S#st.reporters) of
+        case lists:keyfind(Ref, #reporter.mref, S#st.reporters) of
             #reporter {module = Module} ->
                 purge_subscriptions(Module, S#st.subscribers);
             _ -> S#st.subscribers
@@ -571,7 +575,7 @@ subscribe_( Reporter, Metric, DataPoint, Interval, RetryFailedMetrics, Extra) ->
                },
 
     %% FIXME: Validate Metric and datapoint
-    ?info("Subscribe_(Intv(~p), self(~p))~n", [ Interval, self()]),
+    %% ?info("Subscribe_(Intv(~p), self(~p))~n", [ Interval, self()]),
     TRef = erlang:send_after(Interval, self(),
                              { report, Key, Interval }),
     #subscriber{ key = Key,
@@ -610,7 +614,7 @@ report_value(Reporter, Metric, DataPoint, Extra, Val) ->
         exit:_ -> false
     end.
 
-retrieve_metric({ Metric, Enabled}, Subscribers, Acc) ->
+retrieve_metric({Metric, _, Enabled}, Subscribers, Acc) ->
     [ { Metric, exometer:info(Metric, datapoints),
         get_subscribers(Metric, Subscribers), Enabled } | Acc ].
 

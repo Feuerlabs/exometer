@@ -50,7 +50,7 @@ probe_init(Name, _Type, Options) ->
     Slide = exometer_slot_slide:new(St#st.time_span,
                                     St#st.slot_period,
                                     fun count_sample/3,
-                                    fun count_transform/2),
+                                    fun count_transform/2, []),
     {ok, St#st{ slide = Slide }}.
 
 probe_terminate(_ModSt) ->
@@ -77,7 +77,7 @@ probe_handle_msg(_, S) ->
     {ok, S}.
 
 probe_sample(St) ->
-    [{_, Count}] = netlink_stat:get_value(St#st.netlink_element),
+    [{_, Count}] = get_value(St#st.netlink_element),
     Slide = exometer_slot_slide:add_element(Count - St#st.last_count, St#st.slide),
     {ok, St#st { slide = Slide, last_count = Count }}.
 

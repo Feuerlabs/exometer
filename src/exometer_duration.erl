@@ -50,7 +50,7 @@ probe_init(Name, _Type, Options) ->
     Slide = exometer_slot_slide:new(St#st.time_span,
                                     St#st.slot_period,
                                     fun count_sample/3,
-                                    fun count_transform/2),
+                                    fun count_transform/2, []),
     {ok, St#st{ slide = Slide }}.
 
 probe_terminate(_ModSt) ->
@@ -58,7 +58,7 @@ probe_terminate(_ModSt) ->
 
 %% Not used
 probe_get_datapoints(_St) ->
-    ?DATAPOINTS.
+    {ok, ?DATAPOINTS}.
 
 probe_get_value(DataPoints, St) ->
     {ok, [ get_datapoint_value(DataPoint, St) || DataPoint <- DataPoints ]}.

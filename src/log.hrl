@@ -4,8 +4,6 @@
 -ifndef(__LOG_HRL__).
 -define(__LOG_HRL__, true).
 
--compile({parse_transform, lager_transform}).
-
 %% Lager logging levels
 %%   debug, info, notice, warning, error, critical, alert, emergency, none.
 

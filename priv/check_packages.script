@@ -1,0 +1,27 @@
+%% -*- erlang -*-
+%%---- BEGIN COPYRIGHT -------------------------------------------------------
+%%
+%% Copyright (C) 2013 Feuerlabs Inc. All rights reserved.                                                 %%
+%% This Source Code Form is subject to the terms of the Mozilla Public                                    %% License, v. 2.0. If a copy of the MPL was not distributed with this
+%% file, You can obtain one at http://mozilla.org/MPL/2.0/.                                               %%                                                                                                        %%---- END COPYRIGHT ---------------------------------------------------------
+
+case os:getenv("EXOMETER_PACKAGES") of
+    Str when is_list(Str) ->
+	L = string:tokens(Str, "\t, \n"),
+	{_, Deps} = lists:keyfind(deps, 1, CONFIG),
+	Deps1 = lists:filter(
+		  fun(D) when is_tuple(D) ->
+			  App = element(1,D),
+			  AppStr = atom_to_list(App),
+			  case lists:member(AppStr, L) orelse
+			      lists:member("+" ++ AppStr, L) of
+			      false ->
+				  not lists:member("-" ++ AppStr, L);
+			      true ->
+				  true
+			  end
+		  end, Deps),
+	lists:keyreplace(deps, 1, CONFIG, {deps, Deps1});
+    false ->
+	CONFIG
+end.

@@ -123,11 +123,6 @@ get_opt(K, Opts) ->
         false  -> error({required, K})
     end.
 
+
 get_opt(K, Opts, Default) ->
-    case lists:keyfind(K, 1, Opts) of
-        {_, V} -> V;
-        false  ->
-            if is_function(Default,0) -> Default();
-               true -> Default
-            end
-    end.
+    exometer_util:get_opt(K, Opts, Default).

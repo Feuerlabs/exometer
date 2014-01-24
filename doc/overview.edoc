@@ -1,10 +1,13 @@
 @author Ulf Wiger <ulf.wiger@feuerlabs.com> 
 @author Magnus Feuer <magnus.feuer@feuerlabs.com> 
-@copyright 2013 Basho Technologies, Inc.  All Rights Reserved..
+@copyright 2014 Basho Technologies, Inc.  All Rights Reserved.
 @version {@version}
 @title Exometer - Erlang instrumentation package
 
 @doc 
+
+[![Build Status](https://travis-ci.org/Feuerlabs/exometer.png?branch=master)](https://travis-ci.org/Feuerlabs/exometer)
+
 The Exometer package allows for easy and efficient instrumentation of
 Erlang code, allowing crucial data on system performance to be
 exported to a wide variety of monitoring systems.
@@ -19,50 +22,50 @@ details, please see the documentation for individual modules, starting
 with ``exometer''.
 
 == Table of Content ==
-<b>1\. {@section Concept and definitions}
-<br/>1.1 {@section Metric}
-<br/>1.2 {@section Data Point}
-<br/>1.3 {@section Metric Type}
-<br/>1.4 {@section Entry Callback}
-<br/>1.5 {@section Probe}
-<br/>1.6 {@section Caching}
-<br/>1.7 {@section Subscriptions and Reporters}
-<br/>2\. {@section Built-in entries and probes}
-<br/>2.1 {@section counter (exometer native)}
-<br/>2.2 {@section fast_counter (exometer native)}
-<br/>2.3 {@section exometer_histogram (probe)}
-<br/>2.4 {@section exometer_uniform (probe)}
-<br/>2.5 {@section exometer_spiral (probe)}
-<br/>2.6 {@section exometer_folsom [entry]}
-<br/>2.7 {@section exometer_function [entry]}
-<br/>3\. {@section Built in Reporters}
-<br/>3.1 {@section exometer_report_graphite}
-<br/>3.2 {@section exometer_report_collectd}
-<br/>4\. {@section Instrumenting Erlang code}
-<br/>4.1 {@section Exometer Start}
-<br/>4.2 {@section Creating metrics }
-<br/>4.3 {@section Deleting metrics }
-<br/>4.4 {@section Setting metric values }
-<br/>4.5 {@section Retrieving metric values}
-<br/>4.6 {@section Setting up subscriptions}
-<br/>4.7 {@section Set metric options}
-<br/>5\. {@section Configuring Exometer}
-<br/>5.1 {@section Configuring type - entry maps}
-<br/>5.2 {@section Configuring static subscriptions }
-<br/>5.3 {@section Configuring reporter plugins}
-<br/>5.4 {@section Configuring collectd reporter}
-<br/>5.5 {@section Configuring graphite reporter}
-<br/>6\. {@section Creating custom exometer entries}
-<br/>7\. {@section Creating custom probes}
-<br/>8\. {@section Creating custom reporter plugins}
-</b>
+1. {@section Concept and definitions}
+    1. {@section Metric}
+    2. {@section Data Point}
+    3. {@section Metric Type}
+    4. {@section Entry Callback}
+    5. {@section Probe}
+    6. {@section Caching}
+    7. {@section Subscriptions and Reporters}
+2. {@section Built-in entries and probes}
+    1. {@section counter (exometer native)}
+    2. {@section fast_counter (exometer native)}
+    3. {@section exometer_histogram (probe)}
+    4. {@section exometer_uniform (probe)}
+    5. {@section exometer_spiral (probe)}
+    6. {@section exometer_folsom [entry]}
+    7. {@section exometer_function [entry]}
+3. {@section Built in Reporters}
+    1. {@section exometer_report_graphite}
+    2. {@section exometer_report_collectd}
+4. {@section Instrumenting Erlang code}
+    1. {@section Exometer Start}
+    2. {@section Creating metrics }
+    3. {@section Deleting metrics }
+    4. {@section Setting metric values }
+    5. {@section Retrieving metric values}
+    6. {@section Setting up subscriptions}
+    7. {@section Set metric options}
+5. {@section Configuring Exometer}
+    1. {@section Configuring type - entry maps}
+    2. {@section Configuring statically defined entries}
+    3. {@section Configuring static subscriptions }
+    4. {@section Configuring reporter plugins}
+    5. {@section Configuring collectd reporter}
+    6. {@section Configuring graphite reporter}
+6. {@section Creating custom exometer entries}
+7. {@section Creating custom probes}
+8. {@section Creating custom reporter plugins}
 
 == Concepts and Definitions ==
 
-Exometer introcuces a number of concepts and definitions used
+Exometer introduces a number of concepts and definitions used
 throughout the documentation and the code.
 
-<img src="{@docRoot}/doc/exometer_overview.png" alt="Overview" ></img>
+<img src="{@docRoot}/doc/exometer_overview.png?raw=true" alt="Overview" ></img>
 
 === Metric === 
 
@@ -103,7 +106,7 @@ The type of a metric, specified when the metric is created through
 callback to use.
 
 The link between the type and the entry to use is configured
-through the ``exomter_admin'' module, and its associated exometer
+through the ``exometer_admin'' module, and its associated exometer
 defaults configuration data.
 
 The metric type, in other words, is only used to map a metric to a
@@ -513,6 +516,20 @@ exometer.template.spiral.module    = exometer_spiral
 exometer.template.duration.module  = exometer_folsom
 exometer.template.meter.module     = exometer_folsom
 exometer.template.gauge.module     = exometer_folsom</pre>
+
+=== Configuring statically defined entries ===
+
+Using the `exometer' environment variable `predefined', entries can be added
+at application startup. The variable should have one of the following values:
+
+* `{script, File}' - `File' will be processed using `file:script/2'. The return
+  value (the result of the last expression in the script) should be a list of
+  `{Name, Type, Options}' tuples.
+
+* `{apply, M, F, A}' - The result of `apply(M, F, A)' should be `{ok, L}' where
+  `L' is a list of `{Name, Type, Options}' tuples.
+
+* `L', where L is a list of `{Name, Type, Options}' tuples.
 
 === Configuring static subscriptions  ===
 Static subscriptions, which are automatically setup at exometer

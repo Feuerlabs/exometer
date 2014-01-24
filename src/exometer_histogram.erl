@@ -57,7 +57,6 @@ probe_init(Name, _Type, Options) ->
      St = process_opts(#st{name = Name}, [{histogram_module, exometer_slot_slide},
 					      {time_span, 60000},
 					      {slot_period, 10}] ++ Options),
-
      Slide = (St#st.histogram_module):new(St#st.time_span,
 					  St#st.slot_period,
 					  fun average_sample/3,

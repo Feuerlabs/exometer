@@ -25,4 +25,5 @@ CFG1 = case os:getenv("REBAR_DEPS") of
 	       lists:keystore(deps_dir, 1, CONFIG, {deps_dir, Dir})
        end.
 Priv = filename:join(filename:dirname(SCRIPT), "priv").
-Script(Priv, "check_edown.script", [{'CONFIG', CFG1}]).
+CFG2 = Script(Priv, "check_edown.script", [{'CONFIG', CFG1}]).
+Script(Priv, "check_packages.script", [{'CONFIG', CFG2}]).
