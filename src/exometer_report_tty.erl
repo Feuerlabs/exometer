@@ -26,11 +26,15 @@
 -module(exometer_report_tty).
 -behaviour(exometer_report).
 
--export([exometer_init/1,
-         exometer_info/2,
-         exometer_report/5,
-         exometer_subscribe/5,
-         exometer_unsubscribe/4]).
+-export(
+   [
+    exometer_init/1,
+    exometer_info/2,
+    exometer_report/5,
+    exometer_subscribe/5,
+    exometer_unsubscribe/4,
+    exometer_terminate/2
+   ]).
 
 -compile(export_all).
 
@@ -60,17 +64,17 @@ exometer_unsubscribe(_Metric, _DataPoint, _Extra, St) ->
 exometer_report(Metric, DataPoint, _Extra, Value, St)  ->
     ?debug("Report metric ~p_~p = ~p~n", [Metric, DataPoint, Value]),
     %% Report the value and setup a new refresh timer.
-    {ok, report_exometer_(Metric, DataPoint, Value, St)}.
+    Str = [?MODULE_STRING, ": ", name(Metric, DataPoint), $\s,
+           timestamp(), ":", value(Value), $\n],
+    io:format(Str, []),
+    {ok, St}.
 
 exometer_info(Unknown, St) ->
     ?info("Unknown: ~p~n", [Unknown]),
     St.
 
-report_exometer_(Metric, DataPoint, Value, #st{} = St) ->
-    Str = [?MODULE_STRING, ": ", name(Metric, DataPoint), $\s,
-           timestamp(), ":", value(Value), $\n],
-    io:format(Str, []),
-    St.
+exometer_terminate(_, _) ->
+    ignore.
 
 %% Add metric and datapoint within metric
 name(Metric, DataPoint) ->

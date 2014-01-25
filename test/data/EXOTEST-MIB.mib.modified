@@ -1,0 +1,54 @@
+EXOTEST DEFINITIONS ::= BEGIN
+
+IMPORTS
+    MODULE-IDENTITY, OBJECT-TYPE, NOTIFICATION-TYPE, Integer32, snmpModules, experimental FROM SNMPv2-SMI
+    MODULE-COMPLIANCE, OBJECT-GROUP, NOTIFICATION-GROUP FROM SNMPv2-CONF
+    DisplayString FROM SNMPv2-TC
+    RowStatus FROM STANDARD-MIB;
+
+exotestMIB MODULE-IDENTITY
+	LAST-UPDATED "201401190525Z"
+	ORGANIZATION "Feuerlabs"
+	CONTACT-INFO "TODO" 
+
+	DESCRIPTION 
+		"This MIB module is used for testing of exotest SNMP export."
+	REVISION  "201401190525Z"
+	DESCRIPTION 
+		"The initial version"
+	::= { snmpModules 1 }
+
+exotest OBJECT IDENTIFIER ::= { experimental 7 }
+
+-- CONTENT START
+
+-- METRIC test.app.one START
+test.app.one OBJECT-TYPE
+    SYNTAX Counter
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION ""
+    ::= { exotest 1 }
+-- METRIC test.app.one END
+
+-- METRIC test.app.three START
+test.app.three OBJECT-TYPE
+    SYNTAX Counter
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION ""
+    ::= { exotest 3 }
+-- METRIC test.app.three END
+
+-- METRIC test.app.four START
+test.app.four OBJECT-TYPE
+    SYNTAX Counter
+    ACCESS read-only
+    STATUS mandatory
+    DESCRIPTION ""
+    ::= { exotest 2 }
+-- METRIC test.app.four END
+
+-- CONTENT END
+
+END

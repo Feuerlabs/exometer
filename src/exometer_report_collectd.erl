@@ -26,11 +26,15 @@
 -module(exometer_report_collectd).
 -behaviour(exometer_report).
 
--export([exometer_init/1,
-         exometer_info/2,
-         exometer_report/5,
-         exometer_subscribe/5,
-         exometer_unsubscribe/4]).
+-export(
+   [
+    exometer_init/1,
+    exometer_info/2,
+    exometer_report/5,
+    exometer_subscribe/5,
+    exometer_unsubscribe/4,
+    exometer_terminate/2
+   ]).
 
 
 -define(SERVER, ?MODULE).
@@ -182,6 +186,9 @@ exometer_info({exometer_callback, reconnect}, St) ->
 exometer_info(Unknown, St) ->
     ?info("Unknown: ~p~n", [Unknown]),
     {ok, St}.
+
+exometer_terminate(_, _) ->
+    ignore.
 
 report_exometer_(Metric, DataPoint, Value,
                  #st{hostname = HostName,

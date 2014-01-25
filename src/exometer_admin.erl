@@ -10,16 +10,18 @@
 
 -module(exometer_admin).
 
+-compile(export_all).
+
 -export([new_entry/3,
          re_register_entry/3]).
 -export([set_default/3]).
 
--compile(export_all).
-
 -export([monitor/2, demonitor/1]).
 
--record(st, {}).
 -include("exometer.hrl").
+-include("log.hrl").
+
+-record(st, {}).
 
 -spec set_default([atom()], atom(), #exometer_entry{} | [{atom(),any()}]) ->
                          true.
@@ -143,10 +145,10 @@ handle_call({new_entry, Name, Type, Opts, AllowExisting}, _From, S) ->
         #exometer_entry{options = OptsTemplate} = E =
             lookup_definition(Name, Type, Opts),
         case {ets:member(exometer_util:table(), Name), AllowExisting} of
-            {true, false} -> {reply, {error, exists}, S};
+            {true, false} -> 
+                {reply, {error, exists}, S};
             _ ->
-                Res = exometer:create_entry(
-                        process_opts(E, OptsTemplate ++ Opts)),
+                Res = exometer:create_entry(process_opts(E, OptsTemplate ++ Opts)),
                 {reply, Res, S}
         end
     catch
@@ -315,7 +317,7 @@ make_patterns([], Type, _) ->
 
 %% This function is called when creating an #exometer_entry{} record.
 %% All options are passed unchanged to the callback module, but some
-%% are acted upon by the framework: namely 'cache' and 'status'.
+%% are acted upon by the framework: namely 'cache', 'status' and 'snmp'.
 process_opts(Entry, Options) ->
     lists:foldr(
       fun
@@ -335,6 +337,13 @@ process_opts(Entry, Options) ->
                       E#exometer_entry{status = Status};
                  true ->
                       error({illegal, {status, Status}})
+              end;
+          ({snmp, Snmp0}, #exometer_entry{} = E) ->
+              Snmp1 = exometer_util:drop_duplicates(Snmp0),
+              if Snmp1 == disabled; is_list(Snmp1) ->
+                     E#exometer_entry{snmp = Snmp1};
+                 true ->
+                      error({illegal, {snmp, Snmp1}})
               end;
           ({_Opt, _Val}, #exometer_entry{} = Entry1) ->
               Entry1
