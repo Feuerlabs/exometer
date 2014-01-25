@@ -87,7 +87,7 @@ test_snmp_export_enabled(_Config) ->
 
 test_agent_manager_communication_example(Config) ->
     Node = test_manager,
-    Opts = [{boot_timeout, 10}, {monitor_master, true}, 
+    Opts = [{boot_timeout, 30}, {monitor_master, true}, 
             {startup_functions,
              [
               {exo_test_user, start, []}
