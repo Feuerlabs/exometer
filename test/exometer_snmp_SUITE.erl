@@ -27,12 +27,6 @@
     test_mib_modification/1
    ]).
 
-%% utility exports
--export(
-   [
-    snmp_init_testcase/0
-   ]).
-
 -include_lib("common_test/include/ct.hrl").
 
 %%%===================================================================
@@ -130,11 +124,11 @@ test_mib_modification(_Config) ->
     ok.
 
 %%%===================================================================
-%%% utility API
+%%% Internal functions
 %%%===================================================================
 
 snmp_init_testcase() ->
-    AgentConfPath = "../../test/config/snmp_agent.config",
+    AgentConfPath = agent_conf_path(),
     ManagerConfPath = "../../test/config/snmp_manager.config",
     MibTemplate = "../../test/data/EXOTEST-MIB.mib",
     reset_snmp_dirs(AgentConfPath, ManagerConfPath),
@@ -151,10 +145,6 @@ snmp_init_testcase() ->
     true = is_process_running(snmp_master_agent, 10, 10000),
     [{agent_conf_path, AgentConfPath}, 
      {manager_conf_path, ManagerConfPath}].
-
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================
 
 is_app_running(_, _, Count) when Count < 0 ->
     false;
@@ -202,4 +192,14 @@ del_dir(Dir) ->
             ok;
         {error, enoent} ->
             ok
+    end.
+
+agent_conf_path() ->
+    OtpVersion = erlang:system_info(otp_release),
+    CompatList = ["R15B02", "R15B03", "R16B"],
+    case lists:member(OtpVersion, CompatList) of
+        true ->
+            "../../test/config/snmp_agent.config.compat-r15";
+        false ->
+            "../../test/config/snmp_agent.config"
     end.
