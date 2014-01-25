@@ -12,7 +12,7 @@ ci: compile xref test
 deps:
 	rebar get-deps
 
-compile: deps
+compile:
 	rebar compile
 
 clean: clean_plt
