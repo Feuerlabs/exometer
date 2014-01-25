@@ -108,7 +108,7 @@ test_agent_manager_communication_example(Config) ->
     {ok, _} = ct_slave:stop(Node),
     ok.
 
-test_mib_modification(Config) ->
+test_mib_modification(_Config) ->
     {ok, ExpectedMib} = file:read_file("../../test/data/EXOTEST-MIB.mib.modified"),
     ct:log("Expected MIB: ~s", [binary_to_list(ExpectedMib)]),
     ok = exometer:new([test, app, one], counter, [{snmp, []}]),
