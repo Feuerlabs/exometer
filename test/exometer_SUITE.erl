@@ -84,7 +84,7 @@ init_per_testcase(_Case, Config) ->
     exometer:start(),
     Config.
 
-end_per_testcase(Case, Config) when
+end_per_testcase(Case, _Config) when
       Case == test_folsom_histogram;
       Case == test_history1_folsom;
       Case == test_history4_folsom ->
@@ -241,9 +241,9 @@ fc() ->
 load_data(F, M) ->
     {ok, [Values]} = file:consult(F),
     Stats = bear:get_statistics(Values),
-    T1 = os:timestamp(),
+    _T1 = os:timestamp(),
     _ = [ok = exometer:update(M, V) || V <- Values],
-    T2 = os:timestamp(),
+    _T2 = os:timestamp(),
     Stats.
 
 load_data(F, Rate, M) ->

@@ -169,7 +169,7 @@ modify_mib(enable_metric, Metric, Mib0, Domain) ->
         duplicate ->
             {error, already_enabled};
         _ ->
-            Nr1 = erlang:integer_to_binary(Nr0),
+            Nr1 = erlang:list_to_binary(erlang:integer_to_list(Nr0)),
             {A, B, C} = re_split(content, foo, Mib0),
             case create_bin(Name, Metric) of
                 {ok, Bin} ->

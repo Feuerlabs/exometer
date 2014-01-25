@@ -1,4 +1,4 @@
-.PHONY: all clean clean_plt deps compile test doc dialyzer xref devnode_snmp_agent devnode_snmp_manager compile_examples
+.PHONY: all clean clean_plt deps compile test doc dialyzer xref devnode_snmp_agent devnode_snmp_manager compile_examples ci
 
 EXOMETER_PLT=exometer.plt
 DIALYZER_OPTS = -Wunderspecs
@@ -7,10 +7,12 @@ DIALYZER_APPS = erts kernel stdlib syntax_tools snmp \
 
 all: deps compile xref test
 
+ci: compile xref test
+
 deps:
 	rebar get-deps
 
-compile: deps
+compile:
 	rebar compile
 
 clean: clean_plt

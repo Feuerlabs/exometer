@@ -27,12 +27,6 @@
     test_mib_modification/1
    ]).
 
-%% utility exports
--export(
-   [
-    snmp_init_testcase/0
-   ]).
-
 -include_lib("common_test/include/ct.hrl").
 
 %%%===================================================================
@@ -61,6 +55,14 @@ init_per_testcase(test_snmp_export_disabled, Config) ->
     application:set_env(exometer, snmp_export, false),
     exometer:start(),
     Config;
+init_per_testcase(test_agent_manager_communication_example, Config) ->
+    case os:getenv("TRAVIS") of
+        false ->
+            Conf = snmp_init_testcase(),
+            Conf ++ Config;
+        _ ->
+            {skip, "Running on Travis CI. Starting slave nodes not working."}
+    end;
 init_per_testcase(_Case, Config) ->
     Conf = snmp_init_testcase(),
     Conf ++ Config.
@@ -86,17 +88,19 @@ test_snmp_export_enabled(_Config) ->
     ok.
 
 test_agent_manager_communication_example(Config) ->
+    Host = gethostname(),
     Node = test_manager,
-    Opts = [{boot_timeout, 10}, {monitor_master, true}, 
+    Opts = [{boot_timeout, 30}, {monitor_master, true}, 
             {startup_functions,
              [
               {exo_test_user, start, []}
              ]},
             {env, [{"ERL_LIBS", "../../deps"}]},
-            {erl_flags, "-pz ../../examples/snmp_manager " ++
-                        "-s lager -config " ++
+            {erl_flags, deps_code_flags() ++
+                        " -pz ../../examples/snmp_manager" ++
+                        " -s lager -config " ++
                         ?config(manager_conf_path, Config)}],
-    {ok, Manager} = ct_slave:start(Node, Opts),
+    {ok, Manager} = ct_slave:start(Host, Node, Opts),
     {exo_test_user, Manager} ! {subscribe, self()},
     exometer_snmp ! heartbeat,
     receive
@@ -108,7 +112,7 @@ test_agent_manager_communication_example(Config) ->
     {ok, _} = ct_slave:stop(Node),
     ok.
 
-test_mib_modification(Config) ->
+test_mib_modification(_Config) ->
     {ok, ExpectedMib} = file:read_file("../../test/data/EXOTEST-MIB.mib.modified"),
     ct:log("Expected MIB: ~s", [binary_to_list(ExpectedMib)]),
     ok = exometer:new([test, app, one], counter, [{snmp, []}]),
@@ -122,12 +126,12 @@ test_mib_modification(Config) ->
     ok.
 
 %%%===================================================================
-%%% utility API
+%%% Internal functions
 %%%===================================================================
 
 snmp_init_testcase() ->
-    AgentConfPath = "../../test/config/snmp_agent.config",
-    ManagerConfPath = "../../test/config/snmp_manager.config",
+    AgentConfPath = agent_conf_path(),
+    ManagerConfPath = manager_conf_path(),
     MibTemplate = "../../test/data/EXOTEST-MIB.mib",
     reset_snmp_dirs(AgentConfPath, ManagerConfPath),
     application:load(exometer),
@@ -143,10 +147,6 @@ snmp_init_testcase() ->
     true = is_process_running(snmp_master_agent, 10, 10000),
     [{agent_conf_path, AgentConfPath}, 
      {manager_conf_path, ManagerConfPath}].
-
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================
 
 is_app_running(_, _, Count) when Count < 0 ->
     false;
@@ -195,3 +195,39 @@ del_dir(Dir) ->
         {error, enoent} ->
             ok
     end.
+
+agent_conf_path() ->
+    OtpVersion = erlang:system_info(otp_release),
+    CompatList = ["R15B02", "R15B03", "R16B"],
+    case lists:member(OtpVersion, CompatList) of
+        true ->
+            "../../test/config/snmp_agent-compat-r15.config";
+        false ->
+            "../../test/config/snmp_agent.config"
+    end.
+
+manager_conf_path() ->
+    OtpVersion = erlang:system_info(otp_release),
+    CompatList = ["R15B02", "R15B03", "R16B"],
+    case lists:member(OtpVersion, CompatList) of
+        true ->
+            "../../test/config/snmp_manager-compat-r15.config";
+        false ->
+            "../../test/config/snmp_manager.config"
+    end.
+
+gethostname() ->
+    Hostname = case net_kernel:longnames() of
+                   true->
+                       net_adm:localhost();
+                   _-> 
+                       {ok, Name} = inet:gethostname(),
+                       Name
+               end,
+    list_to_atom(Hostname).
+
+deps_code_flags() ->
+    DepsDir = "../../deps",
+    {ok, Deps0} = file:list_dir(DepsDir),
+    Deps1 = ["-pz " ++ filename:join([DepsDir, Dep, "ebin"]) || Dep <- Deps0],
+    string:join(Deps1, " ").
