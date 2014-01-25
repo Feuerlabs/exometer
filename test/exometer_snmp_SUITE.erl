@@ -61,6 +61,14 @@ init_per_testcase(test_snmp_export_disabled, Config) ->
     application:set_env(exometer, snmp_export, false),
     exometer:start(),
     Config;
+init_per_testcase(test_agent_manager_communication_example, Config) ->
+    case os:getenv("TRAVIS") of
+        false ->
+            Conf = snmp_init_testcase(),
+            Conf ++ Config;
+        _ ->
+            {skip, "Running on Travis CI. Starting slave nodes not working."}
+    end;
 init_per_testcase(_Case, Config) ->
     Conf = snmp_init_testcase(),
     Conf ++ Config.
