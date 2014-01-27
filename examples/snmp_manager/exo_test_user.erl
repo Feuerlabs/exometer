@@ -26,8 +26,11 @@
 -export(
    [
     start/0,
-    loop/0
+    loop/0,
+    get_value/1
    ]).
+
+-include_lib("snmp/include/snmp_types.hrl").
 
 -include("log.hrl").
 
@@ -77,6 +80,21 @@ handle_invalid_result(In, Out, Server) ->
 start() ->
     ok = application:start(snmp),
     spawn(fun loop/0).
+
+get_value(Key) when is_atom(Key) ->
+    get_value([Key]);
+get_value(Key) when is_list(Key) ->
+    Res = snmpm:sync_get("exo_test_user", "exometer agent", [Key ++ [0]]),
+    case Res of
+        {ok, {noError, 0, [#varbind{value=noSuchObject}]}, _} ->
+            {error, noSuchObject};
+        {ok, {noError, 0, [#varbind{value=Value}]}, _} ->
+            {ok, Value};
+        {ok, {Error, _, _}, _} ->
+            {error, Error};
+        E ->
+            E
+    end.
 
 loop() ->
     true = register(?MODULE, self()),

@@ -29,7 +29,8 @@
     disable_metric/1,
     enable_inform/3,
     disable_inform/3,
-    status_change/2
+    status_change/2,
+    snmp_operation/2, snmp_operation/3
    ]).
 
 -export_type([snmp/0, snmp_option/0]).
@@ -47,14 +48,17 @@
 -define(MIB_NR_NEXT, exometer_snmp_mib_nr_map_next).
 -define(MIB_NR_FREE, exometer_snmp_mib_nr_map_free).
 
+-define(OBJECT_GROUP_NAME, <<"allObjects">>).
+
 -type snmp_option() :: {exometer_entry:datapoint(), exometer_report:interval()} | 
                        {exometer_entry:datapoint(), exometer_report:interval(), exometer_report:extra()}.
 -type snmp()        :: disabled | [snmp_option()].
 
 -record(st, {
-          mib_file          :: string(),
-          mib_file_path     :: string(),
-          mib_domain        :: binary()
+          mib_file              :: string(),
+          mib_file_path         :: string(),
+          mib_domain            :: binary(),
+          mib_funcs_file_path   :: string()
          }).
 
 %%%===================================================================
@@ -87,6 +91,18 @@ status_change(#exometer_entry{snmp=OldOptions}, #exometer_entry{name=Metric, snm
             exometer_snmp:enable_metric(E)
     end.
 
+snmp_operation(get, Key) ->
+    ?info("SNMP Get ~p", [Key]),
+    {ok, [V]} = exometer:get_value(Key, value),
+    V;
+snmp_operation(Op, Key) ->
+    ?warning("Unhandled SNMP operation ~p on ~p", [Op, Key]),
+    error.
+
+snmp_operation(Op, Val, Key) ->
+    ?warning("Unhandled SNMP operation ~p on ~p with value ~p", [Op, Key, Val]),
+    error.
+
 %%%===================================================================
 %%% gen_server API
 %%%===================================================================
@@ -105,19 +121,30 @@ init(noargs) ->
     ok = filelib:ensure_dir(MibPath1),
     {ok, _} = file:copy(MibPath0, MibPath1),
     {ok, FileBin} = file:read_file(MibPath1),
+    FuncsPath = filename:rootname(MibPath1) ++ ".funcs",
 
     % get SNMP id
     {match, [Line]} = re:run(FileBin, <<"(?m)^(.*)OBJECT IDENTIFIER">>, [{capture, first, binary}]),
     [Id | _] = re:split(Line, <<" OBJECT IDENTIFIER">>),
 
-    {ok, #st{mib_file_path=MibPath1, mib_file=FileBin, mib_domain=Id}}.
+    % load initial MIB
+    load_mib(MibPath1),
+
+    State = #st{mib_file_path=MibPath1, 
+                mib_file=FileBin, 
+                mib_domain=Id, 
+                mib_funcs_file_path=FuncsPath},
+    {ok, State}.
 
 handle_call({enable_metric, E}, _From, #st{mib_file_path=MibPath, 
                                            mib_file=Mib0,
-                                           mib_domain=Domain}=S) ->
+                                           mib_domain=Domain,
+                                           mib_funcs_file_path=FuncsPath}=S) ->
     case modify_mib(enable_metric, E, Mib0, Domain) of
         {ok, Mib1} ->
             ok = file:write_file(MibPath, Mib1),
+            ok = write_funcs_file(FuncsPath),
+            load_mib(MibPath),
             {reply, ok, S#st{mib_file=Mib1}};
         Error ->
             {reply, Error, S}
@@ -125,10 +152,13 @@ handle_call({enable_metric, E}, _From, #st{mib_file_path=MibPath,
 
 handle_call({disable_metric, E}, _From, #st{mib_file_path=MibPath, 
                                             mib_file=Mib0,
-                                            mib_domain=Domain}=S) ->
+                                            mib_domain=Domain,
+                                            mib_funcs_file_path=FuncsPath}=S) ->
     case modify_mib(disable_metric, E, Mib0, Domain) of
         {ok, Mib1} ->
             ok = file:write_file(MibPath, Mib1),
+            ok = write_funcs_file(FuncsPath),
+            load_mib(MibPath),
             {reply, ok, S#st{mib_file=Mib1}};
         Error ->
             {reply, Error, S}
@@ -162,9 +192,27 @@ code_change(_, S, _) ->
 %%% Internal functions
 %%%===================================================================
 
+load_mib(Mib0) ->
+    case snmpc:compile(Mib0, [{outdir, filename:dirname(Mib0)}]) of
+        {ok, BinMib0} ->
+            BinMib1 = filename:rootname(BinMib0),
+            ok = snmpa:unload_mibs(snmp_master_agent, [BinMib1], true),
+            case snmpa:load_mibs(snmp_master_agent, [BinMib1], true) of
+                ok ->
+                    ?info("MIB ~s reloaded", [BinMib1]),
+                    ok;
+                E ->
+                    ?error("Error ~p when reloading MIB ~s", [E, BinMib1]),
+                    E
+            end;
+        E ->
+            ?error("Error ~p when compiling MIB ~s", [E, Mib0]),
+            E
+    end.
+
 modify_mib(enable_metric, Metric, Mib0, Domain) ->
     Name = metric_name(Metric),
-    Nr0 = get_nr(Name),
+    Nr0 = get_nr(metric, Name, Metric#exometer_entry.name),
     case Nr0 of
         duplicate ->
             {error, already_enabled};
@@ -181,12 +229,12 @@ modify_mib(enable_metric, Metric, Mib0, Domain) ->
                          <<"-- METRIC ", Name/binary, " END\n\n">>,
                          C
                         ],
-                    {ok, binary:list_to_bin(L)};
+                    update_object_group(binary:list_to_bin(L), Domain);
                 Error ->
                     Error
             end
     end;
-modify_mib(disable_metric, Metric, Mib0, _Domain) ->
+modify_mib(disable_metric, Metric, Mib0, Domain) ->
     Name = metric_name(Metric),
     Nr = release_nr(Name),
     case Nr of
@@ -195,9 +243,37 @@ modify_mib(disable_metric, Metric, Mib0, _Domain) ->
         ok ->
             {[A0], _, C} = re_split(metric, Name, Mib0),
             A1 = binary:part(A0, 0, byte_size(A0)-2),
-            {ok, binary:list_to_bin([A1, C])}
+            update_object_group(binary:list_to_bin([A1, C]), Domain)
     end.
 
+update_object_group(Mib0, Domain) ->
+    release_nr(object_group),
+    {[A0], _, C0} = re_split(object_group, foo, Mib0),
+    case ets:select(?MIB_NR_MAP, [{{'$1', '_', '_', metric}, [], ['$1']}]) of
+        [] ->
+            A1 = binary:part(A0, 0, byte_size(A0)-2),
+            {ok, binary:list_to_bin([A1, C0])};
+        Objects ->
+            Nr = erlang:list_to_binary(erlang:integer_to_list(get_nr(object_group))),
+            {A2, [B1], C1} = re_split(content, foo, binary:list_to_bin([A0, C0])),
+            B2 = binary:replace(B1, <<"\n\n\n\n">>, <<"\n\n">>),
+            L0 = [
+                 <<"-- OBJECT-GROUP ">>, ?OBJECT_GROUP_NAME, <<" START\n">>,
+                 ?OBJECT_GROUP_NAME, <<" OBJECT-GROUP\n">>,
+                 <<"    OBJECTS {">>,
+                 string:join(["\n        " ++ binary_to_list(O) || O <- Objects], ","),
+                 <<"\n    }\n">>,
+                 <<"    STATUS current\n">>,
+                 <<"    DESCRIPTION \"\"\n">>,
+                 <<"    ::= { ", Domain/binary, " ">>, Nr, <<" }\n">>,
+                 <<"-- OBJECT-GROUP ">>, ?OBJECT_GROUP_NAME, <<" END">>
+                ],
+            {ok, binary:list_to_bin([A2, B2, L0, <<"\n\n">>, C1])}
+    end.
+ 
+re_split(object_group, _, Bin) ->
+    List = re:split(Bin, <<"(?m)(^-- OBJECT-GROUP.*$)">>),
+    re_split_result(List, 1, 1);
 re_split(content, _, Bin) ->
     List = re:split(Bin, <<"(?m)(^-- CONTENT.*$)">>),
     re_split_result(List, 2, 2);
@@ -208,6 +284,8 @@ re_split(notification, N, Bin) ->
     List = re:split(Bin, <<"(?m)^-- NOTIFICATION ", N/binary, ".*$">>),
     re_split_result(List, 1, 1).
 
+re_split_result([_]=List, _, _) ->
+    {List, [], []};
 re_split_result(List, Start, End) ->
     {A, B0} = lists:split(Start, List),
     {B1, C} = lists:split(length(B0)-End, B0),
@@ -229,10 +307,18 @@ create_bin(Name, #exometer_entry{module=Mod}=E) ->
     end.
 
 metric_name(#exometer_entry{name=Name0}) ->
-    Name1 = binary:list_to_bin([<< (atom_to_binary(N, latin1))/binary, $. >> || N <- Name0]),
-    binary:part(Name1, 0, byte_size(Name1)-1).
+    [S | Rest] = [atom_to_list(N) || N <- Name0],
+    Name1 = [S | [capitalize(N) || N <- Rest]],
+    binary:list_to_bin(Name1).
 
-get_nr(Name) ->
+capitalize([C | Rest]) ->
+    [string:to_upper(C) | Rest].
+
+get_nr(Type) ->
+    get_nr(Type, Type).
+get_nr(Type, Name) ->
+    get_nr(Type, Name, Name).
+get_nr(Type, Name, OrigName) ->
     case ets:lookup(?MIB_NR_MAP, Name) of
         [] ->
             Nr = case ets:lookup(?MIB_NR_MAP, ?MIB_NR_FREE) of
@@ -242,7 +328,7 @@ get_nr(Name) ->
                         ets:insert(?MIB_NR_MAP, {?MIB_NR_FREE, Free}),
                         Nr1
                  end,
-            ets:insert(?MIB_NR_MAP, {Name, Nr}),
+            ets:insert(?MIB_NR_MAP, {Name, Nr, OrigName, Type}),
             Nr;
         _ ->
             duplicate
@@ -252,7 +338,8 @@ release_nr(Name) ->
     case ets:lookup(?MIB_NR_MAP, Name) of
         [] ->
             not_enabled;
-        [{Name, Nr}] ->
+        [Entry] ->
+            Nr = element(2, Entry),
             ets:delete(?MIB_NR_MAP, Name),
             [{_, Free}] = ets:lookup(?MIB_NR_MAP, ?MIB_NR_FREE),
             ets:insert(?MIB_NR_MAP, {?MIB_NR_FREE, [Nr | Free]}),
@@ -311,3 +398,12 @@ update_subscriptions(M, {[Opt | A], R, Ch, Co}) ->
 -spec option({_, _} | {_, _, _}) -> {_, _, _}.
 option({Dp, Int}) -> {Dp, Int, undefined};
 option({_, _, _}=Opt) -> Opt.
+
+write_funcs_file(Path) ->
+    Objects0 = ets:select(?MIB_NR_MAP, [{{'$1', '_', '$2', metric}, [], [['$1', '$2']]}]),
+    Objects1 = lists:map(
+                 fun([BinName, Name]) ->
+                         Spec = {erlang:binary_to_atom(BinName, latin1), {?MODULE, snmp_operation, [Name]}},
+                         io_lib:fwrite("~p.\n",[Spec])
+                 end, Objects0),
+    ok = file:write_file(Path, binary:list_to_bin(Objects1)).

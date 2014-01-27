@@ -496,9 +496,9 @@ snmp_bin(Name, #exometer_entry{type=Type}) when
       Type == counter; Type == fast_counter ->
     B = [
          Name, <<" OBJECT-TYPE\n">>,
-         <<"    SYNTAX Counter\n">>,
-         <<"    ACCESS read-only\n">>,
-         <<"    STATUS mandatory\n">>,
+         <<"    SYNTAX Counter32\n">>,
+         <<"    MAX-ACCESS read-only\n">>,
+         <<"    STATUS current\n">>,
          <<"    DESCRIPTION \"\"\n">>
         ],
     binary:list_to_bin(B).
