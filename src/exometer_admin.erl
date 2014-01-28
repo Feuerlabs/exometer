@@ -11,6 +11,7 @@
 -module(exometer_admin).
 
 -export([init/1,
+	 start_link/0,
 	 handle_call/3,
 	 handle_cast/2, 
 	 handle_info/2,
@@ -20,9 +21,12 @@
 -export([new_entry/3,
          re_register_entry/3]).
 
--export([set_default/3]).
+-export([set_default/3,
+	 preset_defaults/0,
+	 load_defaults/0,
+	 load_predefined/0,
+	 normalize_name/1]).
 
--compile(export_all).
 -behavior(gen_server).
 
 -export([monitor/2, demonitor/1]).
