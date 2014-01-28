@@ -25,7 +25,7 @@
         [ counter, histogram, duration, meter, spiral ]).
 
 behaviour() -> entry.
-     
+
 new(Name, counter, _Opts) ->
     folsom_metrics:new_counter(Name);
 new(Name, spiral, _Opts) ->

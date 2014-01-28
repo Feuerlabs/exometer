@@ -148,7 +148,6 @@ update(Name, Value) when is_list(Name) ->
                     fast_incr(Value, M, F);
                true -> ok
             end;
-
         [#exometer_entry{behaviour = probe,
 			 type = T,
                          status = Status, ref = Pid}]->
@@ -773,7 +772,6 @@ create_entry(#exometer_entry{module = Module,
 		{entry, Module:new(Name, Type, Opts) };
 
 	    Other -> Other
-		   
 	end
     of
         {Behaviour, ok }->
@@ -788,7 +786,10 @@ create_entry(#exometer_entry{module = Module,
 
         Other1 ->
             Other1
-    end.
+    end;
+
+create_entry(_Other) ->
+    {error, unknown_argument}.
 
 set_call_count({M, F}, Bool) ->
     set_call_count(M, F, Bool).

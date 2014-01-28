@@ -19,10 +19,12 @@
 
 -export([new_entry/3,
          re_register_entry/3]).
+
 -export([set_default/3]).
 
 -compile(export_all).
 -behavior(gen_server).
+
 -export([monitor/2, demonitor/1]).
 
 -record(st, {}).
@@ -152,8 +154,7 @@ handle_call({new_entry, Name, Type, Opts, AllowExisting}, _From, S) ->
         case {ets:member(exometer_util:table(), Name), AllowExisting} of
             {true, false} -> {reply, {error, exists}, S};
             _ ->
-                Res = exometer:create_entry(
-                        process_opts(E, OptsTemplate ++ Opts)),
+                Res = exometer:create_entry(process_opts(E, OptsTemplate ++ Opts)),
                 {reply, Res, S}
         end
     catch

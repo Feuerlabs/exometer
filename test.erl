@@ -7,7 +7,7 @@ application:start(exometer).
 exometer:new([a,b,c], histogram).
 exometer:update([a,b,c], 1).
 
-
+exometer:get_value([a,b,c]).
 
 
 
@@ -32,7 +32,6 @@ exometer_report:list_metrics(['_',b,c]).
 
 exometer_report:list_metrics().
 
-exometer:update([a,b,c], 1).
 exometer:update([a,b,d], 2).
 
 

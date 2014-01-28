@@ -47,6 +47,7 @@ behaviour() ->
 probe_init(Name, _Type, Options) ->
     St = process_opts(#st { name = Name }, [ { time_span, 60000},
                                              { slot_period,1000 } ] ++ Options),
+
     Slide = exometer_slot_slide:new(St#st.time_span,
                                     St#st.slot_period,
                                     fun count_sample/3,

@@ -70,7 +70,7 @@ probe_terminate(_St) ->
     ok.
 
 probe_get_value(DataPoints, St) ->
-    {ok, get_value_int(St, DataPoints), St}.
+    {ok, get_value_int(St, DataPoints)}.
 
 probe_get_datapoints(_St) ->
     {ok, ?DATAPOINTS}.

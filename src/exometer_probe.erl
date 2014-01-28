@@ -54,7 +54,7 @@
 -callback probe_init(name(), type(), options()) -> probe_noreply().
 -callback probe_terminate(mod_state()) -> probe_noreply().
 -callback probe_setopts(options(), mod_state()) -> probe_reply().
--callback probe_update(any(), mod_state()) -> probe_reply().
+-callback probe_update(any(), mod_state()) -> probe_noreply().
 -callback probe_get_value(data_points(), mod_state()) -> probe_reply().
 -callback probe_get_datapoints(mod_state()) -> {ok, data_points()}.
 -callback probe_reset(mod_state()) -> probe_noreply().
@@ -85,7 +85,7 @@ delete(_Name, _Type, Pid) when is_pid(Pid) ->
     exometer_proc:cast(Pid, delete).
 
 get_value(_Name, _Type, Pid) when is_pid(Pid) ->
-    gen_server:call(Pid, {get_value, default}).
+    exometer_proc:call(Pid, {get_value, default}).
 
 get_value(_Name, _Type, Pid, DataPoints) when is_pid(Pid) ->
     exometer_proc:call(Pid, {get_value, DataPoints}).
@@ -182,7 +182,7 @@ handle_msg(Msg, St) ->
 	    {NSt, Opts1} = process_opts(Options, St),
 
 	    {Reply, NSt1} = %% Call module setopts for remainder of opts
-		process_probe_reply(NSt,  Module:probe_setopts(Opts1, NSt)),
+		process_probe_reply(NSt,  Module:probe_setopts(Opts1, NSt#st.mod_state)),
 	    
             From ! {Ref, Reply },
 	    %% Return state with options and any non-duplicate original opts.
@@ -239,8 +239,6 @@ sample(St) ->
     ModSt = restart_timer(sample, St),
     {_, ModSt1} = process_probe_noreply(St, (St#st.module):probe_sample(ModSt)),
     ModSt1.
-
-
 
 restart_timer(sample, #st{sample_interval = Int} = St) ->
     St#st{sample_timer = start_timer(Int, {exometer_proc, sample_timer})}.
