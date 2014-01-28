@@ -147,12 +147,6 @@ get_dp(K, L, Trunc) ->
             opt_trunc(Trunc, DP)
     end.
 
-perc(P, Len) when P > 1.0 ->
-    round((P / 10) * Len);
-
-perc(P, Len) ->
-    round(P * Len).
-
 probe_setopts(_Opts, _St)  ->
     {error, unsupported}.
 
@@ -230,16 +224,9 @@ average_transform(_TS, #sample{count = Count,
     %% Return the sum of all counter increments received during this slot
     {Total / Count, Min, Max, X}.
 
-nth(_, []) ->
-    0;
-nth(N, [_|_] = L) ->
-    lists:nth(N, L).
-
 
 opt_trunc(true, {K,V}) when is_float(V) ->
     {K, trunc(V)};
 opt_trunc(_, V) ->
     V.
 
-dbg(_) ->
-    ok.
