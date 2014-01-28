@@ -63,7 +63,7 @@ init_per_testcase(Case, Config) when
     case os:getenv("TRAVIS") of
         false ->
             Conf0 = snmp_init_testcase(),
-            Conf1 = start_manager(Conf0 ++ Config);
+            start_manager(Conf0 ++ Config);
         _ ->
             {skip, "Running on Travis CI. Starting slave nodes not working."}
     end;
@@ -88,21 +88,20 @@ end_per_testcase(_Case, Config) ->
 
 test_snmp_export_disabled(_Config) ->
     undefined = whereis(exometer_report_snmp),
-    undefined = whereis(exometer_snmp),
     false = lists:keymember(snmp, 1, application:which_applications()),
     ok.
 
 test_snmp_export_enabled(Config) ->
     true = is_pid(whereis(exometer_report_snmp)),
-    true = is_pid(whereis(exometer_snmp)),
-    {ok, MibFile} = snmpa:whereis_mib('EXOTEST-MIB'),
+    {ok, Mib, _} = exometer_report_snmp:get_mib(),
+    {ok, MibFile} = snmpa:whereis_mib(Mib),
     true = filename:basename(MibFile, ".bin") == filename:basename(?config(mib_template, Config), ".mib"),
     ok.
 
 test_agent_manager_communication_example(Config) ->
     Manager = ?config(manager, Config),
     {exo_test_user, Manager} ! {subscribe, self()},
-    exometer_snmp ! heartbeat,
+    snmpa:send_notification(snmp_master_agent, exometerHeartbeat, no_receiver, "exometerHeartbeat", []),
     receive
         {snmp_msg, _, _} = Msg ->
             ct:log("SNMP MSG: ~p", [Msg])
@@ -119,6 +118,7 @@ test_mib_modification(Config) ->
     ok = exometer:new([test, app, three], counter, [{snmp, []}]),
     ok = exometer:setopts([test, app, two], [{snmp, disabled}]),
     ok = exometer:new([test, app, four], fast_counter, [{snmp, []}, {function, {erlang, now}}]),
+    {ok, _, _} = exometer_report_snmp:get_mib(), % ensure all async changes went through
     {ok, ModifiedMib} = file:read_file(?config(mib_file, Config) ++ ".mib"),
     ct:log("Modified MIB: ~s", [binary_to_list(ModifiedMib)]),
     ExpectedMib = ModifiedMib,
@@ -136,6 +136,7 @@ test_counters_get(Config) ->
     NameFastCounter = [test, fastcounter],
     ok = exometer:new(NameCounter, counter, [{snmp, []}]),
     ok = exometer:new(NameFastCounter, fast_counter, [{snmp, []}, {function, {?MODULE, empty_fun}}]),
+    {ok, _, _} = exometer_report_snmp:get_mib(), % ensure all async changes went through
     {value, OidCounter} = snmpa:name_to_oid(testCounter),
     {value, OidFastCounter} = snmpa:name_to_oid(testFastcounter),
 
@@ -157,6 +158,7 @@ test_counters_get(Config) ->
     % ensure counters can't be read after export is disabled
     ok = exometer:setopts(NameCounter, [{snmp, disabled}]),
     ok = exometer:setopts(NameFastCounter, [{snmp, disabled}]),
+    {ok, _, _} = exometer_report_snmp:get_mib(), % ensure all async changes went through
     {error, noSuchObject} = rpc:call(Manager, exo_test_user, get_value, [OidCounter]),
     {error, noSuchObject} = rpc:call(Manager, exo_test_user, get_value, [OidFastCounter]),
 
@@ -169,8 +171,8 @@ test_counters_get(Config) ->
 snmp_init_testcase() ->
     AgentConfPath = agent_conf_path(),
     ManagerConfPath = manager_conf_path(),
-    MibTemplate = "../../test/data/EXOTEST-MIB.mib",
     reset_snmp_dirs(AgentConfPath, ManagerConfPath),
+    MibTemplate = "../../test/data/EXOTEST-MIB.mib",
     application:load(exometer),
     ok = application:set_env(exometer, snmp_export, true),
     ok = application:set_env(exometer, snmp_mib_template, MibTemplate),
@@ -184,6 +186,8 @@ snmp_init_testcase() ->
     ok = exometer:start(),
     true = is_app_running(snmp, 10, 10000),
     true = is_process_running(snmp_master_agent, 10, 10000),
+    true = is_process_running(exometer_report_snmp, 10, 10000),
+    {ok, _, _} = exometer_report_snmp:get_mib(), % ensure init has completed
     [{mib_template, MibTemplate},
      {mib_file, MibFilePath},
      {agent_conf_path, AgentConfPath}, 
@@ -224,14 +228,16 @@ del_dir(Dir) ->
     case file:list_dir(Dir) of
         {ok, Files} ->
             lists:map(
-              fun(F) ->
-                      case filelib:is_dir(F) of
+              fun(F0) ->
+                      F1 = filename:join([Dir ,F0]),
+                      case filelib:is_dir(F1) of
                           true ->
-                              del_dir(F);
+                              del_dir(F1);
                           false ->
-                              file:delete(F)
+                              ok = file:delete(F1)
                       end
               end, Files),
+            ok = file:del_dir(Dir),
             ok;
         {error, enoent} ->
             ok
@@ -239,7 +245,7 @@ del_dir(Dir) ->
 
 agent_conf_path() ->
     OtpVersion = erlang:system_info(otp_release),
-    CompatList = ["R15B02", "R15B03", "R16B"],
+    CompatList = ["R15B02", "R15B03", "R16B", "R16B01", "R16B02"],
     case lists:member(OtpVersion, CompatList) of
         true ->
             "../../test/config/snmp_agent-compat-r15.config";
@@ -249,7 +255,7 @@ agent_conf_path() ->
 
 manager_conf_path() ->
     OtpVersion = erlang:system_info(otp_release),
-    CompatList = ["R15B02", "R15B03", "R16B"],
+    CompatList = ["R15B02", "R15B03", "R16B", "R16B01", "R16B02"],
     case lists:member(OtpVersion, CompatList) of
         true ->
             "../../test/config/snmp_manager-compat-r15.config";

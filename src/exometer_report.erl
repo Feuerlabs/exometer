@@ -151,14 +151,19 @@
     unsubscribe_all/2,
     list_metrics/0, list_metrics/1,
     list_reporters/0,
+    list_subscriptions/1,
     add_reporter/2,
-    remove_reporter/1
+    remove_reporter/1,
+    terminate_reporter/1,
+    setopts/3,
+    new_entry/1
    ]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
 
+-include_lib("exometer/include/exometer.hrl").
 -include("log.hrl").
 
 -define(SERVER, ?MODULE).
@@ -193,6 +198,12 @@
 
 -callback exometer_terminate(any(), mod_state()) ->
     any().
+
+-callback exometer_setopts(metric(), options(), exometer:status(), mod_state()) ->
+    callback_result().
+
+-callback exometer_newentry(#exometer_entry{}, mod_state()) ->
+    callback_result().
 
 -record(key, {
           reporter              :: module(),
@@ -275,11 +286,21 @@ list_metrics(Path)  ->
 list_reporters() ->
     call(list_reporters).
 
+-spec list_subscriptions(module()) -> [{metric(), datapoint(), interval(), extra()}].
+list_subscriptions(Reporter) ->
+    call({list_subscriptions, Reporter}).
+
 add_reporter(Reporter, Options) ->
     call({add_reporter, Reporter, Options}).
 
 remove_reporter(Reporter) ->
     call({remove_reporter, Reporter}).
+
+setopts(Metric, Options, Status) ->
+    call({setopts, Metric, Options, Status}).
+
+new_entry(Entry) ->
+    call({new_entry, Entry}).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -297,6 +318,7 @@ remove_reporter(Reporter) ->
 %% @end
 %%--------------------------------------------------------------------
 init(Opts) ->
+    process_flag(trap_exit, true),
     ?info("Starting reporter with ~p~n", [ Opts ]),
     %% Dig out the mod opts.
     %% { reporters, [ {reporter1, [{opt1, val}, ...]}, {reporter2, [...]}]}
@@ -408,6 +430,22 @@ handle_call({list_metrics, Path}, _, St) ->
                      end, [], exometer:find_entries(Path)),
     {reply, {ok, DP}, St};
 
+handle_call({list_subscriptions, Reporter}, _, #st{subscribers = Subs0} = St) ->
+    Subs1 = lists:foldl(
+              fun
+                  (#subscriber{key=#key{reporter=Rep}}=Sub, Acc) when Reporter == Rep ->
+                      #subscriber{
+                         key=#key{
+                                metric=Metric, 
+                                datapoint=Dp, 
+                                extra=Extra}, 
+                         interval=Interval} = Sub,
+                      [{Metric, Dp, Interval, Extra} | Acc];
+                  (_, Acc) ->
+                      Acc
+              end, [], Subs0),
+    {reply, Subs1, St};
+
 handle_call(list_reporters, _, #st{reporters = Reporters} = St) ->
     Info = [{M, Pid} || #reporter{module = M, pid = Pid} <- Reporters],
     {reply, Info, St};
@@ -427,12 +465,21 @@ handle_call({add_reporter, Reporter, Opts}, _, #st{reporters = Rs} = St) ->
 handle_call({remove_reporter, Reporter}, _, #st{reporters = Rs} = St) ->
     case lists:keyfind(Reporter, #reporter.module, Rs) of
         #reporter{} = R ->
-            St1 = terminate_reporter(R, St),
+            terminate_reporter(R),
+            St1 = remove_reporter(R, St),
             {reply, ok, St1};
         false ->
             {reply, {error, not_found}, St}
     end;
-%%
+
+handle_call({setopts, Metric, Options, Status}, _, #st{reporters=Rs}=St) ->
+    [erlang:send(M, {exometer_setopts, Metric, Options, Status}) || #reporter{module=M} <- Rs],
+    {reply, ok, St};
+
+handle_call({new_entry, Entry}, _, #st{reporters=Rs}=St) ->
+    [erlang:send(M, {exometer_newentry, Entry}) || #reporter{module=M} <- Rs],
+    {reply, ok, St};
+
 handle_call(_Request, _From, State) ->
     {reply, {error, unknown_call}, State}.
 
@@ -533,7 +580,8 @@ handle_info(_Info, State) ->
 %% @spec terminate(Reason, State) -> void()
 %% @end
 %%--------------------------------------------------------------------
-terminate(_Reason, _State) ->
+terminate(_Reason, #st{reporters=Rs}) ->
+    rpc:pmap({?MODULE, terminate_reporter}, [], Rs),
     ok.
 
 %%--------------------------------------------------------------------
@@ -565,15 +613,14 @@ spawn_reporter(Reporter, Opt) ->
                           reporter_launch(Reporter, Opt)
                   end).
 
-terminate_reporter(#reporter{pid = Pid, mref = MRef} = R, #st{} = S) ->
+terminate_reporter(#reporter{pid = Pid, mref = MRef}) ->
     Pid ! {exometer_terminate, shutdown},
     receive
         {'DOWN', MRef, _, _, _} ->
-            remove_reporter(R, S)
-    after 5000 ->
+            ok
+    after 1000 ->
             exit(Pid, kill),
-            erlang:demonitor(MRef, [flush]),
-            remove_reporter(R, S)
+            erlang:demonitor(MRef, [flush])
     end.
 
 remove_reporter(#reporter{module = M}, #st{reporters = Rs,
@@ -697,6 +744,16 @@ reporter_loop(Module, St) ->
                   end;
               {exometer_subscribe, Metric, DataPoint, Extra, Interval } ->
                   case Module:exometer_subscribe(Metric, DataPoint, Extra, Interval, St) of
+                      {ok, St1} -> {ok, St1};
+                      _ -> {ok, St}
+                  end;
+              {exometer_newentry, Entry} ->
+                  case Module:exometer_newentry(Entry, St) of
+                      {ok, St1} -> {ok, St1};
+                      _ -> {ok, St}
+                  end;
+              {exometer_setopts, Metric, Options, Status} ->
+                  case Module:exometer_setopts(Metric, Options, Status, St) of
                       {ok, St1} -> {ok, St1};
                       _ -> {ok, St}
                   end;

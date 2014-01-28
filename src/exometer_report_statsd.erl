@@ -23,6 +23,8 @@
     exometer_report/5,
     exometer_subscribe/5,
     exometer_unsubscribe/4,
+    exometer_newentry/2,
+    exometer_setopts/4,
     exometer_terminate/2
    ]).
 
@@ -83,6 +85,12 @@ exometer_unsubscribe(_Metric, _DataPoint, _Extra, St) ->
     {ok, St}.
 
 exometer_info(_, St) ->
+    {ok, St}.
+
+exometer_newentry(_Entry, St) ->
+    {ok, St}.
+
+exometer_setopts(_Metric, _Options, _Status, St) ->
     {ok, St}.
 
 exometer_terminate(_, _) ->

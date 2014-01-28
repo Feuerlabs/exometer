@@ -52,9 +52,9 @@ testAppFour OBJECT-TYPE
 -- OBJECT-GROUP allObjects START
 allObjects OBJECT-GROUP
     OBJECTS {
-        testAppThree,
+        testAppFour,
         testAppOne,
-        testAppFour
+        testAppThree
     }
     STATUS current
     DESCRIPTION ""

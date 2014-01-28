@@ -5,6 +5,7 @@
 # Bugs
 
 - fix all dialyzer errors
+- type specs for SNMP stuff
 
 # Misc
 
@@ -12,4 +13,3 @@
 - use proper module organization in all modules, e.g. exports, includes, external API, internal API
 - document SNMP export
 - update documentation
-

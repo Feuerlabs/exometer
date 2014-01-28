@@ -51,8 +51,7 @@
     setopts/2,
     find_entries/1,
     select/1, select/2, select_cont/1,
-    info/1, info/2,
-    snmp_bin/2
+    info/1, info/2
    ]).
 
 -export([create_entry/1]).  % called only from exometer_admin.erl
@@ -60,7 +59,7 @@
 %% Convenience function for testing
 -export([start/0, stop/0]).
 
--export_type([name/0, type/0, options/0]).
+-export_type([name/0, type/0, options/0, status/0]).
 
 -compile(inline).
 
@@ -107,7 +106,6 @@ new(Name, Type) ->
 %% is `disabled', calls to {@link get_value/1} will return `{ok, unavailable}',
 %% and calls to {@link update/2} and {@link sample/1} will return `ok' but
 %% will do nothing.
-%% * `{snmp, disabled | OptionList}' - Configuration of SNMP export for datapoints of the metric. Default is `disabled', which won't configure any exports. Duplicate datapoint entries are ignored. A valid option list will trigger the SNMP export of all datapoints and setup SNMP informs with the options specified.
 %% @end
 new(Name, Type, Opts) when is_list(Name), is_list(Opts) ->
     exometer_admin:new_entry(Name, Type, Opts).
@@ -346,7 +344,6 @@ reset(Name)  when is_list(Name) ->
 %%
 %% * `{status, enabled | disabled}' - the operational status of the metric.
 %%
-%% * `{snmp, disabled | OptionList}' - Configuration of SNMP export for datapoints of the metric. Default is `disabled', which won't configure any exports. Duplicate datapoint entries are ignored. A valid option list will trigger the SNMP export of all datapoints and setup SNMP informs with the options specified.
 %%
 %% Note that if the metric is disabled, setopts/2 will fail unless the options
 %% list contains `{status, enabled}', which will enable the metric and cause
@@ -364,7 +361,8 @@ setopts(Name, Options) when is_list(Name), is_list(Options) ->
                                     setopts_fctr(E, Options);
                                Type == counter ->
                                     setopts_ctr(E, Options)
-                            end;
+                            end,
+                            reporter_setopts(E, Options, enabled);
                         _ ->
                             {error, disabled}
                     end;
@@ -372,46 +370,57 @@ setopts(Name, Options) when is_list(Name), is_list(Options) ->
                     case lists:keyfind(status, 1, Options) of
                         {_, disabled} ->
                             {_, Elems} = process_setopts(E, Options),
-                            update_entry_elems(Name, Elems);
+                            update_entry_elems(Name, Elems),
+                            reporter_setopts(E, Options, disabled);
                         false ->
                             if Type == fast_counter ->
                                     setopts_fctr(E, Options);
                                Type == counter ->
                                     setopts_ctr(E, Options)
-                            end
+                            end,
+                            reporter_setopts(E, Options, enabled)
                     end
             end;
-        [#exometer_entry{status = enabled,
-                         module = M, type = Type, ref = Ref} = E] ->
+        [#exometer_entry{status = enabled} = E] ->
             {_, Elems} = process_setopts(E, Options),
             update_entry_elems(Name, Elems),
-            module_setopts(M, Name, Options, Type, Ref);
-        [#exometer_entry{status = disabled,
-                         module = M, type = Type, ref = Ref} = E] ->
+            module_setopts(E, Options);
+        [#exometer_entry{status = disabled} = E] ->
             case lists:keyfind(status, 1, Options) of
                 {_, enabled} ->
                     {_, Elems} = process_setopts(E, Options),
                     update_entry_elems(Name, Elems),
-                    module_setopts(M, Name, Options, Type, Ref);
+                    module_setopts(E, Options);
                 false ->
                     {error, disabled}
             end;
         [] ->
             {error, not_found}
-            end.
+    end.
 
-module_setopts(exometer, _, Options, T, {Pid, _}) when T==spiral;
-                                                       T==histogram;
-                                                       T==exometer_proc ->
+module_setopts(#exometer_entry{module=exometer, type=T, ref={Pid, _}}=E, Options) when 
+      T==spiral;
+      T==histogram;
+      T==exometer_proc ->
+    reporter_setopts(E, Options, enabled),
     exo_proc_call(Pid, {setopts, Options});
-module_setopts(M, Name, Options, Type, Ref) ->
+module_setopts(#exometer_entry{name=Name, module=M, type=Type, ref=Ref}=E, Options) ->
     case [O || {K, _} = O <- Options,
-               not lists:member(K, [status, cache, snmp])] of
+               not lists:member(K, [status, cache])] of
         [] ->
             ok;
         [_|_] = UserOpts ->
-            M:setopts(Name, UserOpts, Type, Ref)
+            case M:setopts(Name, UserOpts, Type, Ref) of
+                ok ->
+                    reporter_setopts(E, Options, enabled),
+                    ok;
+                E ->
+                    E
+            end
     end.
+
+reporter_setopts(E, Options, Status) ->
+    exometer_report:setopts(E, Options, Status).
 
 setopts_fctr(#exometer_entry{name = Name,
                              ref = OldRef,
@@ -491,17 +500,6 @@ info(Name, Item) ->
         _ ->
             undefined
     end.
-
-snmp_bin(Name, #exometer_entry{type=Type}) when
-      Type == counter; Type == fast_counter ->
-    B = [
-         Name, <<" OBJECT-TYPE\n">>,
-         <<"    SYNTAX Counter32\n">>,
-         <<"    MAX-ACCESS read-only\n">>,
-         <<"    STATUS current\n">>,
-         <<"    DESCRIPTION \"\"\n">>
-        ],
-    binary:list_to_bin(B).
 
 datapoints(default, E) ->
     get_datapoints_(E);
@@ -688,18 +686,6 @@ process_setopts(#exometer_entry{options = OldOpts} = Entry, Options) ->
                      true ->
                          Acc
                   end;
-              ({snmp, Snmp}, {#exometer_entry{snmp = Snmp0} = E0, Elems} = Acc) ->
-                  Snmp1 = exometer_util:drop_duplicates(Snmp),
-                  if 
-                      Snmp1 =/= Snmp0, (Snmp1 == disabled orelse is_list(Snmp1)) ->
-                          E1 = E0#exometer_entry{snmp = Snmp},
-                          exometer_snmp:status_change(E0, E1),
-                          {E1, add_elem(snmp, Snmp, Elems)};
-                      Snmp1 == Snmp0, (Snmp1 == disabled orelse is_list(Snmp1)) ->
-                          Acc;
-                      true ->
-                          error({illegal, {snmp, Snmp}})
-                  end;
               ({_,_}, Acc) ->
                   Acc
           end, {Entry, []}, Options),
@@ -711,7 +697,6 @@ add_elem(K, V, Elems) ->
 
 pos(cache) -> #exometer_entry.cache;
 pos(status) -> #exometer_entry.status;
-pos(snmp) -> #exometer_entry.snmp;
 pos(ref) -> #exometer_entry.ref.
 
 update_opts(New, Old) ->
@@ -760,19 +745,13 @@ get_fctr_datapoint(#exometer_entry{ }, Undefined) ->
     {Undefined, undefined}.
 
 
-create_entry(#exometer_entry{module = exometer, status = Status,
-                             type = counter, snmp = Snmp} = E) ->
+create_entry(#exometer_entry{module = exometer,
+                             type = counter} = E) ->
     E1 = E#exometer_entry{value = 0, timestamp = exometer_util:timestamp()},
     [ets:insert(T, E1) || T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
-    if
-        Status == enabled, is_list(Snmp) ->
-            exometer_snmp:enable_metric(E);
-        true ->
-            ok
-    end,
     ok;
 create_entry(#exometer_entry{module = exometer,
-                             status = Status, snmp = Snmp,
+                             status = Status,
                              type = fast_counter, options = Opts} = E) ->
     case lists:keyfind(function, 1, Opts) of
         false -> 
@@ -785,12 +764,6 @@ create_entry(#exometer_entry{module = exometer,
             set_call_count(M, F, Status == enabled),
             [ets:insert(T, E1) ||
                 T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
-            if
-                Status == enabled, is_list(Snmp) ->
-                    exometer_snmp:enable_metric(E);
-                true ->
-                    ok
-            end,
             ok;
         Other ->
             error({badarg, {function, Other}})

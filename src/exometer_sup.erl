@@ -39,13 +39,4 @@ init([]) ->
                 ?CHILD(exometer_cache, worker),
                 ?CHILD(exometer_report, worker)
                ],
-    Children1 = case exometer_util:get_env(snmp_export, false) of
-                    true ->
-                        Children0 ++ 
-                        [
-                         ?CHILD(exometer_snmp, worker)
-                        ];
-                    _ ->
-                        Children0
-                end,
-    {ok, {{one_for_one, 5, 10}, Children1}}.
+    {ok, {{one_for_one, 5, 10}, Children0}}.

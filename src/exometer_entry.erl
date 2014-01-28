@@ -295,6 +295,3 @@
 
 -callback setopts(name(), options(), type(), ref()) ->
     ok | error().
-
--callback snmp_bin(binary(), #exometer_entry{}) ->
-    undefined | binary().
