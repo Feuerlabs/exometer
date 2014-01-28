@@ -83,7 +83,7 @@ probe_setopts(_Opts, _St) ->
 probe_update(Value, St) when St#st.cur_sz < St#st.size ->
     NewSz = St#st.cur_sz + 1,
     ets:insert(St#st.ets_ref, #elem { slot = NewSz, val = Value }),
-    { ok, ok, St#st { cur_sz = NewSz} };
+    { ok, St#st { cur_sz = NewSz} };
 
 probe_update(Value, St) ->
     Slot = random:uniform(St#st.size),
@@ -97,7 +97,6 @@ probe_reset(St) ->
 
 probe_sample(_St) ->
     error(unsupported).
-
 
 probe_code_change(_From, ModSt, _Extra) ->
     {ok, ModSt}.

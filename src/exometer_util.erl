@@ -17,6 +17,7 @@
          timestamp_to_datetime/1,
          get_opt/3,
          get_statistics/3,
+         get_statistics2/3,
          tables/0,
          table/0]).
 

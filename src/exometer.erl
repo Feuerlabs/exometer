@@ -147,17 +147,16 @@ update(Name, Value) when is_list(Name) ->
                     fast_incr(Value, M, F);
                true -> ok
             end;
-        [#exometer_entry{module = ?MODULE, 
-			 behaviour = probe,
+        [#exometer_entry{behaviour = probe,
 			 type = T,
-                         status = Status, ref = {Pid, _}}]->
+                         status = Status, ref = Pid}]->
             if Status == enabled ->
-                    exometer_proc:update(Name, Value, T, Pid),
+                    exometer_probe:update(Name, Value, T, Pid),
 
                     ok;
                true -> ok
             end;
-        [#exometer_entry{module = M, type = Type, ref = Ref}] ->
+        [#exometer_entry{module = M, type = Type, ref = Ref} ] ->
             M:update(Name, Value, Type, Ref);
         [] ->
             {error, not_found}
@@ -744,6 +743,7 @@ create_entry(#exometer_entry{module = exometer,
             error({badarg, {function, Other}})
     end;
 
+
 create_entry(#exometer_entry{module = Module,
                              type = Type,
                              name = Name, 
@@ -752,13 +752,12 @@ create_entry(#exometer_entry{module = Module,
     case 
 	case Module:behaviour() of 
 	    probe ->
-		{proc, exometer_probe:new(Name, Type, [{ type_arg, Module} | Opts ]) };
+		{probe, exometer_probe:new(Name, Type, [{ type_arg, Module} | Opts ]) };
 
 	    entry ->
 		{entry, Module:new(Name, Type, Opts) };
 
 	    Other -> Other
-		   
 	end
     of
         {Behaviour, ok }->
@@ -773,7 +772,10 @@ create_entry(#exometer_entry{module = Module,
 
         Other1 ->
             Other1
-    end.
+    end;
+
+create_entry(_Other) ->
+    {error, unknown_argument}.
 
 set_call_count({M, F}, Bool) ->
     set_call_count(M, F, Bool).

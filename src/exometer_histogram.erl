@@ -69,14 +69,11 @@ probe_terminate(_St) ->
     ok.
 
 probe_get_value(DataPoints, St) ->
-    {ok, get_value_int(St, DataPoints), St}.
+    {ok, get_value_int(St, DataPoints)}.
 
-probe_get_datapoints(St) ->
-    {ok, ?DATAPOINTS, St}.
+probe_get_datapoints(_St) ->
+    {ok, ?DATAPOINTS}.
 
-
-get_value_int(St, default) ->
-    get_value_int_(St, ?DATAPOINTS);
 get_value_int(_, []) ->
     [];
 get_value_int(St, DataPoints) ->
@@ -161,14 +158,13 @@ probe_setopts(_Opts, _St)  ->
 
 probe_update(Value,#st{slide = Slide,
 		       histogram_module = Module} = St) ->
-    St#st{ slide = Module:add_element( exometer_util:timestamp(), Value, Slide)}.
-
-
-
+    {ok, St#st{ slide = Module:add_element( exometer_util:timestamp(), Value, Slide)}}.
+    
 
 probe_reset(#st{slide = Slide,
 		histogram_module = Module} = St) ->
-    St#st{slide = Module:reset(Slide)}.
+
+    {ok, St#st{slide = Module:reset(Slide)}}.
 
 probe_sample(_St) ->
     {error, unsupported}.
