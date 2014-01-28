@@ -95,6 +95,8 @@ ok({error, E}) ->
     erlang:error(E).
 
 new_entry(Name, Type, Opts) ->
+    %% { arg, { function, M, F }}
+    %% { arg, { function, M, F }}
     {Type1, Opt1} = check_type_arg(Type, Opts),
     case gen_server:call(?MODULE, {new_entry, Name, Type1, Opt1, false}) of
         {error, Reason} ->

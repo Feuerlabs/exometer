@@ -234,3 +234,7 @@ opt_trunc(true, {K,V}) when is_float(V) ->
     {K, trunc(V)};
 opt_trunc(_, V) ->
     V.
+<<<<<<< HEAD
+=======
+
+>>>>>>> Removed unused code warnings
