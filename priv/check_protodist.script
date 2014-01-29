@@ -12,8 +12,11 @@ case os:getenv("TRAVIS") of
     false ->
         CONFIG;
     _ ->
-        {_, Opts0} = lists:keyfind(erl_opts, 1, CONFIG),
-        Opts1 = [{proto_dist, inet6_tcp} | Opts0],
-        io:format("Using proto_dist = inet6_tcp~n", []),
-        lists:keyreplace(erl_opts, 1, CONFIG, {erl_opts, Opts0})
+        NewVal = case lists:keyfind(ct_extra_params, 1, CONFIG) of
+                     false ->
+                        "-proto_dist inet6_tcp";
+                     {_, Val} ->
+                         Val ++ " -proto_dist inet6_tcp"
+                 end,
+        lists:keystore(ct_extra_params, 1, CONFIG, {ct_extra_params, NewVal})
 end.

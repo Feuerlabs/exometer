@@ -61,7 +61,7 @@ test_empty_slave(Config) ->
             {boot_timeout, 30}, {monitor_master, true}, 
             {startup_functions, []},
             {env, []},
-            {erl_flags, ""}
+            {erl_flags, get_erl_flags()}
            ],
     {ok, TestNode} = ct_slave:start(Host, Node, Opts),
     {_, _, _} = rpc:call(TestNode, erlang, now, []),
@@ -81,3 +81,11 @@ gethostname() ->
                        Name
                end,
     list_to_atom(Hostname).
+
+get_erl_flags() ->
+    case os:getenv("TRAVIS") of
+        false ->
+            "";
+        _ ->
+            "-proto_dist inet6_tcp"
+    end.
