@@ -62,13 +62,13 @@ init_per_testcase(Case, Config) when
       Case == test_counters_get ->
     case os:getenv("TRAVIS") of
         false ->
-            Conf0 = snmp_init_testcase(),
+            Conf0 = snmp_init_testcase(Case),
             start_manager(Conf0 ++ Config);
         _ ->
             {skip, "Running on Travis CI. Starting slave nodes not working."}
     end;
-init_per_testcase(_Case, Config) ->
-    Conf = snmp_init_testcase(),
+init_per_testcase(Case, Config) ->
+    Conf = snmp_init_testcase(Case),
     Conf ++ Config.
 
 end_per_testcase(_Case, Config) ->
@@ -93,7 +93,7 @@ test_snmp_export_disabled(_Config) ->
 
 test_snmp_export_enabled(Config) ->
     true = is_pid(whereis(exometer_report_snmp)),
-    {ok, Mib, _} = exometer_report_snmp:get_mib(),
+    {ok, _, Mib, _} = exometer_report_snmp:get_mib(),
     {ok, MibFile} = snmpa:whereis_mib(Mib),
     true = filename:basename(MibFile, ".bin") == filename:basename(?config(mib_template, Config), ".mib"),
     ok.
@@ -113,18 +113,23 @@ test_agent_manager_communication_example(Config) ->
 test_mib_modification(Config) ->
     {ok, ExpectedMib} = file:read_file("../../test/data/EXOTEST-MIB.mib.modified"),
     ct:log("Expected MIB: ~s", [binary_to_list(ExpectedMib)]),
-    ok = exometer:new([test, app, one], counter, [{snmp, []}]),
+    ok = exometer:new([test, app, one], counter, [{snmp, [{value, 1000}]}]),
     ok = exometer:new([test, app, two], fast_counter, [{snmp, []}, {function, {erlang, now}}]),
-    ok = exometer:new([test, app, three], counter, [{snmp, []}]),
+    ok = exometer:new([test, app, three], counter, [{snmp, [{value, 5000, []}]}]),
     ok = exometer:setopts([test, app, two], [{snmp, disabled}]),
     ok = exometer:new([test, app, four], fast_counter, [{snmp, []}, {function, {erlang, now}}]),
-    {ok, _, _} = exometer_report_snmp:get_mib(), % ensure all async changes went through
+    ok = wait_for_mib_version(8, 10, 10000),
+
     {ok, ModifiedMib} = file:read_file(?config(mib_file, Config) ++ ".mib"),
     ct:log("Modified MIB: ~s", [binary_to_list(ModifiedMib)]),
     ExpectedMib = ModifiedMib,
     ct:log("AliasNames = ~p", [snmpa:which_aliasnames()]),
     ct:log("Variabls = ~p", [snmpa:which_variables()]),
-    [{value, _} = snmpa:name_to_oid(N) || N <- [testAppOne, testAppThree, testAppFour]],
+    [{value, _} = snmpa:name_to_oid(N) || N <- [datapointTestAppOne, 
+                                                datapointTestAppThree, 
+                                                datapointTestAppFour,
+                                                reportTestAppOneValue,
+                                                reportTestAppThreeValue]],
     false = snmpa:name_to_oid(testAppTwo),
     ok.
 
@@ -136,9 +141,10 @@ test_counters_get(Config) ->
     NameFastCounter = [test, fastcounter],
     ok = exometer:new(NameCounter, counter, [{snmp, []}]),
     ok = exometer:new(NameFastCounter, fast_counter, [{snmp, []}, {function, {?MODULE, empty_fun}}]),
-    {ok, _, _} = exometer_report_snmp:get_mib(), % ensure all async changes went through
-    {value, OidCounter} = snmpa:name_to_oid(testCounter),
-    {value, OidFastCounter} = snmpa:name_to_oid(testFastcounter),
+    ok = wait_for_mib_version(3, 10, 10000),
+
+    {value, OidCounter} = snmpa:name_to_oid(datapointTestCounter),
+    {value, OidFastCounter} = snmpa:name_to_oid(datapointTestFastcounter),
 
     % increment counters
     [exometer:update(NameCounter, 1) || _ <- lists:seq(1, 20)],
@@ -152,13 +158,14 @@ test_counters_get(Config) ->
 
     % get with alias name
     ok = rpc:call(Manager, snmpm, load_mib, [?config(mib_file, Config)]),
-    {ok, ValueCounter} = rpc:call(Manager, exo_test_user, get_value, [testCounter]),
-    {ok, ValueFastCounter} = rpc:call(Manager, exo_test_user, get_value, [testFastcounter]),
+    {ok, ValueCounter} = rpc:call(Manager, exo_test_user, get_value, [datapointTestCounter]),
+    {ok, ValueFastCounter} = rpc:call(Manager, exo_test_user, get_value, [datapointTestFastcounter]),
 
     % ensure counters can't be read after export is disabled
     ok = exometer:setopts(NameCounter, [{snmp, disabled}]),
     ok = exometer:setopts(NameFastCounter, [{snmp, disabled}]),
-    {ok, _, _} = exometer_report_snmp:get_mib(), % ensure all async changes went through
+    ok = wait_for_mib_version(5, 10, 10000),
+
     {error, noSuchObject} = rpc:call(Manager, exo_test_user, get_value, [OidCounter]),
     {error, noSuchObject} = rpc:call(Manager, exo_test_user, get_value, [OidFastCounter]),
 
@@ -168,7 +175,7 @@ test_counters_get(Config) ->
 %%% Internal functions
 %%%===================================================================
 
-snmp_init_testcase() ->
+snmp_init_testcase(Case) ->
     AgentConfPath = agent_conf_path(),
     ManagerConfPath = manager_conf_path(),
     reset_snmp_dirs(AgentConfPath, ManagerConfPath),
@@ -176,8 +183,9 @@ snmp_init_testcase() ->
     application:load(exometer),
     ok = application:set_env(exometer, snmp_export, true),
     ok = application:set_env(exometer, snmp_mib_template, MibTemplate),
-    ok = application:set_env(exometer, snmp_mib_dir, "tmp"),
-    MibFilePath = filename:join(["tmp", filename:basename(MibTemplate, ".mib")]),
+    TmpPath = filename:join(["tmp", atom_to_list(Case)]),
+    ok = application:set_env(exometer, snmp_mib_dir, TmpPath),
+    MibFilePath = filename:join([TmpPath, filename:basename(MibTemplate, ".mib")]),
     {ok, [FileConf]} = file:consult(AgentConfPath),
     SnmpConf = proplists:get_value(snmp, FileConf),
     application:load(snmp),
@@ -187,7 +195,7 @@ snmp_init_testcase() ->
     true = is_app_running(snmp, 10, 10000),
     true = is_process_running(snmp_master_agent, 10, 10000),
     true = is_process_running(exometer_report_snmp, 10, 10000),
-    {ok, _, _} = exometer_report_snmp:get_mib(), % ensure init has completed
+    ok = wait_for_mib_version(1, 10, 10000),
     [{mib_template, MibTemplate},
      {mib_file, MibFilePath},
      {agent_conf_path, AgentConfPath}, 
@@ -215,13 +223,13 @@ is_process_running(Name, Step, Count) ->
 
 reset_snmp_dirs(AgentConfPath, ManagerConfPath) ->
     {ok, [AgentFileConf]} = file:consult(AgentConfPath),
-    AgentDir = ?config(db_dir, ?config(agent, ?config(snmp, AgentFileConf))),
-    del_dir(AgentDir),
-    ok = filelib:ensure_dir(filename:join([AgentDir, "foo"])),
+    AgentDir0 = ?config(db_dir, ?config(agent, ?config(snmp, AgentFileConf))),
+    del_dir(AgentDir0),
+    ok = filelib:ensure_dir(filename:join([AgentDir0, "foo"])),
     {ok, [ManagerFileConf]} = file:consult(ManagerConfPath),
-    ManagerDir = ?config(db_dir, ?config(config, ?config(manager, ?config(snmp, ManagerFileConf)))),
-    del_dir(ManagerDir),
-    ok = filelib:ensure_dir(filename:join([ManagerDir, "foo"])),
+    ManagerDir0 = ?config(db_dir, ?config(config, ?config(manager, ?config(snmp, ManagerFileConf)))),
+    del_dir(ManagerDir0),
+    ok = filelib:ensure_dir(filename:join([ManagerDir0, "foo"])),
     ok.
 
 del_dir(Dir) ->
@@ -297,3 +305,16 @@ start_manager(Config) ->
 
 empty_fun() ->
     ok.
+
+wait_for_mib_version(_, _, Count) when Count < 0 ->
+    {error, timeout};
+wait_for_mib_version(Vsn, Step, Count) ->
+    case exometer_report_snmp:get_mib() of
+        {ok, Vsn, _, _} ->
+            ok;
+        {ok, _, _, _} ->
+            timer:sleep(Step),
+            wait_for_mib_version(Vsn, Step, Count-Step);
+        E ->
+            E
+    end.

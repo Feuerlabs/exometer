@@ -6,6 +6,7 @@
 
 - fix all dialyzer errors
 - type specs for SNMP stuff
+- subscription parameter extra needs to be sent to manager as part of inform
 
 # Misc
 

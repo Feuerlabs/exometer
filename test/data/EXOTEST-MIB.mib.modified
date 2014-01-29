@@ -22,44 +22,75 @@ exotest OBJECT IDENTIFIER ::= { experimental 8 }
 
 -- CONTENT START
 
--- METRIC testAppOne START
-testAppOne OBJECT-TYPE
+-- METRIC datapointTestAppOne START
+datapointTestAppOne OBJECT-TYPE
     SYNTAX Counter32
     MAX-ACCESS read-only
     STATUS current
     DESCRIPTION ""
     ::= { exotest 1 }
--- METRIC testAppOne END
+-- METRIC datapointTestAppOne END
 
--- METRIC testAppThree START
-testAppThree OBJECT-TYPE
+-- METRIC datapointTestAppThree START
+datapointTestAppThree OBJECT-TYPE
     SYNTAX Counter32
     MAX-ACCESS read-only
     STATUS current
     DESCRIPTION ""
     ::= { exotest 4 }
--- METRIC testAppThree END
+-- METRIC datapointTestAppThree END
 
--- METRIC testAppFour START
-testAppFour OBJECT-TYPE
+-- METRIC datapointTestAppFour START
+datapointTestAppFour OBJECT-TYPE
     SYNTAX Counter32
     MAX-ACCESS read-only
     STATUS current
     DESCRIPTION ""
     ::= { exotest 3 }
--- METRIC testAppFour END
+-- METRIC datapointTestAppFour END
 
 -- OBJECT-GROUP allObjects START
 allObjects OBJECT-GROUP
     OBJECTS {
-        testAppFour,
-        testAppOne,
-        testAppThree
+        datapointTestAppFour,
+        datapointTestAppOne,
+        datapointTestAppThree
     }
     STATUS current
     DESCRIPTION ""
     ::= { exotest 2 }
 -- OBJECT-GROUP allObjects END
+
+-- INFORM reportTestAppOneValue START
+reportTestAppOneValue NOTIFICATION-TYPE
+    OBJECTS {
+        datapointTestAppOne
+    }
+    STATUS current
+    DESCRIPTION ""
+    ::= { exotest 5 }
+-- INFORM reportTestAppOneValue END
+
+-- INFORM reportTestAppThreeValue START
+reportTestAppThreeValue NOTIFICATION-TYPE
+    OBJECTS {
+        datapointTestAppThree
+    }
+    STATUS current
+    DESCRIPTION ""
+    ::= { exotest 7 }
+-- INFORM reportTestAppThreeValue END
+
+-- NOTIFICATION-GROUP allNotifications START
+allNotifications NOTIFICATION-GROUP
+    NOTIFICATIONS {
+        reportTestAppOneValue,
+        reportTestAppThreeValue
+    }
+    STATUS current
+    DESCRIPTION ""
+    ::= { exotest 6 }
+-- NOTIFICATION-GROUP allNotifications END
 
 -- CONTENT END
 
