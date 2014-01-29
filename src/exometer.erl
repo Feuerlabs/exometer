@@ -713,11 +713,11 @@ update_opts(New, Old) ->
                              lists:keystore(K, 1, Acc, Opt)
                      end, Old, New)).
 
-type_arg_first([{type_arg,_}|_] = Opts) ->
+type_arg_first([{arg,_}|_] = Opts) ->
     Opts;
 
 type_arg_first(Opts) ->
-    case lists:keyfind(type_arg, 1, Opts) of
+    case lists:keyfind(arg, 1, Opts) of
         false ->
             Opts;
         Arg ->
@@ -783,19 +783,20 @@ create_entry(#exometer_entry{module = exometer,
 create_entry(#exometer_entry{module = Module,
                              type = Type,
                              name = Name, 
-                             options = Opts} = E) ->
-    Spec = case Module:behaviour() of
-               probe ->
-                   {probe, exometer_probe:new(Name, Type, [{type_arg, Module} | Opts ])};
-               entry ->
-                   {entry, Module:new(Name, Type, Opts)};
-               Other ->
-                   Other
-           end,
-    case Spec of
-        {Behaviour, ok}->
-            [ets:insert(T, E#exometer_entry{behaviour=Behaviour})
-             || T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
+    case 
+	case Module:behaviour() of 
+	    probe ->
+		{probe, exometer_probe:new(Name, Type, [{ arg, Module} | Opts ]) };
+
+	    entry ->
+		{entry, Module:new(Name, Type, Opts) };
+
+	    Other -> Other
+	end
+    of
+        {Behaviour, ok }->
+            [ets:insert(T, E#exometer_entry { behaviour = Behaviour })
+	     || T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
             ok;
         {Behaviour, {ok, Ref}} ->
             [ets:insert(T, E#exometer_entry{ref=Ref, behaviour=Behaviour})
