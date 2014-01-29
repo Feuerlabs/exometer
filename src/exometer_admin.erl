@@ -31,8 +31,10 @@
 
 -export([monitor/2, demonitor/1]).
 
--record(st, {}).
 -include("exometer.hrl").
+-include("log.hrl").
+
+-record(st, {}).
 
 -spec set_default([atom()], atom(), #exometer_entry{} | [{atom(),any()}]) ->
                          true.
@@ -155,12 +157,16 @@ init(_) ->
 
 handle_call({new_entry, Name, Type, Opts, AllowExisting}, _From, S) ->
     try
-        #exometer_entry{options = OptsTemplate} = E =
-            lookup_definition(Name, Type, Opts), %% #exometer_entry record returned.
+        #exometer_entry{options = OptsTemplate} = E0 =
+            lookup_definition(Name, Type, Opts),
+
         case {ets:member(exometer_util:table(), Name), AllowExisting} of
-            {true, false} -> {reply, {error, exists}, S};
+            {true, false} -> 
+                {reply, {error, exists}, S};
             _ ->
-                Res = exometer:create_entry(process_opts(E, OptsTemplate ++ Opts)),
+                E1 = process_opts(E0, OptsTemplate ++ Opts),
+                Res = exometer:create_entry(E1),
+                exometer_report:new_entry(E1),
                 {reply, Res, S}
         end
     catch

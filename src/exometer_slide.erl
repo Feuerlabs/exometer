@@ -7,6 +7,7 @@
 %%   file, You can obtain one at http://mozilla.org/MPL/2.0/.
 %%
 %% -------------------------------------------------------------------
+%%
 %% @author Tony Rogvall <tony@rogvall.se>
 %% @author Ulf Wiger <ulf@feuerlabs.com>
 %% @author Magnus Feuer <magnus@feuerlabs.com>
@@ -211,36 +212,3 @@ n_diff(A, B) when is_integer(A) ->
     A - B;
 n_diff(_, B) ->
     B.
-
--ifdef(TEST).
-
-%% @private
-test() ->
-    %% Create a slotted slide covering 2000 msec, where
-    %% each slot is 100 msec wide.
-    S = new(2000, 0, nil, nil, []),
-    {T1, S1 }= timer:tc(?MODULE, build_histogram, [S]),
-
-    {T2, Avg } = timer:tc(?MODULE, calc_avg, [S1]),
-    io:format("Histogram creation: ~p~n", [ T1 ]),
-    io:format("Avg calculation: ~p~n", [ T2 ]),
-    io:format("Avg value: ~p~n", [ Avg ]).
-
-build_histogram(S) ->
-    %% Create 10*4500 events, Each millisecond, ten
-    %% elements (1-10) will be created and installed
-    %% in the histogram
-    %% The 100 msec slot size means that each slot will calculate
-    %% the average of 100 msec * 10 (1000) elements.
-    %%
-    lists:foldl(fun({TS,Elem}, Acc) ->
-                        add_element(TS,Elem, Acc)
-                end, S, [{TS, Elem} || TS <- lists:seq(1,4500),
-                                       Elem <- lists:seq(1,10)]).
-
-calc_avg(Slide) ->
-    {T, C} = foldl(4500, fun({_TS, Elem}, {Sum, Count}) ->
-                                    {Sum + Elem, Count + 1} end, {0, 0}, Slide),
-    T / C.
-
--endif.
