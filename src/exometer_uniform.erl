@@ -48,6 +48,7 @@
 behaviour() ->
     probe.
 
+
 probe_init(Name, _Type, Options) ->
     St = process_opts(#st { name = Name }, [ {percentiles, [ 50, 75, 90, 95, 99, 999 ]} ] ++ Options),
     EtsRef = ets:new(uniform, [ set, { keypos, 2 } ]),

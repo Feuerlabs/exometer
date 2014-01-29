@@ -190,14 +190,11 @@
 -import(lists, [reverse/1, sublist/3]).
 
 -ifdef(TEST).
-<<<<<<< HEAD
--export([test/0,
-=======
 %% Export needed to kill of unused warnings
 -export([test/0, 
->>>>>>> Removed unused code warnings
 	 build_histogram/1,
 	 calc_avg/1]).
+
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 

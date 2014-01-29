@@ -6,11 +6,6 @@ application:start(exometer).
 
 exometer:new([a,b,c], histogram).
 exometer:update([a,b,c], 1).
-
-exometer:get_value([a,b,c]).
-
-
-
 exometer:get_value([a,b,c]).
 
 exometer:new([a,b,d], counter).
@@ -40,7 +35,6 @@ subscribe test_host a/b/c/max 5000 /tmp/test.ux
 
 unsubscribe test_host a/b/c/min /tmp/test.ux
 unsubscribe test_host a/b/c/max /tmp/test.ux
-
 
 % Ensure that folsom is in ERL_LIBS path
 erl -pa ebin -pz deps/*/ebin

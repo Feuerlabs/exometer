@@ -84,6 +84,7 @@ behaviour() ->
 delete(_Name, _Type, Pid) when is_pid(Pid) ->
     exometer_proc:cast(Pid, delete).
 
+
 get_value(_Name, _Type, Pid) when is_pid(Pid) ->
     exometer_proc:call(Pid, {get_value, default}).
 
@@ -103,7 +104,7 @@ reset(_Name, _Type, Pid) when is_pid(Pid) ->
     exometer_proc:cast(Pid, reset).
 
 sample(_Name, _Type, Pid) when is_pid(Pid) ->
-    exometer_proc:cast(Pid, sample).
+    exometer_proc:call(Pid, sample).
 
 init(Name, Type, Mod, Opts) ->
     process_flag(min_heap_size, 40000), 
@@ -231,7 +232,6 @@ process_probe_noreply(St, {ok, ModSt}) ->
 
 process_probe_noreply(St, _) ->
     St.
-
 
 %% ===================================================================
 
