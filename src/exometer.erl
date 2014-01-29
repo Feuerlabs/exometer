@@ -713,11 +713,11 @@ update_opts(New, Old) ->
                              lists:keystore(K, 1, Acc, Opt)
                      end, Old, New)).
 
-type_arg_first([{type_arg,_}|_] = Opts) ->
+type_arg_first([{arg,_}|_] = Opts) ->
     Opts;
 
 type_arg_first(Opts) ->
-    case lists:keyfind(type_arg, 1, Opts) of
+    case lists:keyfind(arg, 1, Opts) of
         false ->
             Opts;
         Arg ->
@@ -788,7 +788,7 @@ create_entry(#exometer_entry{module = Module,
     case 
 	case Module:behaviour() of 
 	    probe ->
-		{probe, exometer_probe:new(Name, Type, [{ type_arg, Module} | Opts ]) };
+		{probe, exometer_probe:new(Name, Type, [{ arg, Module} | Opts ]) };
 
 	    entry ->
 		{entry, Module:new(Name, Type, Opts) };

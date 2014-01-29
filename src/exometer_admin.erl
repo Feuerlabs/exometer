@@ -120,9 +120,16 @@ re_register_entry(Name, Type, Opts) ->
             ok
     end.
 
-check_type_arg(Type, Opts) when is_tuple(Type) ->
-    {element(1, Type), [{type_arg, Type}|Opts]};
-check_type_arg(Type, Opts) when is_atom(Type) ->
+check_type_arg({function, M, F}, Opts) ->
+    {function, [{arg, {M, F}} | Opts]};
+
+check_type_arg({function, Mod, Fun, ArgSpec, Type, DataPoints}, Opts) ->
+    {function, [{arg, {Mod, Fun, ArgSpec, Type, DataPoints}} | Opts]};
+
+check_type_arg({T, Arg}, Opts) ->
+    {T, [{arg, {arg, Arg}} | Opts]};
+
+check_type_arg(Type, Opts) ->
     {Type, Opts}.
 
 monitor(Name, Pid) when is_pid(Pid) ->
@@ -244,7 +251,7 @@ lookup_definition(Name, ad_hoc, Opts) ->
                           case T of
                               {Type, Arg} ->
                                   {E#exometer_entry{type = Type},
-                                   [{type_arg, Arg}|Os]};
+                                   [{arg, Arg}|Os]};
                               _ when is_atom(T) ->
                                   {E#exometer_entry{type = T}, Os}
                           end;
@@ -281,15 +288,7 @@ default_definition_(Name, Type) ->
     end.
 
 exometer_default(Name, Type) ->
-    case module(Type) of
-        {M, Arg} ->
-            #exometer_entry{name = Name, type = Type,
-                            module = M,
-                            options = [{type_arg,Arg}]};
-        M when is_atom(M) ->
-            #exometer_entry{name = Name, type = Type,
-                            module = M}
-    end.
+    #exometer_entry{name = Name, type = Type, module = module(Type)}.
 
 module(counter )      -> exometer;
 module(fast_counter)  -> exometer;
