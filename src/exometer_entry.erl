@@ -272,6 +272,9 @@
 -type ref()      :: any().
 -type error()   :: { error, any() }.
 
+
+-callback behaviour() -> entry.
+
 -callback new(name(), type(), options()) ->
     ok | {ok, ref()} | error().
 

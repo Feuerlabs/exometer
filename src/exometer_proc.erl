@@ -26,6 +26,15 @@
 %% {exometer_proc, stop}
 %% '''
 %% @end
+
+%% PLAIN_FSM not parse transform
+%% Receive system message and call library functions
+%% Use plain_fsm:spawn()
+%% handle system message
+%% Implement system message callbacks
+
+
+
 -module(exometer_proc).
 
 -export([spawn_process/2,

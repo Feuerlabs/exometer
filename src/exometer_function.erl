@@ -12,7 +12,8 @@
 
 -behaviour(exometer_entry).
 
--export([new/3,
+-export([behaviour/0,
+	 new/3,
          update/4,
          reset/3,
          get_value/4,
@@ -45,6 +46,10 @@
 -type fun_rep()      :: simple_fun() | int_extended().
 
 -spec new(exometer:name(), 'function', exometer:options()) -> {ok, fun_rep()}.
+
+behaviour() ->
+    entry.
+
 %% @doc Callback for creating an exometer `function' entry.
 %%
 %% Function entries are created as

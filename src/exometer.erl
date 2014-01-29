@@ -103,7 +103,7 @@ new(Name, Type) ->
 %% caching will be performed.
 %%
 %% * `{status, enabled | disabled}' - Default is `enabled'. If the metric
-%% is `disabled', calls to {@link get_value/1} will return `{ok, unavailable}',
+%% is `disabled', calls to {@link get_value/1} will return `{ok, disabled}',
 %% and calls to {@link update/2} and {@link sample/1} will return `ok' but
 %% will do nothing.
 %% @end
@@ -140,22 +140,29 @@ update(Name, Value) when is_list(Name) ->
                true -> ok
             end,
             ok;
+
         [#exometer_entry{module = ?MODULE, type = fast_counter,
                          status = Status, ref = {M, F}}] ->
             if Status == enabled ->
                     fast_incr(Value, M, F);
                true -> ok
             end;
-        [#exometer_entry{module = ?MODULE, type = T,
-                         status = Status, ref = {Pid, _}}]
-          when T==spiral; T==histogram; T==exometer_proc ->
+        [#exometer_entry{behaviour = probe,
+			 type = T,
+                         status = Status, ref = Pid}]->
             if Status == enabled ->
-                    Pid ! {exometer_proc, {update, Value}},
+                    exometer_probe:update(Name, Value, T, Pid),
+
                     ok;
                true -> ok
             end;
-        [#exometer_entry{module = M, type = Type, ref = Ref}] ->
+
+        [#exometer_entry{module = M, 
+			 behaviour = entry,
+			 type = Type, 
+			 ref = Ref}] ->
             M:update(Name, Value, Type, Ref);
+
         [] ->
             {error, not_found}
     end.
@@ -180,11 +187,13 @@ get_value(Name) when is_list(Name) ->
     get_value(Name, default).
 
 -spec get_value(name(), atom() | [atom()]) -> {ok, value()} | {error, not_found}.
+
 get_value(Name, DataPoint) when is_list(Name), is_atom(DataPoint),
                                 DataPoint=/=default ->
     get_value(Name, [DataPoint]);
 
-get_value(Name, DataPoints) when is_list(Name) ->
+%% Also covers DataPoints = default
+get_value(Name, DataPoints) when is_list(Name) -> 
     case ets:lookup(exometer_util:table(), Name) of
         [#exometer_entry{} = E] ->
             {ok, get_value_(E, DataPoints)};
@@ -192,45 +201,53 @@ get_value(Name, DataPoints) when is_list(Name) ->
             {error, not_found}
     end.
 
-get_value_(#exometer_entry{status = Status,
-                           module = ?MODULE,
-                           type = counter} = E, DataPoints0) ->
+%% If the entry is disabled, just err out.
+get_value_(#exometer_entry{ status = disabled }, _DataPoints) ->
+    disabled; 
+
+get_value_(#exometer_entry{ module = ?MODULE, 
+			    type = counter} = E, default) ->
+    get_value_(E, get_datapoints_(E));
+
+get_value_(#exometer_entry{ module = ?MODULE, 
+			    type = fast_counter} = E, default) ->
+    get_value_(E, get_datapoints_(E));
+
+get_value_(#exometer_entry{ module = ?MODULE, 
+			    type = counter} = E, DataPoints0) ->
     DataPoints = datapoints(DataPoints0, E),
-    if Status == enabled -> [ get_ctr_datapoint(E, D) || D <- DataPoints];
-       Status == disabled ->
-            unavailable
-    end;
-get_value_(#exometer_entry{status = Status,
-                           module = ?MODULE,
+    [ get_ctr_datapoint(E, D) || D <- DataPoints];
+
+get_value_(#exometer_entry{module = ?MODULE,
                            type = fast_counter} = E, DataPoints0) ->
     DataPoints = datapoints(DataPoints0, E),
-    if Status == enabled -> [ get_fctr_datapoint(E, D) || D <- DataPoints ];
-       Status == disabled ->
-            unavailable
-    end;
-get_value_(#exometer_entry{status = Status,
-                           module = ?MODULE,
-                           type = T} = E, DataPoints0)
-  when T==spiral; T==histogram; T==exometer_proc ->
-    DataPoints = exo_proc_get_datapoints(DataPoints0, E),
-    if Status == enabled -> exo_proc_get_value(E, DataPoints);
-       Status == disabled ->
-            unavailable
-    end;
-get_value_(#exometer_entry{status = Status, cache = Cache,
-                           name = Name, module = M, type = Type, ref = Ref},
-           DataPoints) ->
-    if Status == enabled ->
-            if Cache > 0 ->
-                    exometer_cache:read(Name, M, Type, Ref, DataPoints);
-               Cache == 0 ->
-                    M:get_value(Name, Type, Ref, DataPoints)
-            end;
-       Status == disabled ->
-            unavailable
-    end.
+    [ get_fctr_datapoint(E, D) || D <- DataPoints ];
+
+get_value_(#exometer_entry{behaviour = entry, 
+			   module = Mod,
+			   name = Name, 
+			   type = Type, 
+			   ref = Ref} = E, DataPoints0) ->
+    Mod:get_value(Name, Type, Ref, datapoints(DataPoints0, E));
+
+get_value_(#exometer_entry{behaviour = probe, 
+			   name = Name, 
+			   type = Type, 
+			   ref = Ref} = E, DataPoints0) ->
+
+    exometer_probe:get_value(Name, Type, Ref, datapoints(DataPoints0, E)).
 
 
+%% FIXME: NOT USED?
+%% get_value_(#exometer_entry{cache = Cache,
+%%                            name = Name, module = M,
+%% 			   type = Type, ref = Ref},
+%%            DataPoints) ->
+%%     if Cache > 0 ->
+%% 	    exometer_cache:read(Name, M, Type, Ref, DataPoints);
+%%        Cache == 0 ->
+%% 	    M:get_value(Name, Type, Ref, DataPoints)
+%%     end;
 
 -spec delete(name()) -> ok | error().
 %% @doc Delete the metric
@@ -246,16 +263,17 @@ delete(Name) when is_list(Name) ->
             [ets:delete(T, Name) ||
                 T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
             ok;
-        [#exometer_entry{module= ?MODULE, type = Type, ref = {Pid,_}}]
-          when Type==spiral; Type==histogram; Type==exometer_proc ->
-            exometer_cache:delete(Name),
-            exit(Pid, shutdown),
+        [#exometer_entry{behaviour = probe,
+			 type = Type, ref = Ref}] ->
+	    exometer_cache:delete(Name),
+	    exometer_probe:delete(Name, Type, Ref),
             [ets:delete(T, Name) ||
                 T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
             ok;
-        [#exometer_entry{module = M, type = Type, ref = Ref}] ->
+        [#exometer_entry{module= Mod, behaviour = entry,
+			 type = Type, ref = Ref}] ->
             exometer_cache:delete(Name),
-            try M:delete(Name, Type, Ref)
+            try Mod:delete(Name, Type, Ref)
             after
                 [ets:delete(T, Name) ||
                     T <- [?EXOMETER_ENTRIES|exometer_util:tables()]]
@@ -275,19 +293,26 @@ delete(Name) when is_list(Name) ->
 %% @end
 sample(Name)  when is_list(Name) ->
     case ets:lookup(exometer_util:table(), Name) of
+        [#exometer_entry{status = disabled}] ->
+	    disabled;
+
         [#exometer_entry{module = ?MODULE, type = counter}] ->
             ok;
+
         [#exometer_entry{module = ?MODULE, type = fast_counter}] ->
             ok;
-        [#exometer_entry{module = ?MODULE, type = exometer_proc,
-                         ref = {Pid, _}}] ->
-            Pid ! {exometer_proc, sample},
+
+        [#exometer_entry{behaviour = probe,
+			 type = Type,
+			 ref = Ref}] ->
+            exometer_probe:sample(Name, Type, Ref),
             ok;
+
         [#exometer_entry{status = enabled,
+			 behaviour = entry,
                          module = M, type = Type, ref = Ref}] ->
             M:sample(Name, Type, Ref);
-        [#exometer_entry{status = disabled}] ->
-            ok;
+
         [] ->
             {error, not_found}
     end.
@@ -319,14 +344,14 @@ reset(Name)  when is_list(Name) ->
             [ets:update_element(T, Name, [{#exometer_entry.timestamp, TS}])
              || T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
             ok;
-        [#exometer_entry{status = enabled,
-                         module = ?MODULE, type = T,
-                         ref = {Pid, _}}]
-          when T==spiral; T==histogram; T==exometer_proc ->
+
+        [#exometer_entry{behaviour = probe,
+                         module = ?MODULE, type = Type,
+                         ref = Ref}] ->
             exometer_cache:delete(Name),
-            Pid ! {exometer_proc, reset},
+            exometer_probe:reset(Name, Type, Ref),
             ok;
-        [#exometer_entry{status = enabled,
+        [#exometer_entry{behaviour = entry,
                          module = M, type = Type, ref = Ref}] ->
             exometer_cache:delete(Name),
             M:reset(Name, Type, Ref);
@@ -381,10 +406,12 @@ setopts(Name, Options) when is_list(Name), is_list(Options) ->
                             reporter_setopts(E, Options, enabled)
                     end
             end;
+
         [#exometer_entry{status = enabled} = E] ->
             {_, Elems} = process_setopts(E, Options),
             update_entry_elems(Name, Elems),
             module_setopts(E, Options);
+
         [#exometer_entry{status = disabled} = E] ->
             case lists:keyfind(status, 1, Options) of
                 {_, enabled} ->
@@ -398,13 +425,19 @@ setopts(Name, Options) when is_list(Name), is_list(Options) ->
             {error, not_found}
     end.
 
-module_setopts(#exometer_entry{module=exometer, type=T, ref={Pid, _}}=E, Options) when 
-      T==spiral;
-      T==histogram;
-      T==exometer_proc ->
+module_setopts(#exometer_entry{behaviour = probe, 
+			       module=exometer, 
+			       name=N,
+			       type=T,
+			       ref = Pid}=E, Options) ->
     reporter_setopts(E, Options, enabled),
-    exo_proc_call(Pid, {setopts, Options});
-module_setopts(#exometer_entry{name=Name, module=M, type=Type, ref=Ref}=E, Options) ->
+    exometer_probe:setopts(N, Options, T, Pid);
+
+module_setopts(#exometer_entry{behaviour = entry, 
+			       name=Name, 
+			       module=M, 
+			       type=Type, 
+			       ref=Ref}=E, Options) ->
     case [O || {K, _} = O <- Options,
                not lists:member(K, [status, cache])] of
         [] ->
@@ -501,49 +534,24 @@ info(Name, Item) ->
             undefined
     end.
 
-datapoints(default, E) ->
-    get_datapoints_(E);
+datapoints(default, _E) ->
+    default;
 
 datapoints(D, _) when is_list(D) ->
     D.
 
 get_datapoints_(#exometer_entry{type = T}) when T==counter; T==fast_counter ->
-     ?DATAPOINTS;
-get_datapoints_(#exometer_entry{module = ?MODULE,
-                                name = Name,
-                                type = Type, ref={_,M} = Ref})
-  when Type==spiral; Type==histogram; Type==exometer_proc ->
-    M:get_datapoints(Name, Type, Ref);
-get_datapoints_(#exometer_entry{name = Name, module = M,
+    ?DATAPOINTS;
+
+get_datapoints_(#exometer_entry{behaviour = entry, 
+				name = Name, module = M,
                                 type = Type, ref = Ref}) ->
-    M:get_datapoints(Name, Type, Ref).
+    M:get_datapoints(Name, Type, Ref);
 
-exo_proc_get_datapoints(default, #exometer_entry{name = Name,
-                                                 type = Type,
-                                                 ref = {_, Mod} = Ref}) ->
-    Mod:get_datapoints(Name, Type, Ref);
-exo_proc_get_datapoints(D, _) when is_list(D) ->
-    D;
+get_datapoints_(#exometer_entry{behaviour = probe, 
+				name = Name, type = Type, ref = Ref}) ->
 
-exo_proc_get_datapoints(D, _)  ->
-    [D].
-
-exo_proc_get_value(#exometer_entry{ref = {Pid,_}}, DPs) ->
-    exo_proc_call(Pid, {get_value, DPs}).
-
-exo_proc_call(Pid, Req) ->
-    MRef = erlang:monitor(process, Pid),
-    Pid ! {exometer_proc, {self(), MRef}, Req},
-    receive
-        {MRef, Res} ->
-            erlang:demonitor(MRef, [flush]),
-            Res;
-        {'DOWN', MRef, _, _, _} ->
-            {error, unavailable}
-    after 5000 ->
-            erlang:demonitor(MRef, [flush]),
-            {error, unavailable}
-    end.
+    exometer_probe:get_datapoints(Name, Type, Ref).
 
 
 
@@ -707,6 +715,7 @@ update_opts(New, Old) ->
 
 type_arg_first([{type_arg,_}|_] = Opts) ->
     Opts;
+
 type_arg_first(Opts) ->
     case lists:keyfind(type_arg, 1, Opts) of
         false ->
@@ -721,7 +730,7 @@ type_arg_first(Opts) ->
 %% the exometer record itself.
 get_ctr_datapoint(#exometer_entry{name = Name}, value) ->
     {value, lists:sum([ets:lookup_element(T, Name, #exometer_entry.value)
-                         || T <- exometer_util:tables()])};
+		       || T <- exometer_util:tables()])};
 get_ctr_datapoint(#exometer_entry{timestamp = TS}, ms_since_reset) ->
     {ms_since_reset, exometer_util:timestamp() - TS};
 get_ctr_datapoint(#exometer_entry{}, Undefined) ->
@@ -750,6 +759,7 @@ create_entry(#exometer_entry{module = exometer,
     E1 = E#exometer_entry{value = 0, timestamp = exometer_util:timestamp()},
     [ets:insert(T, E1) || T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
     ok;
+
 create_entry(#exometer_entry{module = exometer,
                              status = Status,
                              type = fast_counter, options = Opts} = E) ->
@@ -768,44 +778,40 @@ create_entry(#exometer_entry{module = exometer,
         Other ->
             error({badarg, {function, Other}})
     end;
-create_entry(#exometer_entry{name = Name, module = exometer,
+
+
+create_entry(#exometer_entry{module = Module,
                              type = Type,
-                             options = Opts} = E) when Type==spiral;
-                                                       Type==histogram;
-                                                       Type==exometer_proc ->
-    case lists:keyfind(type_arg, 1, Opts) of
-        {_, Mod} when is_atom(Mod) ->
-            Pid = spawn_proc(fun() ->
-                                     exometer_admin:monitor(Name, self()),
-                                     ok = Mod:init(Name, Type, Opts)
-                             end, Opts),
-            E1 = E#exometer_entry{ref = {Pid, Mod}},
-            [ets:insert(T, E1) ||
-                T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
+                             name = Name, 
+			     options = Opts} = E) ->
+
+    case 
+	case Module:behaviour() of 
+	    probe ->
+		{probe, exometer_probe:new(Name, Type, [{ type_arg, Module} | Opts ]) };
+
+	    entry ->
+		{entry, Module:new(Name, Type, Opts) };
+
+	    Other -> Other
+	end
+    of
+        {Behaviour, ok }->
+            [ets:insert(T, E#exometer_entry { behaviour = Behaviour })
+	     || T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
             ok;
-        Other ->
-            error({badarg, {type_argument, Other}})
-    end;
-create_entry(#exometer_entry{module = M,
-                             type = Type,
-                             name = Name, options = Opts} = E) ->
-    case M:new(Name, Type, Opts) of
-        ok ->
-            [ets:insert(T, E) || T <- [?EXOMETER_ENTRIES|
-                                       exometer_util:tables()]],
-            ok;
-        {ok, Ref} ->
-            [ets:insert(T, E#exometer_entry{ ref = Ref })
+
+        {Behaviour, {ok, Ref}} ->
+            [ets:insert(T, E#exometer_entry{ ref = Ref, behaviour = Behaviour })
              || T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
             ok;
-        Other ->
-            Other
-    end.
 
-spawn_proc(F, Opts) ->
-    SpawnOpts = exometer_util:get_opt(
-                  spawn_opt, Opts, [{fullsweep_after, 10}]),
-    proc_lib:spawn_opt(F, SpawnOpts).
+        Other1 ->
+            Other1
+    end;
+
+create_entry(_Other) ->
+    {error, unknown_argument}.
 
 set_call_count({M, F}, Bool) ->
     set_call_count(M, F, Bool).

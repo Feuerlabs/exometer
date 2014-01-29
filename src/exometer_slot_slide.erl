@@ -184,9 +184,19 @@
          foldr/3,
          foldr/4]).
 
+
 -compile(inline).
 
 -import(lists, [reverse/1, sublist/3]).
+
+-ifdef(TEST).
+%% Export needed to kill of unused warnings
+-export([test/0, 
+	 build_histogram/1,
+	 calc_avg/1]).
+
+-include_lib("eunit/include/eunit.hrl").
+-endif.
 
 -type(timestamp() :: integer()).
 -type(value() :: any()).

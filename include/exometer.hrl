@@ -20,6 +20,7 @@
 -record(exometer_entry, {
           name,
           type,
+	  behaviour = undefined,
           module = exometer,
           status = enabled,
           cache = 0,

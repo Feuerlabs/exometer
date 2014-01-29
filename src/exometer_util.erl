@@ -20,6 +20,7 @@
     tables/0,
     table/0,
     get_statistics/3,
+    get_statistics2/3,
     drop_duplicates/1
    ]).
 
