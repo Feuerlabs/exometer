@@ -397,11 +397,17 @@
 -module(exometer_report_riak).
 -behaviour(exometer_report).
 
--export([exometer_init/1,
-         exometer_info/2,
-         exometer_report/5,
-         exometer_subscribe/5,
-         exometer_unsubscribe/4]).
+-export(
+   [
+    exometer_init/1,
+    exometer_info/2,
+    exometer_report/5,
+    exometer_subscribe/5,
+    exometer_unsubscribe/4,
+    exometer_newentry/2,
+    exometer_setopts/4,
+    exometer_terminate/2
+   ]).
 
 %% Extra functions involved by exometer_report:reporter_loop().
 %% Triggered by send_after() calls in this module
@@ -501,6 +507,15 @@ exometer_info({'DOWN', _Ref, _, _, _}, St)->
 exometer_info(Other, St) ->
     ?warning("Got unknown info: ~p~n", [ Other ]),
     {ok, St }.
+
+exometer_newentry(_Entry, St) ->
+    {ok, St}.
+
+exometer_setopts(_Metric, _Options, _Status, St) ->
+    {ok, St}.
+
+exometer_terminate(_, _) ->
+    ignore.
 
 report_to_outbound_connection(#subscription {
                                  hostid = HostID,

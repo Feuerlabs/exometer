@@ -7,18 +7,21 @@
 %%   file, You can obtain one at http://mozilla.org/MPL/2.0/.
 %%
 %% -------------------------------------------------------------------
-
 %% @doc Exometer utility functions.
 %% @end
-
 -module(exometer_util).
 
--export([timestamp/0,
-         timestamp_to_datetime/1,
-         get_opt/3,
-         get_statistics/3,
-         tables/0,
-         table/0]).
+-export(
+   [
+    timestamp/0,
+    timestamp_to_datetime/1,
+    get_opt/3,
+    get_env/2,
+    tables/0,
+    table/0,
+    get_statistics/3,
+    drop_duplicates/1
+   ]).
 
 -export_type([timestamp/0]).
 
@@ -51,13 +54,21 @@ timestamp_to_datetime(TS) ->
     %% return {Datetime, Milliseconds}
     {calendar:now_to_datetime({1258,S,0}), MS}.
 
+get_env(Key, Default) ->
+    case application:get_env(exometer, Key) of
+        {ok, Value} ->
+            Value;
+        _ ->
+            Default
+    end.
+
 get_opt(K, Opts, Default) ->
     case lists:keyfind(K, 1, Opts) of
-	{_, V} -> V;
-	false  ->
-	    if is_function(Default,0) -> Default();
-	       true -> Default
-	    end
+        {_, V} -> V;
+        false  ->
+            if is_function(Default,0) -> Default();
+               true -> Default
+            end
     end.
 
 tables() ->
@@ -132,6 +143,29 @@ table(63) -> exometer_63;
 table(64) -> exometer_64;
 table(N) when is_integer(N), N > 20 ->
     list_to_atom("exometer_" ++ integer_to_list(N)).
+
+%% @doc 
+%% `drop_duplicates/1' will drop all duplicate elements from a list of tuples identified by their first element. 
+%% Elements which are not tuples will be dropped as well. 
+%% If called with a non-list argument, the argument is returned as is.
+%% @end
+-spec drop_duplicates(List0 :: [tuple()]) -> [tuple()].
+drop_duplicates(List0) when is_list(List0) ->
+    List1 = lists:foldl(
+              fun
+                  (Elem, Acc) when is_tuple(Elem) ->
+                      case lists:keymember(element(1, Elem), 1, Acc) of
+                          true ->
+                              Acc;
+                          false ->
+                              [Elem | Acc]
+                      end;
+                  (_, Acc) ->
+                      Acc
+              end, [], List0),
+    lists:reverse(List1);
+drop_duplicates(Any) ->
+    Any.
 
 -spec get_statistics(Length::non_neg_integer(),
                      Total::non_neg_integer(),

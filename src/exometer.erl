@@ -39,40 +39,39 @@
 %% @end
 -module(exometer).
 
--export([new/2,
-         new/3,
-         re_register/3,
-         update/2,
-         get_value/1,
-         get_value/2,
-         sample/1,
-         delete/1,
-         reset/1,
-         setopts/2,
-         find_entries/1,
-         get_values/1,
-         select/1, select/2, select_cont/1,
-         info/1,
-         info/2]).
+-export(
+   [
+    new/2, new/3,
+    re_register/3,
+    update/2,
+    get_value/1, get_value/2, get_values/1,
+    sample/1,
+    delete/1,
+    reset/1,
+    setopts/2,
+    find_entries/1,
+    select/1, select/2, select_cont/1,
+    info/1, info/2
+   ]).
 
 -export([create_entry/1]).  % called only from exometer_admin.erl
 
 %% Convenience function for testing
 -export([start/0, stop/0]).
 
--export_type([name/0, type/0, options/0]).
+-export_type([name/0, type/0, options/0, status/0]).
 
 -compile(inline).
 
 -include("exometer.hrl").
 -include("log.hrl").
 
--type name()     :: list().
--type type()     :: atom().
--type status()   :: enabled | disabled.
--type options()  :: [{atom(), any()}].
--type value()    :: any().
--type error()    :: { error, any() }.
+-type name()        :: list().
+-type type()        :: atom().
+-type status()      :: enabled | disabled.
+-type options()     :: [{atom(), any()}].
+-type value()       :: any().
+-type error()       :: {error, any()}.
 
 -define(DATAPOINTS, [value, ms_since_reset]).
 
@@ -176,11 +175,11 @@ fast_incr(0, _, _) ->
 %% (non-zero) cache lifetime, and a value resides in the cache, the cached
 %% value will be returned.
 %% @end
--spec get_value(name()) -> {ok, value()} | error().
+-spec get_value(name()) -> {ok, value()} | {error, not_found}.
 get_value(Name) when is_list(Name) ->
     get_value(Name, default).
 
--spec get_value(name(), atom() | [atom()]) -> {ok, value()} | error().
+-spec get_value(name(), atom() | [atom()]) -> {ok, value()} | {error, not_found}.
 get_value(Name, DataPoint) when is_list(Name), is_atom(DataPoint),
                                 DataPoint=/=default ->
     get_value(Name, [DataPoint]);
@@ -345,11 +344,12 @@ reset(Name)  when is_list(Name) ->
 %%
 %% * `{status, enabled | disabled}' - the operational status of the metric.
 %%
+%%
 %% Note that if the metric is disabled, setopts/2 will fail unless the options
 %% list contains `{status, enabled}', which will enable the metric and cause
 %% other options to be processed.
 %% @end
-setopts(Name, Options)  when is_list(Name), is_list(Options) ->
+setopts(Name, Options) when is_list(Name), is_list(Options) ->
     case ets:lookup(exometer_util:table(), Name) of
         [#exometer_entry{module = ?MODULE,
                          type = Type,
@@ -361,7 +361,8 @@ setopts(Name, Options)  when is_list(Name), is_list(Options) ->
                                     setopts_fctr(E, Options);
                                Type == counter ->
                                     setopts_ctr(E, Options)
-                            end;
+                            end,
+                            reporter_setopts(E, Options, enabled);
                         _ ->
                             {error, disabled}
                     end;
@@ -369,46 +370,57 @@ setopts(Name, Options)  when is_list(Name), is_list(Options) ->
                     case lists:keyfind(status, 1, Options) of
                         {_, disabled} ->
                             {_, Elems} = process_setopts(E, Options),
-                            update_entry_elems(Name, Elems);
+                            update_entry_elems(Name, Elems),
+                            reporter_setopts(E, Options, disabled);
                         false ->
                             if Type == fast_counter ->
                                     setopts_fctr(E, Options);
                                Type == counter ->
                                     setopts_ctr(E, Options)
-                            end
+                            end,
+                            reporter_setopts(E, Options, enabled)
                     end
             end;
-        [#exometer_entry{status = enabled,
-                         module = M, type = Type, ref = Ref} = E] ->
+        [#exometer_entry{status = enabled} = E] ->
             {_, Elems} = process_setopts(E, Options),
             update_entry_elems(Name, Elems),
-            module_setopts(M, Name, Options, Type, Ref);
-        [#exometer_entry{status = disabled,
-                         module = M, type = Type, ref = Ref} = E] ->
+            module_setopts(E, Options);
+        [#exometer_entry{status = disabled} = E] ->
             case lists:keyfind(status, 1, Options) of
                 {_, enabled} ->
                     {_, Elems} = process_setopts(E, Options),
                     update_entry_elems(Name, Elems),
-                    module_setopts(M, Name, Options, Type, Ref);
+                    module_setopts(E, Options);
                 false ->
                     {error, disabled}
             end;
         [] ->
             {error, not_found}
-            end.
+    end.
 
-module_setopts(exometer, _, Options, T, {Pid, _}) when T==spiral;
-                                                       T==histogram;
-                                                       T==exometer_proc ->
+module_setopts(#exometer_entry{module=exometer, type=T, ref={Pid, _}}=E, Options) when 
+      T==spiral;
+      T==histogram;
+      T==exometer_proc ->
+    reporter_setopts(E, Options, enabled),
     exo_proc_call(Pid, {setopts, Options});
-module_setopts(M, Name, Options, Type, Ref) ->
+module_setopts(#exometer_entry{name=Name, module=M, type=Type, ref=Ref}=E, Options) ->
     case [O || {K, _} = O <- Options,
                not lists:member(K, [status, cache])] of
         [] ->
             ok;
         [_|_] = UserOpts ->
-            M:setopts(Name, UserOpts, Type, Ref)
+            case M:setopts(Name, UserOpts, Type, Ref) of
+                ok ->
+                    reporter_setopts(E, Options, enabled),
+                    ok;
+                E ->
+                    E
+            end
     end.
+
+reporter_setopts(E, Options, Status) ->
+    exometer_report:setopts(E, Options, Status).
 
 setopts_fctr(#exometer_entry{name = Name,
                              ref = OldRef,
@@ -655,34 +667,35 @@ p_subst_(K) when is_atom(K) ->
 process_setopts(#exometer_entry{options = OldOpts} = Entry, Options) ->
     {E1, Elems} =
         lists:foldr(
-          fun({cache, Val},
-              {#exometer_entry{cache = Cache0} = E, Elems} = Acc) ->
+          fun
+              ({cache, Val},
+               {#exometer_entry{cache = Cache0} = E, Elems} = Acc) ->
                   if is_integer(Val), Val >= 0 ->
-                          if Val =/= Cache0 ->
-                                  {E#exometer_entry{cache = Val},
-                                   add_elem(cache, Val, Elems)};
-                             true ->
-                                  Acc
-                          end;
+                         if Val =/= Cache0 ->
+                                {E#exometer_entry{cache = Val},
+                                 add_elem(cache, Val, Elems)};
+                            true ->
+                                Acc
+                         end;
                      true -> error({illegal, {cache, Val}})
                   end;
-             ({status, Status}, {#exometer_entry{status = Status0} = E, Elems} = Acc) ->
+              ({status, Status}, {#exometer_entry{status = Status0} = E, Elems} = Acc) ->
                   if Status =/= Status0 ->
-                          {E#exometer_entry{status = Status},
-                           add_elem(status, Status, Elems)};
+                         {E#exometer_entry{status = Status},
+                          add_elem(status, Status, Elems)};
                      true ->
-                          Acc
+                         Acc
                   end;
-             ({_,_}, Acc) ->
+              ({_,_}, Acc) ->
                   Acc
           end, {Entry, []}, Options),
-    {E1, [{#exometer_entry.options, update_opts(Options, OldOpts)}|Elems]}.
+        {E1, [{#exometer_entry.options, update_opts(Options, OldOpts)}|Elems]}.
 
 add_elem(K, V, Elems) ->
     P = pos(K),
     lists:keystore(P, 1, Elems, {P, V}).
 
-pos(cache ) -> #exometer_entry.cache;
+pos(cache) -> #exometer_entry.cache;
 pos(status) -> #exometer_entry.status;
 pos(ref) -> #exometer_entry.ref.
 
@@ -741,7 +754,8 @@ create_entry(#exometer_entry{module = exometer,
                              status = Status,
                              type = fast_counter, options = Opts} = E) ->
     case lists:keyfind(function, 1, Opts) of
-        false -> error({required, function});
+        false -> 
+            error({required, function});
         {_, {M,F}} when is_atom(M), M =/= '_',
                         is_atom(F), M =/= '_' ->
             code:ensure_loaded(M),  % module must be loaded for trace_pattern

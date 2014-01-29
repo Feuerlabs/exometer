@@ -1,6 +1,6 @@
 %% -------------------------------------------------------------------
 %%
-%% Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved.
+%% Copyright (c) 2014 Basho Technologies, Inc.  All Rights Reserved.
 %%
 %%   This Source Code Form is subject to the terms of the Mozilla Public
 %%   License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -187,10 +187,6 @@
 -compile(inline).
 
 -import(lists, [reverse/1, sublist/3]).
-
--ifdef(TEST).
--include_lib("eunit/include/eunit.hrl").
--endif.
 
 -type(timestamp() :: integer()).
 -type(value() :: any()).
@@ -410,37 +406,3 @@ timestamp() ->
     %% Millisecond resolution
     {MS,S,US} = os:timestamp(),
     (MS-1258)*1000000000 + S*1000 + US div 1000.
-
-
-
--ifdef(TEST).
-
-test() ->
-    %% Create a slotted slide covering 2000 msec, where
-    %% each slot is 100 msec wide.
-    S = new(2000, 100),
-    {T1, S1} = timer:tc(?MODULE, build_histogram, [S]),
-
-    {T2, Avg} = timer:tc(?MODULE, calc_avg, [S1]),
-    io:format("Histogram creation: ~p~n", [ T1 ]),
-    io:format("Avg calculation: ~p~n", [ T2 ]),
-    io:format("Avg value: ~p~n", [ Avg ]).
-
-build_histogram(S) ->
-    %% Create 10*4500 events, Each millisecond, ten
-    %% elements (1-10) will be created and installed
-    %% in the histogram
-    %% The 100 msec slot size means that each slot will calculate
-    %% the average of 100 msec * 10 (1000) elements.
-    %%
-    lists:foldl(fun({TS,Elem}, Acc) ->
-                        add_element(TS,Elem, Acc)
-                end, S, [{TS, Elem} || TS <- lists:seq(1,4500),
-                                       Elem <- lists:seq(1,10)]).
-
-calc_avg(Slide) ->
-    {T, C} = foldr(4500, fun({_TS, Elem}, {Sum, Count}) ->
-                                    {Sum + Elem, Count + 1} end, {0, 0}, Slide),
-    T / C.
-
--endif.
