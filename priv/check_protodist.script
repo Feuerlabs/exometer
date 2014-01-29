@@ -1,0 +1,19 @@
+%% -*- erlang -*-
+%%---- BEGIN COPYRIGHT -------------------------------------------------------
+%%
+%% Copyright (C) 2014 Feuerlabs Inc. All rights reserved.
+%% This Source Code Form is subject to the terms of the Mozilla Public
+%% License, v. 2.0. If a copy of the MPL was not distributed with this
+%% file, You can obtain one at http://mozilla.org/MPL/2.0/.
+%%
+%%---- END COPYRIGHT ---------------------------------------------------------
+
+case os:getenv("TRAVIS") of
+    false ->
+        CONFIG;
+    _ ->
+        {_, Opts0} = lists:keyfind(erl_opts, 1, CONFIG),
+        Opts1 = [{proto_dist, inet6_tcp} | Opts0],
+        io:format("Using proto_dist = inet6_tcp~n", []),
+        lists:keyreplace(erl_opts, 1, CONFIG, {erl_opts, Opts0})
+end.

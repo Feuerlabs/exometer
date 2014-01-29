@@ -31,4 +31,5 @@ CFG1 = case os:getenv("REBAR_DEPS") of
 
 Priv = filename:join(filename:dirname(SCRIPT), "priv").
 CFG2 = Script(Priv, "check_edown.script", [{'CONFIG', CFG1}]).
-Script(Priv, "check_packages.script", [{'CONFIG', CFG2}]).
+CFG3 = Script(Priv, "check_packages.script", [{'CONFIG', CFG2}]).
+Script(Priv, "check_protodist.script", [{'CONFIG', CFG3}]).
