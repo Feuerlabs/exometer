@@ -114,7 +114,10 @@ exometer_unsubscribe(Metric, DataPoint, Extra, St) ->
 
 exometer_report(Metric, DataPoint, _Extra, Value, St)  ->
     ?debug("Report metric ~p_~p = ~p~n", [Metric, DataPoint, Value]),
-    %% Report the value and setup a new refresh timer.
+    Inform = erlang:binary_to_atom(inform_name(Metric, DataPoint), latin1),
+    VarName = erlang:binary_to_atom(metric_name(Metric), latin1),
+    Varbinds = [{VarName, Value}],
+    snmpa:send_notification(snmp_master_agent, Inform, no_receiver, Varbinds),
     {ok, St}.
 
 exometer_info({get_mib, From, Ref}, #st{mib_version=Vsn,
@@ -296,7 +299,7 @@ load_mib(Vsn, Mib0, Unload) ->
 
 increment_vsn(Vsn) when Vsn < 1000000 ->
     Vsn + 1;
-increment_vsn(Vsn) ->
+increment_vsn(_Vsn) ->
     1.
 
 modify_mib(Action, E, Mib, Domain) ->
