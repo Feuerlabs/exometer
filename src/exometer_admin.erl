@@ -127,7 +127,7 @@ check_type_arg({function, Mod, Fun, ArgSpec, Type, DataPoints}, Opts) ->
     {function, [{arg, {Mod, Fun, ArgSpec, Type, DataPoints}} | Opts]};
 
 check_type_arg({T, Arg}, Opts) ->
-    {T, [{arg, {arg, Arg}} | Opts]};
+    {T, [{arg, Arg} | Opts]};
 
 check_type_arg(Type, Opts) ->
     {Type, Opts}.
