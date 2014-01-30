@@ -125,7 +125,7 @@ test_mib_modification(Config) ->
     ct:log("Expected MIB: ~s", [binary_to_list(ExpectedMib)]),
     ok = exometer:new([test, app, one], counter, [{snmp, [{value, 1000}]}]),
     ok = exometer:new([test, app, two], fast_counter, [{snmp, []}, {function, {erlang, now}}]),
-    ok = exometer:new([test, app, three], counter, [{snmp, [{value, 5000, []}]}]),
+    ok = exometer:new([test, app, three], counter, [{snmp, [{ms_since_reset, 5000, []}]}]),
     ok = exometer:setopts([test, app, two], [{snmp, disabled}]),
     ok = exometer:new([test, app, four], fast_counter, [{snmp, []}, {function, {erlang, now}}]),
     ok = wait_for_mib_version(8, 10, 10000),
@@ -135,12 +135,16 @@ test_mib_modification(Config) ->
     ExpectedMib = ModifiedMib,
     ct:log("AliasNames = ~p", [snmpa:which_aliasnames()]),
     ct:log("Variabls = ~p", [snmpa:which_variables()]),
-    [{value, _} = snmpa:name_to_oid(N) || N <- [datapointTestAppOne, 
-                                                datapointTestAppThree, 
-                                                datapointTestAppFour,
+    [{value, _} = snmpa:name_to_oid(N) || N <- [datapointTestAppOneValue, 
+                                                datapointTestAppOneMsSinceReset,
+                                                datapointTestAppThreeValue, 
+                                                datapointTestAppThreeMsSinceReset, 
+                                                datapointTestAppFourValue,
+                                                datapointTestAppFourMsSinceReset,
                                                 reportTestAppOneValue,
-                                                reportTestAppThreeValue]],
-    false = snmpa:name_to_oid(testAppTwo),
+                                                reportTestAppThreeMsSinceReset]],
+    [false = snmpa:name_to_oid(N) || N <- [datapointTestAppTwoValue, 
+                                           datapointTestAppTwoMsSinceReset]],
     ok.
 
 test_counter_get(Config) ->
@@ -153,8 +157,8 @@ test_counter_get(Config) ->
     ok = exometer:new(NameFastCounter, fast_counter, [{snmp, []}, {function, {?MODULE, empty_fun}}]),
     ok = wait_for_mib_version(3, 10, 10000),
 
-    {value, OidCounter} = snmpa:name_to_oid(datapointTestCounter),
-    {value, OidFastCounter} = snmpa:name_to_oid(datapointTestFastcounter),
+    {value, OidCounter} = snmpa:name_to_oid(datapointTestCounterValue),
+    {value, OidFastCounter} = snmpa:name_to_oid(datapointTestFastcounterValue),
 
     % increment counters
     [exometer:update(NameCounter, 1) || _ <- lists:seq(1, 20)],
@@ -168,8 +172,8 @@ test_counter_get(Config) ->
 
     % get with alias name
     ok = rpc:call(Manager, snmpm, load_mib, [?config(mib_file, Config)]),
-    {ok, ValueCounter} = rpc:call(Manager, exo_test_user, get_value, [datapointTestCounter]),
-    {ok, ValueFastCounter} = rpc:call(Manager, exo_test_user, get_value, [datapointTestFastcounter]),
+    {ok, ValueCounter} = rpc:call(Manager, exo_test_user, get_value, [datapointTestCounterValue]),
+    {ok, ValueFastCounter} = rpc:call(Manager, exo_test_user, get_value, [datapointTestFastcounterValue]),
 
     % ensure counters can't be read after export is disabled
     ok = exometer:setopts(NameCounter, [{snmp, disabled}]),
@@ -188,10 +192,10 @@ test_counter_reports(Config) ->
 
     % setup counters
     Counters = [
-                {[test, counter, one], counter, [{snmp, [{value, 50}]}], datapointTestCounterOne, 1},
-                {[test, counter, two], fast_counter, [{snmp, [{value, 50}]}, {function, {?MODULE, empty_fun}}], datapointTestCounterTwo, 2},
-                {[test, counter, three], counter, [{snmp, [{value, 50, []}]}], datapointTestCounterThree, 3},
-                {[test, counter, four], counter, [{snmp, [{value, 50, []}]}], datapointTestCounterFour, 4}
+                {[test, counter, one], counter, [{snmp, [{value, 50}]}], datapointTestCounterOneValue, 1},
+                {[test, counter, two], fast_counter, [{snmp, [{value, 50}]}, {function, {?MODULE, empty_fun}}], datapointTestCounterTwoValue, 2},
+                {[test, counter, three], counter, [{snmp, [{value, 50, []}]}], datapointTestCounterThreeValue, 3},
+                {[test, counter, four], counter, [{snmp, [{value, 50, []}]}], datapointTestCounterFourValue, 4}
                ],
 
     [ok = exometer:new(Name, Type, Opts) || {Name, Type, Opts, _, _} <- Counters],
@@ -237,7 +241,7 @@ test_counter_reports(Config) ->
 
     % disable SNMP export and ensure no more reports are received
     ok = exometer:setopts([test, counter, one], [{snmp, []}]),
-    ok = exometer:setopts([test, counter, two], [{snmp, disable}]),
+    ok = exometer:setopts([test, counter, two], [{snmp, disabled}]),
     ok = exometer:setopts([test, counter, three], [{status, disabled}]),
     ok = exometer:delete([test, counter, four]),
 

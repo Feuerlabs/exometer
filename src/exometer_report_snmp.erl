@@ -115,7 +115,7 @@ exometer_unsubscribe(Metric, DataPoint, Extra, St) ->
 exometer_report(Metric, DataPoint, _Extra, Value, St)  ->
     ?debug("Report metric ~p_~p = ~p~n", [Metric, DataPoint, Value]),
     Inform = erlang:binary_to_atom(inform_name(Metric, DataPoint), latin1),
-    VarName = erlang:binary_to_atom(metric_name(Metric), latin1),
+    VarName = erlang:binary_to_atom(metric_name(Metric, DataPoint), latin1),
     Varbinds = [{VarName, Value}],
     snmpa:send_notification(snmp_master_agent, Inform, no_receiver, Varbinds),
     {ok, St}.
@@ -159,9 +159,8 @@ exometer_setopts(Metric, Options, _, St0) ->
             update_subscriptions(Metric, []),
             disable_metric(Metric, St0);
         {_, Subs} when is_list(Subs) ->
-            {ok, St1} = enable_metric(Metric, St0),
             ok = update_subscriptions(Metric, Subs),
-            {ok, St1};
+            {ok, St0};
         {_, E} ->
             ?error("Option ~p has incorrect value ~p", [snmp, E]),
             {error, improper_option}
@@ -187,9 +186,9 @@ get_mib() ->
               {error, timeout}
     end.
 
-snmp_operation(get, Key) ->
-    ?info("SNMP Get ~p", [Key]),
-    {ok, [V]} = exometer:get_value(Key, value),
+snmp_operation(get, {Metric, Dp}) ->
+    ?info("SNMP Get ~p:~p", [Metric, Dp]),
+    {ok, [V]} = exometer:get_value(Metric, Dp),
     V;
 snmp_operation(Op, Key) ->
     ?warning("Unhandled SNMP operation ~p on ~p", [Op, Key]),
@@ -208,7 +207,8 @@ enable_metric(E, #st{mib_version=Vsn0,
                      mib_file=Mib0,
                      mib_domain=Domain,
                      mib_funcs_file_path=FuncsPath}=S) ->
-    case modify_mib(enable_metric, E, Mib0, Domain) of
+    Datapoints = datapoints(E),
+    case modify_mib(enable_metric, E, Mib0, Domain, Datapoints) of
         {ok, Mib1} ->
             ok = file:write_file(MibPath, Mib1),
             ok = write_funcs_file(FuncsPath),
@@ -223,7 +223,8 @@ disable_metric(E, #st{mib_version=Vsn0,
                       mib_file=Mib0,
                       mib_domain=Domain,
                       mib_funcs_file_path=FuncsPath}=S) ->
-    case modify_mib(disable_metric, E, Mib0, Domain) of
+    Datapoints = datapoints(E),
+    case modify_mib(disable_metric, E, Mib0, Domain, Datapoints) of
         {ok, Mib1} ->
             ok = file:write_file(MibPath, Mib1),
             ok = write_funcs_file(FuncsPath),
@@ -239,7 +240,7 @@ enable_inform(E, Dp, Extra, #st{mib_version=Vsn0,
                                 mib_domain=Domain,
                                 mib_funcs_file_path=FuncsPath}=S) ->
     % ensure metric is known
-    Metric = metric_name(E),
+    Metric = metric_name(E, Dp),
     case ets:lookup(?MIB_NR_MAP, Metric) of
         [] ->
             {error, unknown_metric};
@@ -302,15 +303,14 @@ increment_vsn(Vsn) when Vsn < 1000000 ->
 increment_vsn(_Vsn) ->
     1.
 
-modify_mib(Action, E, Mib, Domain) ->
-    modify_mib(Action, E, Mib, Domain, []).
-
-modify_mib(enable_metric, Metric, Mib0, Domain, _) ->
-    Name = metric_name(Metric),
-    Nr0 = get_nr(metric, Name, Metric#exometer_entry.name),
+modify_mib(enable_metric, _Metric, Mib0, _Domain, []) ->
+    {ok, Mib0};
+modify_mib(enable_metric, Metric, Mib0, Domain, [Dp | Datapoints]) ->
+    Name = metric_name(Metric, Dp),
+    Nr0 = get_nr(metric, Name, {Metric#exometer_entry.name, Dp}),
     case Nr0 of
         duplicate ->
-            {error, already_enabled};
+            {error, {already_enabled, metric, Metric, Dp}};
         _ ->
             Nr1 = erlang:list_to_binary(erlang:integer_to_list(Nr0)),
             {A, B, C} = re_split(content, foo, Mib0),
@@ -324,32 +324,43 @@ modify_mib(enable_metric, Metric, Mib0, Domain, _) ->
                          <<"-- METRIC ", Name/binary, " END\n\n">>,
                          C
                         ],
-                    update_group(object_group, metric, binary:list_to_bin(L), Domain);
+                    {ok, Mib1} = update_group(object_group, metric, binary:list_to_bin(L), Domain),
+                    modify_mib(enable_metric, Metric, Mib1, Domain, Datapoints);
                 Error ->
                     Error
             end
     end;
-modify_mib(disable_metric, Metric, Mib0, Domain, _) ->
-    Name = metric_name(Metric),
+modify_mib(disable_metric, _Metric, Mib0, _Domain, []) ->
+    {ok, Mib0};
+modify_mib(disable_metric, Metric, Mib0, Domain, [Dp | Datapoints]) ->
+    Name = metric_name(Metric, Dp),
     Nr = release_nr(Name),
     case Nr of
         not_found ->
-            {error, not_enabled};
+            {error, {not_enabled, Metric, Dp}};
         ok ->
             {[A0], _, C} = re_split(metric, Name, Mib0),
             A1 = binary:part(A0, 0, byte_size(A0)-2),
-            update_group(object_group, metric, binary:list_to_bin([A1, C]), Domain)
+            {ok, Mib1} = update_group(object_group, metric, binary:list_to_bin([A1, C]), Domain),
+            Mib2 = case modify_mib(disable_inform, Metric, Mib1, Domain, {Dp, undefined}) of
+                       {ok, NewMib} ->
+                           NewMib;
+                       _Error ->
+                           Mib1
+                   end,
+
+            modify_mib(disable_metric, Metric, Mib2, Domain, Datapoints)
     end;
 modify_mib(enable_inform, Metric, Mib0, Domain, {Dp, _Extra}) ->
     Name = inform_name(Metric, Dp),
     Nr0 = get_nr(inform, Name, Metric),
     case Nr0 of
         duplicate ->
-            {error, already_enabled};
+            {error, {already_enabled, inform, Metric, Dp}};
         _ ->
             Nr1 = erlang:list_to_binary(erlang:integer_to_list(Nr0)),
             {A, B, C} = re_split(content, foo, Mib0),
-            Bin0 = create_inform_bin(Name, Domain, Nr1, metric_name(Metric)),
+            Bin0 = create_inform_bin(Name, Domain, Nr1, metric_name(Metric, Dp)),
             Bin1 = binary:list_to_bin([A, B, Bin0, C]),
             update_group(inform_group, inform, Bin1, Domain)
     end;
@@ -358,7 +369,7 @@ modify_mib(disable_inform, Metric, Mib0, Domain, {Dp, _}) ->
     Nr = release_nr(Name),
     case Nr of
         not_found ->
-            {error, not_enabled};
+            {error, {not_enabled, inform, Metric, Dp}};
         ok ->
             {[A0], _, C} = re_split(inform, Name, Mib0),
             A1 = binary:part(A0, 0, byte_size(A0)-2),
@@ -468,10 +479,10 @@ create_bin(Name, #exometer_entry{module=Mod}=E) ->
             {error, {function_not_exported, {F, 1}}} 
     end.
 
-metric_name(#exometer_entry{name=Name0}) ->
-    metric_name(Name0);
-metric_name(Name0) when is_list(Name0) ->
-    Name1  = [atom_to_list(N) || N <- Name0],
+metric_name(#exometer_entry{name=Name0}, Dp) ->
+    metric_name(Name0, Dp);
+metric_name(Name0, Dp) when is_list(Name0) ->
+    Name1  = [atom_to_list(N) || N <- Name0++[Dp]],
     Name2 = [capitalize(N) || N <- Name1],
     binary:list_to_bin([<<"datapoint">>, Name2]).
 
@@ -482,8 +493,16 @@ inform_name(Name0, Dp) when is_list(Name0) ->
     Name2 = [capitalize(N) || N <- Name1],
     binary:list_to_bin([<<"report">>, Name2]).
 
-capitalize([C | Rest]) ->
-    [string:to_upper(C) | Rest].
+capitalize(String) ->
+    capitalize([], String).
+capitalize(New, []) ->
+    lists:reverse(New);
+capitalize(New, [$_, C | Rest]) ->
+    capitalize([string:to_upper(C) | New], Rest);
+capitalize([], [C | Rest]) ->
+    capitalize([string:to_upper(C)], Rest);
+capitalize(New, [C | Rest]) ->
+    capitalize([C | New], Rest).
 
 get_nr(Type) ->
     get_nr(Type, Type).
@@ -579,3 +598,8 @@ compare_subscriptions(Old, New) ->
                   end
           end, [], Old),
     {A, R, Ch, Co}.
+
+datapoints(#exometer_entry{name=Name}) ->
+    datapoints(Name);
+datapoints(Name) when is_list(Name) ->
+    exometer:info(Name, datapoints).
