@@ -59,12 +59,14 @@ behaviour() ->
 %% </pre>
 %% which is syntactic sugar for
 %% <pre lang="erlang">
-%% exometer:new(Name,function,[{type_arg,{function,...}}|Opts])
+%% exometer:new(Name,function,[{arg,{function,...}}|Opts])
 %% </pre>
-%% where `{function,...}' is either simply `{function, Module, Function}',
-%% in which case `get_value(Name, DataPoints)' will result in a call to
-%% `Module:Function(DataPoints)', which must return a list of data point values.
-%% or `{Mod,Fun,ArgSpec,Type,DataPoints}', which will invoke a limited
+%% where `{function,...}' is either simply `{function, Module,
+%% Function}', in which case `get_value(Name, DataPoints)' will result
+%% in a call to `Module:Function(DataPoints)', and get_value(Name)
+%% will result in a call to `Module:Function(default), which must
+%% return a (default) list of data point values; or
+%% `{Mod,Fun,ArgSpec,Type,DataPoints}', which will invoke a limited
 %% interpreter. The `ArgSpec' is evaluated as follows:
 %% <ul>
 %%  <li>`[]' means to call with no arguments, i.e. `M:F()'</li>
@@ -134,11 +136,11 @@ behaviour() ->
 %%      match, {gcs,reclaimed,'_'} }, []).
 %% </pre>
 %% @end
-new(_Name, _, Opts) ->
-    case lists:keyfind(type_arg, 1, Opts) of
-        {_, {function, M, F}} ->
+new(_Name, function, Opts) ->
+    case lists:keyfind(arg, 1, Opts) of
+        {_, {M, F}} ->
             {ok, {M, F}};
-        {_, {function, M, F, ArgsP, Type, DPs}} ->
+        {_, {M, F, ArgsP, Type, DPs}} ->
             {ok, {M, F, mode(ArgsP), ArgsP, Type, DPs}};
         false ->
             {ok, {?MODULE, empty}}
