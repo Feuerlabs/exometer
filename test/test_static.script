@@ -1,8 +1,0 @@
-%% -*- erlang-mode -*-
-
-[
- {[test, hist], histogram, []},
- {[test, mem, total], {function, erlang, memory, ['$dp'], value,
-                       [total,processes,ets,binary,atom,atom_used,maximum]},
-  []}
-].
