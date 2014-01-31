@@ -602,8 +602,7 @@ get_values(Path) ->
               end
       end, [], Entries).
 
--spec select(ets:match_spec()) ->
-                    '$end_of_table' | [{name(), type(), status()}].
+-spec select(ets:match_spec()) -> [{name(), type(), status()}].
 %% @doc Perform an `ets:select()' on the set of metrics.
 %%
 %% This function operates on a virtual structure representing the metrics,
@@ -613,9 +612,7 @@ get_values(Path) ->
 select(Pattern) ->
     ets:select(?EXOMETER_ENTRIES, [pattern(P) || P <- Pattern]).
 
--spec select(ets:match_spec(), pos_integer() | infinity) ->
-                    '$end_of_table'
-                        | {[{name(), type(), status()}], _Cont}.
+-spec select(ets:match_spec(), pos_integer() | infinity) -> {[{name(), type(), status()}], _Cont}.
 %% @doc Perform an `ets:select()' with a Limit on the set of metrics.
 %%
 %% This function is equivalent to {@link select/1}, but also takes a limit.

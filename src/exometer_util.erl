@@ -28,7 +28,7 @@
 
 -include("exometer.hrl").
 
--type timestamp() :: pos_integer().
+-type timestamp() :: non_neg_integer().
 
 -spec timestamp() -> timestamp().
 %% @doc Generate a millisecond-resolution timestamp.
@@ -42,11 +42,11 @@ timestamp() ->
     {MS,S,US} = os:timestamp(),
     (MS-1258)*1000000000 + S*1000 + US div 1000.
 
--spec timestamp_to_datetime(exometer_util:timestamp()) -> calendar:datetime().
+-spec timestamp_to_datetime(timestamp()) -> calendar:datetime().
 %% @doc Convert timestamp to a regular datetime.
 %%
 %% The timestamp is expected 
-timestamp_to_datetime(TS) ->
+timestamp_to_datetime(TS) when TS >= 0 ->
     %% Our internal timestamps are relative to Now = {1258,0,0}
     %% It doesn't really matter much how we construct a now()-like tuple,
     %% as long as the weighted sum of the three numbers is correct.

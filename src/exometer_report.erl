@@ -163,19 +163,21 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
 
+-export_type([metric/0, datapoint/0, interval/0, extra/0]).
+
 -include_lib("exometer/include/exometer.hrl").
 -include("log.hrl").
 
 -define(SERVER, ?MODULE).
 
--type metric() :: list().
--type datapoint() :: atom().
--type options() :: [ { atom(), any()} ].
--type mod_state() :: any().
--type value() :: any().
--type interval() :: pos_integer().
+-type metric()          :: nonempty_list(atom()).
+-type datapoint()       :: atom().
+-type options()         :: [{atom(), any()}].
+-type mod_state()       :: any().
+-type value()           :: any().
+-type interval()        :: pos_integer().
 -type callback_result() :: {ok, mod_state()} | any().
--type extra() :: any().
+-type extra()           :: any().
 
 %% Callback for function, not cast-based, reports that
 %% are invoked in-process.
@@ -274,11 +276,11 @@ unsubscribe(Reporter, Metric, DataPoint, Extra) ->
 unsubscribe_all(Reporter, Metric) ->
     call({unsubscribe_all, Reporter, Metric}).
 
--spec list_metrics() -> [datapoint()].
+-spec list_metrics() -> {ok, [datapoint()]} | {error, atom()}.
 list_metrics()  ->
     list_metrics([]).
 
--spec list_metrics(Path :: metric()) -> [datapoint()].
+-spec list_metrics(Path :: metric()) -> {ok, [datapoint()]} | {error, atom()}.
 list_metrics(Path)  ->
     call({list_metrics, Path}).
 

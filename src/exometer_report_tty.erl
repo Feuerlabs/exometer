@@ -22,8 +22,8 @@
 %%
 %% Please note that exometer_report_collectd is still also a
 %% exometer_report implementation.
-
 -module(exometer_report_tty).
+
 -behaviour(exometer_report).
 
 -export(
@@ -38,18 +38,18 @@
     exometer_terminate/2
    ]).
 
--compile(export_all).
+-include_lib("exometer/include/exometer.hrl").
+-include("log.hrl").
 
 -define(SERVER, ?MODULE).
-
--include("exometer.hrl").
-
--record(st, {}).
-
 %% calendar:datetime_to_gregorian_seconds({{1970,1,1},{0,0,0}}).
 -define(UNIX_EPOCH, 62167219200).
 
--include("log.hrl").
+-record(st, {}).
+
+%%%===================================================================
+%%% exometer_report callback API
+%%%===================================================================
 
 exometer_init(Opts) ->
     ?info("~p(~p): Starting~n", [?MODULE, Opts]),
@@ -84,6 +84,10 @@ exometer_setopts(_Metric, _Options, _Status, St) ->
 exometer_terminate(_, _) ->
     ignore.
 
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+
 %% Add metric and datapoint within metric
 name(Metric, DataPoint) ->
     metric_to_string(Metric) ++ "_" ++ atom_to_list(DataPoint).
@@ -99,9 +103,6 @@ metric_elem_to_list(E) when is_list(E); is_binary(E) ->
     E;
 metric_elem_to_list(E) when is_integer(E) ->
     integer_to_list(E).
-
-
-
 
 %% Add value, int or float, converted to list
 value(V) when is_integer(V) -> integer_to_list(V);

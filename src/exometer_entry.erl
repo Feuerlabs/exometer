@@ -263,17 +263,16 @@
 
 -export_type([name/0, type/0, options/0, datapoint/0, datapoints/0, value/0, ref/0, error/0]).
 
--type name()     :: list().
--type type()     :: atom().
--type options()  :: [{atom(), any()}].
+-type name()        :: list().
+-type type()        :: atom().
+-type options()     :: [{atom(), any()}].
 -type datapoints()  :: [datapoint()].
--type datapoint() :: atom().
--type value()    :: any().
--type ref()      :: any().
--type error()   :: { error, any() }.
+-type datapoint()   :: atom().
+-type value()       :: any().
+-type ref()         :: any().
+-type error()       :: {error, any()}.
 
-
--callback behaviour() -> entry.
+-callback behaviour() -> atom().
 
 -callback new(name(), type(), options()) ->
     ok | {ok, ref()} | error().
