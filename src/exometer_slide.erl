@@ -38,14 +38,7 @@
          foldl/3,
          foldl/4]).
 
--ifdef(TEST).
--include_lib("eunit/include/eunit.hrl").
--export([test/0,
-	 build_histogram/1,
-	 calc_avg/1]).
--endif.
-
--import(lists, [reverse/1, sublist/3]).
+-import(lists, [reverse/1]).
 -import(exometer_util, [timestamp/0]).
 
 -type value() :: any().
