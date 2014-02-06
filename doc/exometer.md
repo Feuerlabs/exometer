@@ -206,7 +206,7 @@ The format of the returned metrics is `[{Name, Type, Status}]`.
 
 
 <pre><code>
-get_value(Name::<a href="#type-name">name()</a>) -&gt; {ok, <a href="#type-value">value()</a>} | <a href="#type-error">error()</a>
+get_value(Name::<a href="#type-name">name()</a>) -&gt; {ok, <a href="#type-value">value()</a>} | {error, not_found}
 </code></pre>
 
 <br></br>
@@ -227,7 +227,7 @@ value will be returned.
 
 
 <pre><code>
-get_value(Name::<a href="#type-name">name()</a>, DataPoint::atom() | [atom()]) -&gt; {ok, <a href="#type-value">value()</a>} | <a href="#type-error">error()</a>
+get_value(Name::<a href="#type-name">name()</a>, DataPoint::atom() | [atom()]) -&gt; {ok, <a href="#type-value">value()</a>} | {error, not_found}
 </code></pre>
 
 <br></br>
@@ -331,7 +331,7 @@ caching will be performed.
 
 
 * `{status, enabled | disabled}` - Default is `enabled`. If the metric
-is `disabled`, calls to [`get_value/1`](#get_value-1) will return `{ok, unavailable}`,
+is `disabled`, calls to [`get_value/1`](#get_value-1) will return `{ok, disabled}`,
 and calls to [`update/2`](#update-2) and [`sample/1`](#sample-1) will return `ok` but
 will do nothing.
 <a name="re_register-3"></a>
@@ -471,8 +471,6 @@ Valid options are whatever the metric type supports, plus:
 
 
 * `{status, enabled | disabled}` - the operational status of the metric.
-
-
 Note that if the metric is disabled, setopts/2 will fail unless the options
 list contains `{status, enabled}`, which will enable the metric and cause
 other options to be processed.

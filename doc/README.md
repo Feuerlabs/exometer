@@ -4,7 +4,7 @@
 
 Copyright (c) 2014 Basho Technologies, Inc.  All Rights Reserved.
 
-__Version:__ Jan 24 2014 00:21:17
+__Version:__ Feb 6 2014 23:37:53
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -880,6 +880,7 @@ Please see @see exometer_report documentation for details.
 <tr><td><a href="exometer_report_collectd.md" class="module">exometer_report_collectd</a></td></tr>
 <tr><td><a href="exometer_report_graphite.md" class="module">exometer_report_graphite</a></td></tr>
 <tr><td><a href="exometer_report_riak.md" class="module">exometer_report_riak</a></td></tr>
+<tr><td><a href="exometer_report_snmp.md" class="module">exometer_report_snmp</a></td></tr>
 <tr><td><a href="exometer_report_statsd.md" class="module">exometer_report_statsd</a></td></tr>
 <tr><td><a href="exometer_report_tty.md" class="module">exometer_report_tty</a></td></tr>
 <tr><td><a href="exometer_slide.md" class="module">exometer_slide</a></td></tr>

@@ -139,7 +139,7 @@ res_type() = value | proplist | tagged
 
 
 <pre><code>
-simple_fun() = {<a href="#type-mod_name">mod_name()</a>, <a href="#type-fun_name">fun_name()</a>}
+simple_fun() = {function, <a href="#type-mod_name">mod_name()</a>, <a href="#type-fun_name">fun_name()</a>}
 </code></pre>
 
 
@@ -148,12 +148,25 @@ simple_fun() = {<a href="#type-mod_name">mod_name()</a>, <a href="#type-fun_name
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#delete-3">delete/3</a></td><td></td></tr><tr><td valign="top"><a href="#empty-0">empty/0</a></td><td></td></tr><tr><td valign="top"><a href="#get_datapoints-3">get_datapoints/3</a></td><td></td></tr><tr><td valign="top"><a href="#get_value-4">get_value/4</a></td><td></td></tr><tr><td valign="top"><a href="#new-3">new/3</a></td><td>Callback for creating an exometer <code>function</code> entry.</td></tr><tr><td valign="top"><a href="#reset-3">reset/3</a></td><td></td></tr><tr><td valign="top"><a href="#sample-3">sample/3</a></td><td></td></tr><tr><td valign="top"><a href="#setopts-4">setopts/4</a></td><td></td></tr><tr><td valign="top"><a href="#test_mem_info-1">test_mem_info/1</a></td><td></td></tr><tr><td valign="top"><a href="#update-4">update/4</a></td><td></td></tr></table>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#behaviour-0">behaviour/0</a></td><td></td></tr><tr><td valign="top"><a href="#delete-3">delete/3</a></td><td></td></tr><tr><td valign="top"><a href="#empty-0">empty/0</a></td><td></td></tr><tr><td valign="top"><a href="#get_datapoints-3">get_datapoints/3</a></td><td></td></tr><tr><td valign="top"><a href="#get_value-4">get_value/4</a></td><td></td></tr><tr><td valign="top"><a href="#new-3">new/3</a></td><td>Callback for creating an exometer <code>function</code> entry.</td></tr><tr><td valign="top"><a href="#reset-3">reset/3</a></td><td></td></tr><tr><td valign="top"><a href="#sample-3">sample/3</a></td><td></td></tr><tr><td valign="top"><a href="#setopts-4">setopts/4</a></td><td></td></tr><tr><td valign="top"><a href="#test_mem_info-1">test_mem_info/1</a></td><td></td></tr><tr><td valign="top"><a href="#update-4">update/4</a></td><td></td></tr></table>
 
 
 <a name="functions"></a>
 
 ## Function Details ##
+
+<a name="behaviour-0"></a>
+
+### behaviour/0 ###
+
+
+<pre><code>
+behaviour() -&gt; atom()
+</code></pre>
+
+<br></br>
+
+
 
 <a name="delete-3"></a>
 
@@ -189,7 +202,7 @@ simple_fun() = {<a href="#type-mod_name">mod_name()</a>, <a href="#type-fun_name
 
 
 <pre><code>
-new(Name::<a href="exometer.md#type-name">exometer:name()</a>, X2::function, Opts::<a href="exometer.md#type-options">exometer:options()</a>) -&gt; {ok, <a href="#type-fun_rep">fun_rep()</a>}
+new(Name::<a href="exometer.md#type-name">exometer:name()</a>, X2::function | <a href="#type-fun_spec">fun_spec()</a>, Opts::<a href="exometer.md#type-options">exometer:options()</a>) -&gt; {ok, <a href="#type-fun_rep">fun_rep()</a>}
 </code></pre>
 
 <br></br>
@@ -250,6 +263,12 @@ will be picked out of the returned proplist.
 * If `Type==tagged`, the return value is assumed to be either
 `{ok, Value}` or `{DataPointName, Value}`.
 
+* If `Type==match`, `DataPoints` is used as a pattern to match against,
+where the names of data points are used where the values are expected
+to be, and `'_'` is used for values to ignore. The pattern
+can be any combination of tuples and lists of datapoints or
+`'_'`.
+
 
 
 
@@ -295,6 +314,20 @@ An entry that reports the heap size of the code server.
      [{'$call',erlang,whereis,[code_server]}, '$dp'], tagged, [heap_size]}).
 ```
 
+
+
+An entry that does pattern-matching on the return value
+(`erlang:statistics(garbage_collection)` returns `{GCs, Reclaimed, 0}`).
+
+
+
+```erlang
+
+  exometer:new(
+     [gc],
+     { function,erlang,statistics,[garbage_collection],
+       match, {gcs,reclaimed,'_'} }, []).
+```
 
 <a name="reset-3"></a>
 

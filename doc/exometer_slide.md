@@ -90,7 +90,7 @@ sample_fun() = fun((<a href="#type-timestamp">timestamp()</a>, <a href="#type-va
 
 
 <pre><code>
-timestamp() = integer()
+timestamp() = <a href="exometer_util.md#type-timestamp">exometer_util:timestamp()</a>
 </code></pre>
 
 

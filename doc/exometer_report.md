@@ -2,6 +2,7 @@
 
 # Module exometer_report #
 * [Description](#description)
+* [Data Types](#types)
 * [Function Index](#index)
 * [Function Details](#functions)
 
@@ -11,7 +12,7 @@ __Behaviours:__ [`gen_server`](gen_server.md).
 
 __This module defines the `exometer_report` behaviour.__
 <br></br>
- Required callback functions: `exometer_init/1`, `exometer_report/5`, `exometer_subscribe/5`, `exometer_unsubscribe/4`, `exometer_info/2`.
+ Required callback functions: `exometer_init/1`, `exometer_report/5`, `exometer_subscribe/5`, `exometer_unsubscribe/4`, `exometer_info/2`, `exometer_terminate/2`, `exometer_setopts/4`, `exometer_newentry/2`.
 <a name="description"></a>
 
 ## Description ##
@@ -48,7 +49,7 @@ details.
 + Setup subscription
 <br></br>
 When `exometer_report:subscribe()` is called, targeting the
-custom report plugin, the gen_serve's `exometer_subscribe()` function
+custom report plugin, the gen_server's `exometer_subscribe()` function
 will be invoked to notify the plugin of the new metrics subscription.
 
 
@@ -249,13 +250,66 @@ The `exomoeter_unsubscribe()` function should return `{ok, State}` where
 State is a tuple that will be provided as a reference argument to
 future calls made into the plugin. Any other return formats will
 generate an error log message by exometer.
+
+<a name="types"></a>
+
+## Data Types ##
+
+
+
+
+### <a name="type-datapoint">datapoint()</a> ###
+
+
+
+<pre><code>
+datapoint() = atom()
+</code></pre>
+
+
+
+
+
+### <a name="type-extra">extra()</a> ###
+
+
+
+<pre><code>
+extra() = any()
+</code></pre>
+
+
+
+
+
+### <a name="type-interval">interval()</a> ###
+
+
+
+<pre><code>
+interval() = pos_integer()
+</code></pre>
+
+
+
+
+
+### <a name="type-metric">metric()</a> ###
+
+
+
+<pre><code>
+metric() = list()
+</code></pre>
+
+
 <a name="index"></a>
 
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#add_reporter-2">add_reporter/2</a></td><td></td></tr><tr><td valign="top"><a href="#list_metrics-0">list_metrics/0</a></td><td></td></tr><tr><td valign="top"><a href="#list_metrics-1">list_metrics/1</a></td><td></td></tr><tr><td valign="top"><a href="#list_reporters-0">list_reporters/0</a></td><td></td></tr><tr><td valign="top"><a href="#remove_reporter-1">remove_reporter/1</a></td><td></td></tr><tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td>
-Starts the server.</td></tr><tr><td valign="top"><a href="#subscribe-4">subscribe/4</a></td><td></td></tr><tr><td valign="top"><a href="#subscribe-5">subscribe/5</a></td><td></td></tr><tr><td valign="top"><a href="#unsubscribe-3">unsubscribe/3</a></td><td></td></tr><tr><td valign="top"><a href="#unsubscribe-4">unsubscribe/4</a></td><td></td></tr></table>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#add_reporter-2">add_reporter/2</a></td><td></td></tr><tr><td valign="top"><a href="#list_metrics-0">list_metrics/0</a></td><td></td></tr><tr><td valign="top"><a href="#list_metrics-1">list_metrics/1</a></td><td></td></tr><tr><td valign="top"><a href="#list_reporters-0">list_reporters/0</a></td><td></td></tr><tr><td valign="top"><a href="#list_subscriptions-1">list_subscriptions/1</a></td><td></td></tr><tr><td valign="top"><a href="#new_entry-1">new_entry/1</a></td><td></td></tr><tr><td valign="top"><a href="#remove_reporter-1">remove_reporter/1</a></td><td></td></tr><tr><td valign="top"><a href="#setopts-3">setopts/3</a></td><td></td></tr><tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td>Starts the server
+--------------------------------------------------------------------.</td></tr><tr><td valign="top"><a href="#subscribe-4">subscribe/4</a></td><td></td></tr><tr><td valign="top"><a href="#subscribe-5">subscribe/5</a></td><td></td></tr><tr><td valign="top"><a href="#terminate_reporter-1">terminate_reporter/1</a></td><td></td></tr><tr><td valign="top"><a href="#unsubscribe-3">unsubscribe/3</a></td><td></td></tr><tr><td valign="top"><a href="#unsubscribe-4">unsubscribe/4</a></td><td></td></tr><tr><td valign="top"><a href="#unsubscribe_all-2">unsubscribe_all/2</a></td><td></td></tr></table>
 
 
 <a name="functions"></a>
@@ -273,21 +327,59 @@ Starts the server.</td></tr><tr><td valign="top"><a href="#subscribe-4">subscrib
 
 ### list_metrics/0 ###
 
-`list_metrics() -> any()`
+
+<pre><code>
+list_metrics() -&gt; [<a href="#type-datapoint">datapoint()</a>]
+</code></pre>
+
+<br></br>
+
 
 
 <a name="list_metrics-1"></a>
 
 ### list_metrics/1 ###
 
-`list_metrics(Path) -> any()`
+
+<pre><code>
+list_metrics(Path::<a href="#type-metric">metric()</a>) -&gt; [<a href="#type-datapoint">datapoint()</a>]
+</code></pre>
+
+<br></br>
+
 
 
 <a name="list_reporters-0"></a>
 
 ### list_reporters/0 ###
 
-`list_reporters() -> any()`
+
+<pre><code>
+list_reporters() -&gt; [module()]
+</code></pre>
+
+<br></br>
+
+
+
+<a name="list_subscriptions-1"></a>
+
+### list_subscriptions/1 ###
+
+
+<pre><code>
+list_subscriptions(Reporter::module()) -&gt; [{<a href="#type-metric">metric()</a>, <a href="#type-datapoint">datapoint()</a>, <a href="#type-interval">interval()</a>, <a href="#type-extra">extra()</a>}]
+</code></pre>
+
+<br></br>
+
+
+
+<a name="new_entry-1"></a>
+
+### new_entry/1 ###
+
+`new_entry(Entry) -> any()`
 
 
 <a name="remove_reporter-1"></a>
@@ -297,46 +389,96 @@ Starts the server.</td></tr><tr><td valign="top"><a href="#subscribe-4">subscrib
 `remove_reporter(Reporter) -> any()`
 
 
+<a name="setopts-3"></a>
+
+### setopts/3 ###
+
+`setopts(Metric, Options, Status) -> any()`
+
+
 <a name="start_link-0"></a>
 
 ### start_link/0 ###
 
 
 <pre><code>
-start_link() -&gt; {ok, Pid} | ignore | {error, Error}
+start_link() -&gt; {ok, pid()} | ignore | {error, any()}
+</code></pre>
+
+<br></br>
+
+
+Starts the server
+--------------------------------------------------------------------
+<a name="subscribe-4"></a>
+
+### subscribe/4 ###
+
+
+<pre><code>
+subscribe(Reporter::module(), Metric::<a href="#type-metric">metric()</a>, DataPoint::<a href="#type-datapoint">datapoint()</a>, Interval::<a href="#type-interval">interval()</a>) -&gt; ok | not_found | unknown_reporter
 </code></pre>
 
 <br></br>
 
 
 
-Starts the server
-
-<a name="subscribe-4"></a>
-
-### subscribe/4 ###
-
-`subscribe(Reporter, Metric, DataPoint, Interval) -> any()`
-
-
 <a name="subscribe-5"></a>
 
 ### subscribe/5 ###
 
-`subscribe(Reporter, Metric, DataPoint, Interval, Extra) -> any()`
+
+<pre><code>
+subscribe(Reporter::module(), Metric::<a href="#type-metric">metric()</a>, DataPoint::<a href="#type-datapoint">datapoint()</a>, Interval::<a href="#type-interval">interval()</a>, Extra::<a href="#type-extra">extra()</a>) -&gt; ok | not_found | unknown_reporter
+</code></pre>
+
+<br></br>
+
+
+
+<a name="terminate_reporter-1"></a>
+
+### terminate_reporter/1 ###
+
+`terminate_reporter(Reporter) -> any()`
 
 
 <a name="unsubscribe-3"></a>
 
 ### unsubscribe/3 ###
 
-`unsubscribe(Reporter, Metric, DataPoint) -> any()`
+
+<pre><code>
+unsubscribe(Reporter::module(), Metric::<a href="#type-metric">metric()</a>, DataPoint::<a href="#type-datapoint">datapoint()</a>) -&gt; ok | not_found
+</code></pre>
+
+<br></br>
+
 
 
 <a name="unsubscribe-4"></a>
 
 ### unsubscribe/4 ###
 
-`unsubscribe(Reporter, Metric, DataPoint, Extra) -> any()`
+
+<pre><code>
+unsubscribe(Reporter::module(), Metric::<a href="#type-metric">metric()</a>, DataPoint::<a href="#type-datapoint">datapoint()</a>, Extra::<a href="#type-extra">extra()</a>) -&gt; ok | not_found
+</code></pre>
+
+<br></br>
+
+
+
+<a name="unsubscribe_all-2"></a>
+
+### unsubscribe_all/2 ###
+
+
+<pre><code>
+unsubscribe_all(Reporter::module(), Metric::<a href="#type-metric">metric()</a>) -&gt; ok
+</code></pre>
+
+<br></br>
+
 
 

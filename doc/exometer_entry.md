@@ -12,7 +12,7 @@
 .
 __This module defines the `exometer_entry` behaviour.__
 <br></br>
- Required callback functions: `new/3`, `delete/3`, `get_value/4`, `update/4`, `reset/3`, `sample/3`, `get_datapoints/3`, `setopts/4`.
+ Required callback functions: `behaviour/0`, `new/3`, `delete/3`, `get_value/4`, `update/4`, `reset/3`, `sample/3`, `get_datapoints/3`, `setopts/4`.
 <a name="description"></a>
 
 ## Description ##

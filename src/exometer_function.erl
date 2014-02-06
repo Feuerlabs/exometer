@@ -37,7 +37,7 @@
 -type res_type()     :: value      %% The return value is the result
                       | proplist   %% Pick the data point out of a proplist
                       | tagged.    %% Either {DataPoint,Value} or {ok,Value}
--type simple_fun()   :: {mod_name(), fun_name()}.
+-type simple_fun()   :: {function, mod_name(), fun_name()}.
 -type extended_fun() :: {function, mod_name(), fun_name(),
                          arg_spec(), res_type(), datapoints()}.
 -type int_extended() :: {function, mod_name(), fun_name(), each | once,
@@ -45,11 +45,12 @@
 -type fun_spec()     :: simple_fun() | extended_fun().
 -type fun_rep()      :: simple_fun() | int_extended().
 
--spec new(exometer:name(), 'function', exometer:options()) -> {ok, fun_rep()}.
-
+-spec behaviour() -> atom().
 behaviour() ->
     entry.
 
+-spec new(exometer:name(), 'function' | fun_spec(),
+          exometer:options()) -> {ok, fun_rep()}.
 %% @doc Callback for creating an exometer `function' entry.
 %%
 %% Function entries are created as
@@ -89,6 +90,11 @@ behaviour() ->
 %%       will be picked out of the returned proplist.</li>
 %%   <li>If `Type==tagged', the return value is assumed to be either
 %%       `{ok, Value}' or `{DataPointName, Value}'.</li>
+%%   <li>If `Type==match', `DataPoints' is used as a pattern to match against,
+%%       where the names of data points are used where the values are expected
+%%       to be, and <code>'_'</code> is used for values to ignore. The pattern
+%%       can be any combination of tuples and lists of datapoints or
+%%       <code>'_'</code>.</li>
 %% </ul>
 %%
 %% Examples:
@@ -118,6 +124,15 @@ behaviour() ->
 %%    [{'$call',erlang,whereis,[code_server]}, '$dp'], tagged, [heap_size]}).
 %% </pre>
 %%
+%% An entry that does pattern-matching on the return value
+%% (`erlang:statistics(garbage_collection)' returns `{GCs, Reclaimed, 0}').
+%%
+%% <pre lang="erlang">
+%% exometer:new(
+%%    [gc],
+%%    { function,erlang,statistics,[garbage_collection],
+%%      match, {gcs,reclaimed,'_'} }, []).
+%% </pre>
 %% @end
 new(_Name, function, Opts) ->
     case lists:keyfind(type_arg, 1, Opts) of
@@ -132,13 +147,25 @@ new(_Name, function, Opts) ->
 get_value(_, function, {M, F, each, ArgsP, Type, DPs}, DataPoints) ->
     [{D,call(M,F,ArgsP,Type,D)} || D <- datapoints(DataPoints, DPs),
                                    lists:member(D, DPs)];
-get_value(_, function, {M, F, once, ArgsP, Type, DPs}, DataPoints0) ->
+get_value(_, function, {M, F, once, ArgsP, Type, DPs}, DataPoints0)
+  when is_list(DPs) ->
     DataPoints = if DataPoints0 == default -> DPs;
                     true ->
                          [D || D <- datapoints(DataPoints0, DPs),
                                lists:member(D, DPs)]
                  end,
     try call_once(M, F, ArgsP, Type, DataPoints)
+    catch
+        error:_ ->
+            {error, unavailable}
+    end;
+get_value(_, function, {M, F, once, ArgsP, match, Pat}, DataPoints0) ->
+    DataPoints = if DataPoints0 == default ->
+                         pattern_datapoints(Pat);
+                    is_list(DataPoints0) ->
+                         DataPoints0
+                 end,
+    try call_once(M, F, ArgsP, match, {Pat, DataPoints})
     catch
         error:_ ->
             {error, unavailable}
@@ -177,6 +204,14 @@ empty() ->
 datapoints(default, DPs) -> DPs;
 datapoints(DataPoints,_) -> DataPoints.
 
+pattern_datapoints(A) when is_atom(A), A =/= '_' ->
+    [A];
+pattern_datapoints([H|T]) ->
+    pattern_datapoints(H) ++ pattern_datapoints(T);
+pattern_datapoints(T) when is_tuple(T) ->
+    pattern_datapoints(tuple_to_list(T));
+pattern_datapoints(_) ->
+    [].
 
 call(M,F,ArgsP,T,D) ->
     try begin
@@ -236,7 +271,10 @@ return_dps({DP, V}, tagged, DPs) ->
     %% which data point it is.
     [{D, if D==DP -> V; true -> undefined end} || D <- DPs];
 return_dps(L, proplist, DPs) ->
-    [get_dp(D, L) || D <- DPs].
+    [get_dp(D, L) || D <- DPs];
+return_dps(Val, match, {Pat, DPs}) ->
+    match_pat(Pat, Val, DPs).
+
 
 get_dp(D, L) ->
     case lists:keyfind(D, 1, L) of
@@ -277,3 +315,28 @@ mode([], M) ->
 test_mem_info(DataPoints) ->
     Res = erlang:memory(),
     [get_dp(D, Res) || D <- DataPoints].
+
+match_pat(Pat, Val, DPs) when tuple_size(Pat) == tuple_size(Val) ->
+    match_pat(tuple_to_list(Pat), tuple_to_list(Val), DPs);
+match_pat(['_'|T], [_|T1], DPs) ->
+    match_pat(T, T1, DPs);
+match_pat([H|T], [H1|T1], DPs) when is_atom(H) ->
+    case lists:member(H, DPs) of
+        true ->
+            [{H, H1}|match_pat(T, T1, DPs)];
+        false ->
+            match_pat(T, T1, DPs)
+    end;
+match_pat(A, B, DPs) when is_atom(A), A =/= '_' ->
+    case lists:member(A, DPs) of
+        true ->
+            [{A, B}];
+        false ->
+            []
+    end;
+match_pat(_, _, _) ->
+    [].
+
+
+
+    
