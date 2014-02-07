@@ -138,5 +138,5 @@ restart_timers({Names, Cont}, TTL, TS) ->
 restart_timers('$end_of_table', _, _) ->
     ok.
 
-path( Name, DataPoint) ->
-    { Name, DataPoint }.
+path(Name, DataPoint) ->
+    {Name, DataPoint}.
