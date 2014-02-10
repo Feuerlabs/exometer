@@ -607,7 +607,7 @@ re_subscribe([#subscriber{key = #key{reporter = Mod,
                           interval = Interval} = S | Subs],
              #reporter{module = Mod} = R) ->
     Mod ! {exometer_subscribe, Metric, DataPoint, Interval, Extra},
-    erlang:cancel_timer(OldTRef, [flush]),
+    erlang:cancel_timer(OldTRef),
     TRef = erlang:send_after(Interval, self(), {report, Key, Interval}),
     [S#subscriber{t_ref = TRef} | re_subscribe(Subs, R)];
 re_subscribe([S|Subs], R) ->
