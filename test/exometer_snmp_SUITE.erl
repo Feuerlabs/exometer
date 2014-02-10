@@ -63,7 +63,7 @@ end_per_suite(_Config) ->
 
 init_per_testcase(test_snmp_export_disabled, Config) ->
     application:load(exometer),
-    application:set_env(exometer, snmp_export, false),
+    application:set_env(exometer, report, []),
     exometer:start(),
     Config;
 init_per_testcase(Case, Config) when
@@ -268,11 +268,15 @@ snmp_init_testcase(Case) ->
     ManagerConfPath = manager_conf_path(),
     reset_snmp_dirs(AgentConfPath, ManagerConfPath),
     MibTemplate = "../../test/data/EXOTEST-MIB.mib",
-    application:load(exometer),
-    ok = application:set_env(exometer, snmp_export, true),
-    ok = application:set_env(exometer, snmp_mib_template, MibTemplate),
     TmpPath = filename:join(["tmp", atom_to_list(Case)]),
-    ok = application:set_env(exometer, snmp_mib_dir, TmpPath),
+    application:load(exometer),
+    ReporterSpec = [{reporters, [{exometer_report_snmp, 
+                                  [
+                                   {mib_template, MibTemplate},
+                                   {mib_dir, TmpPath}
+                                  ]
+                                 }]}],
+    ok = application:set_env(exometer, report, ReporterSpec),
     MibFilePath = filename:join([TmpPath, filename:basename(MibTemplate, ".mib")]),
     {ok, [FileConf]} = file:consult(AgentConfPath),
     SnmpConf = proplists:get_value(snmp, FileConf),

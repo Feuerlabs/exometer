@@ -85,8 +85,8 @@ exometer_init(Opts) ->
 
     % load MIB template which is used through the operation of 
     % the process to dynamically export metrics
-    MibPath0 = exometer_util:get_env(snmp_mib_template, ?MIB_TEMPLATE),
-    MibWorkPath = exometer_util:get_env(snmp_mib_dir, ?MIB_DIR),
+    MibPath0 = proplists:get_value(mib_template, Opts, ?MIB_TEMPLATE),
+    MibWorkPath = proplists:get_value(mib_dir, Opts, ?MIB_DIR),
     MibPath1 = filename:join([MibWorkPath, filename:basename(MibPath0)]),
     ok = filelib:ensure_dir(MibPath1),
     {ok, _} = file:copy(MibPath0, MibPath1),
