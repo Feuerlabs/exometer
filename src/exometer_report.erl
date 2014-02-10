@@ -181,8 +181,8 @@
 %% Restart specification
 -type maxR()            :: pos_integer().
 -type maxT()            :: pos_integer().
--type escalation()      :: kill | shutdown | {atom(), atom()}.
--type restart()         :: [{maxR(), maxT()} | escalation()].
+-type action()          :: {atom(), atom()}.
+-type restart()         :: [{maxR(), maxT()} | action()].
 
 %% Callback for function, not cast-based, reports that
 %% are invoked in-process.
@@ -894,11 +894,10 @@ find_match([], _, _) ->
     false.
 
 find_action([{M,F} = H|_]) when is_atom(M), is_atom(F) -> H;
-find_action([H|_]) when H==kill; H==shutdown -> H;
 find_action([_|T]) ->
     find_action(T);
 find_action([]) ->
-    unsubscribe.
+    no_action.
 
 default_restart() ->
     [{3, 1}, {10, 30}, kill].
@@ -922,8 +921,6 @@ valid_restart(L) when is_list(L) ->
     lists:foreach(
       fun({R,T}) when is_integer(R), is_integer(T), R > 0, T > 0 ->
               ok;
-         (kill) -> ok;
-         (shutdown) -> ok;
          ({M,F}) when is_atom(M), is_atom(F) -> ok;
          (_) ->
               erlang:error({invalid_restart_spec, L})
