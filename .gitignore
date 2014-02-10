@@ -8,3 +8,4 @@ include/EXOMETER-MIB.hrl
 priv/mibs
 log/
 logs/
+erl_crash.dump
