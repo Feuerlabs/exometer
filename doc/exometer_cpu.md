@@ -77,7 +77,7 @@ __Behaviours:__ [`exometer_probe`](exometer_probe.md).
 
 ### probe_setopts/2 ###
 
-`probe_setopts(S, Opts) -> any()`
+`probe_setopts(Opts, S) -> any()`
 
 
 <a name="probe_terminate-1"></a>

@@ -22,7 +22,7 @@ Exometer utility functions.
 
 
 <pre><code>
-timestamp() = pos_integer()
+timestamp() = non_neg_integer()
 </code></pre>
 
 
@@ -147,7 +147,7 @@ This timestamp format is used e.g. by the `exometer_slide` and
 
 
 <pre><code>
-timestamp_to_datetime(TS::<a href="exometer_util.md#type-timestamp">exometer_util:timestamp()</a>) -&gt; <a href="calendar.md#type-datetime">calendar:datetime()</a>
+timestamp_to_datetime(TS::<a href="#type-timestamp">timestamp()</a>) -&gt; <a href="calendar.md#type-datetime">calendar:datetime()</a>
 </code></pre>
 
 <br></br>

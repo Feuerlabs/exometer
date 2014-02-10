@@ -185,9 +185,14 @@ exometer_terminate(_, #st{mib_file_path=MibPath0}) ->
 %%% External API
 %%%===================================================================
 
+% @doc Returns the latest mib and its metadata.
 get_mib() ->
     exometer_proc:call(?MODULE, get_mib).
 
+% @doc 
+% Callback function used by the SNMP master agent upon operations performed by a manager.
+% Currently only get operations are handled.
+% @end
 snmp_operation(get, {Metric, Dp}) ->
     ?info("SNMP Get ~p:~p", [Metric, Dp]),
     {ok, [V]} = exometer:get_value(Metric, Dp),
@@ -196,6 +201,7 @@ snmp_operation(Op, Key) ->
     ?warning("Unhandled SNMP operation ~p on ~p", [Op, Key]),
     error.
 
+% @doc See snmp_operation/2. Currently no operations are handled.
 snmp_operation(Op, Val, Key) ->
     ?warning("Unhandled SNMP operation ~p on ~p with value ~p", [Op, Key, Val]),
     error.

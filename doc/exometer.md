@@ -400,7 +400,7 @@ operation likely has no effect, and will return `ok`.
 
 
 <pre><code>
-select(Pattern::<a href="ets.md#type-match_spec">ets:match_spec()</a>) -&gt; '$end_of_table' | [{<a href="#type-name">name()</a>, <a href="#type-type">type()</a>, <a href="#type-status">status()</a>}]
+select(Pattern::<a href="ets.md#type-match_spec">ets:match_spec()</a>) -&gt; [{<a href="#type-name">name()</a>, <a href="#type-type">type()</a>, <a href="#type-status">status()</a>}]
 </code></pre>
 
 <br></br>
@@ -419,7 +419,7 @@ metrics is `{Name, Type, Status}`.
 
 
 <pre><code>
-select(Pattern::<a href="ets.md#type-match_spec">ets:match_spec()</a>, Limit::pos_integer() | infinity) -&gt; '$end_of_table' | {[{<a href="#type-name">name()</a>, <a href="#type-type">type()</a>, <a href="#type-status">status()</a>}], _Cont}
+select(Pattern::<a href="ets.md#type-match_spec">ets:match_spec()</a>, Limit::pos_integer() | infinity) -&gt; {[{<a href="#type-name">name()</a>, <a href="#type-type">type()</a>, <a href="#type-status">status()</a>}], _Cont}
 </code></pre>
 
 <br></br>

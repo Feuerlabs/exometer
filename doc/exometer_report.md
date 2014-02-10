@@ -12,7 +12,7 @@ __Behaviours:__ [`gen_server`](gen_server.md).
 
 __This module defines the `exometer_report` behaviour.__
 <br></br>
- Required callback functions: `exometer_init/1`, `exometer_report/5`, `exometer_subscribe/5`, `exometer_unsubscribe/4`, `exometer_info/2`, `exometer_terminate/2`, `exometer_setopts/4`, `exometer_newentry/2`.
+ Required callback functions: `exometer_init/1`, `exometer_report/5`, `exometer_subscribe/5`, `exometer_unsubscribe/4`, `exometer_info/2`, `exometer_call/3`, `exometer_cast/2`, `exometer_terminate/2`, `exometer_setopts/4`, `exometer_newentry/2`.
 <a name="description"></a>
 
 ## Description ##
@@ -299,7 +299,7 @@ interval() = pos_integer()
 
 
 <pre><code>
-metric() = list()
+metric() = [atom(), ...]
 </code></pre>
 
 
@@ -329,7 +329,7 @@ metric() = list()
 
 
 <pre><code>
-list_metrics() -&gt; [<a href="#type-datapoint">datapoint()</a>]
+list_metrics() -&gt; {ok, [<a href="#type-datapoint">datapoint()</a>]} | {error, atom()}
 </code></pre>
 
 <br></br>
@@ -342,7 +342,7 @@ list_metrics() -&gt; [<a href="#type-datapoint">datapoint()</a>]
 
 
 <pre><code>
-list_metrics(Path::<a href="#type-metric">metric()</a>) -&gt; [<a href="#type-datapoint">datapoint()</a>]
+list_metrics(Path::<a href="#type-metric">metric()</a>) -&gt; {ok, [<a href="#type-datapoint">datapoint()</a>]} | {error, atom()}
 </code></pre>
 
 <br></br>
