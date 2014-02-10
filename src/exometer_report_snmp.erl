@@ -114,8 +114,8 @@ exometer_unsubscribe(Metric, DataPoint, Extra, St) ->
 
 exometer_report(Metric, DataPoint, _Extra, Value, St)  ->
     ?debug("Report metric ~p_~p = ~p~n", [Metric, DataPoint, Value]),
-    Inform = erlang:binary_to_atom(inform_name(Metric, DataPoint), latin1),
-    VarName = erlang:binary_to_atom(metric_name(Metric, DataPoint), latin1),
+    Inform = erlang:binary_to_existing_atom(inform_name(Metric, DataPoint), latin1),
+    VarName = erlang:binary_to_existing_atom(metric_name(Metric, DataPoint), latin1),
     Varbinds = [{VarName, Value}],
     snmpa:send_notification(snmp_master_agent, Inform, no_receiver, Varbinds),
     {ok, St}.
@@ -123,7 +123,7 @@ exometer_report(Metric, DataPoint, _Extra, Value, St)  ->
 exometer_info({get_mib, From, Ref}, #st{mib_version=Vsn,
                                         mib_file_path=MibPath, 
                                         mib_file=Mib}=St) ->
-    MibName = erlang:list_to_atom(filename:basename(MibPath, ".mib")),
+    MibName = erlang:list_to_existing_atom(filename:basename(MibPath, ".mib")),
     From ! {get_mib, Ref, Vsn, MibName, Mib},
     {ok, St};
 
