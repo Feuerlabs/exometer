@@ -33,6 +33,12 @@
     test_ext_predef/1
    ]).
 
+%% utility exports
+-export(
+   [
+    vals/0
+   ]).
+
 -include_lib("common_test/include/ct.hrl").
 
 %%%===================================================================
@@ -248,12 +254,12 @@ vals() ->
 update_(C, V) ->
     exometer:update(C, V).
 
+scale_mean([]) ->
+    [];
 scale_mean([{mean,M}|T]) ->
     [{mean, round(M*1000000)}|T];
 scale_mean([H|T]) ->
-    [H|scale_mean(T)];
-scale_mean([]) ->
-    [].
+    [H|scale_mean(T)].
 
 fc() ->
     ok.

@@ -536,7 +536,10 @@ info(Name, Item) ->
 
 datapoints(default, _E) ->
     default;
-
+datapoints(D, _) when is_atom(D) ->
+    [D];
+datapoints(D, _) when is_integer(D) ->
+    [D];
 datapoints(D, _) when is_list(D) ->
     D.
 

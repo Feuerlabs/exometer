@@ -26,7 +26,8 @@
     test_agent_manager_communication_example/1,
     test_mib_modification/1,
     test_counter_get/1,
-    test_counter_reports/1
+    test_counter_reports/1,
+    test_histogram_support/1
    ]).
 
 %% utility exports
@@ -49,7 +50,8 @@ all() ->
      test_agent_manager_communication_example,
      test_mib_modification,
      test_counter_get,
-     test_counter_reports
+     test_counter_reports,
+     test_histogram_support
     ].
 
 suite() ->
@@ -69,7 +71,8 @@ init_per_testcase(test_snmp_export_disabled, Config) ->
 init_per_testcase(Case, Config) when
       Case == test_agent_manager_communication_example;
       Case == test_counter_get;
-      Case == test_counter_reports ->
+      Case == test_counter_reports;
+      Case == test_histogram_support ->
     case os:getenv("TRAVIS") of
         false ->
             Conf0 = snmp_init_testcase(Case),
@@ -256,7 +259,38 @@ test_counter_reports(Config) ->
                   end,
 
     [ok = Fun(Fun, FunReceive2, Counter) || Counter <- Counters],
+    ok.
 
+test_histogram_support(Config) ->
+    Manager = ?config(manager, Config),
+    Name = [hist],
+    ExpectedResults0 = [
+                        {n, datapointHistN, 134},
+                        {mean, datapointHistMean, "2.12686567164179107792e+00"},
+                        {min, datapointHistMin, 1},
+                        {max, datapointHistMax, 9},
+                        {median, datapointHistMedian, 2},
+                        {50, datapointHist50, 2},
+                        {75, datapointHist75, 3},
+                        {90, datapointHist90, 4},
+                        {95, datapointHist95, 5},
+                        {99, datapointHist99, 8},
+                        {999, datapointHist999, 9}
+                       ],
+    ok = exometer:new(Name, histogram, [
+                                        {histogram_module, exometer_slide},
+                                        {truncate, false},
+                                        {snmp, []}
+                                       ]),
+    ok = wait_for_mib_version(2, 10, 10000),
+    [] = [K || {_, K, _} <- ExpectedResults0, not lists:member(K, snmpa:which_variables())],
+    [ok = exometer:update(Name, V) || V <- exometer_SUITE:vals()],
+    ExpectedResults1 = lists:map(
+                         fun({_, K, V}) ->
+                                 {value, Oid} = snmpa:name_to_oid(K),
+                                 {K, V, Oid}
+                         end, ExpectedResults0),
+    [{ok, V} = rpc:call(Manager, exo_test_user, get_value, [Oid]) || {_, V, Oid} <- ExpectedResults1],
     ok.
 
 %%%===================================================================
