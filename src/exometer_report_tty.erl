@@ -30,6 +30,8 @@
    [
     exometer_init/1,
     exometer_info/2,
+    exometer_cast/2,
+    exometer_call/3,
     exometer_report/5,
     exometer_subscribe/5,
     exometer_unsubscribe/4,
@@ -71,9 +73,17 @@ exometer_report(Metric, DataPoint, _Extra, Value, St)  ->
     io:format(Str, []),
     {ok, St}.
 
+exometer_call(Unknown, From, St) ->
+    ?info("Unknown call ~p from ~p", [Unknown, From]),
+    {ok, St}.
+
+exometer_cast(Unknown, St) ->
+    ?info("Unknown cast: ~p", [Unknown]),
+    {ok, St}.
+
 exometer_info(Unknown, St) ->
-    ?info("Unknown: ~p~n", [Unknown]),
-    St.
+    ?info("Unknown info: ~p", [Unknown]),
+    {ok, St}.
 
 exometer_newentry(_Entry, St) ->
     {ok, St}.

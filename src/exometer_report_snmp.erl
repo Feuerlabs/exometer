@@ -19,6 +19,8 @@
    [
     exometer_init/1,
     exometer_info/2,
+    exometer_cast/2,
+    exometer_call/3,
     exometer_report/5,
     exometer_subscribe/5,
     exometer_unsubscribe/4,
@@ -120,16 +122,23 @@ exometer_report(Metric, DataPoint, _Extra, Value, St)  ->
     snmpa:send_notification(snmp_master_agent, Inform, no_receiver, Varbinds),
     {ok, St}.
 
-exometer_info({get_mib, From, Ref}, #st{mib_version=Vsn,
-                                        mib_file_path=MibPath, 
-                                        mib_file=Mib}=St) ->
+exometer_call(get_mib, _From, #st{mib_version=Vsn,
+                                  mib_file_path=MibPath,
+                                  mib_file=Mib}=St) ->
     MibName = erlang:list_to_existing_atom(filename:basename(MibPath, ".mib")),
-    From ! {get_mib, Ref, Vsn, MibName, Mib},
-    {ok, St};
+    {reply, {ok, Vsn, MibName, Mib}, St};
+
+exometer_call(Unknown, From, St) ->
+    ?info("Unknown call ~p from ~p", [Unknown, From]),
+    {ok, St}.
+
+exometer_cast(Unknown, St) ->
+    ?info("Unknown cast: ~p", [Unknown]),
+    {ok, St}.
 
 exometer_info(Unknown, St) ->
-    ?info("Unknown: ~p~n", [Unknown]),
-    St.
+    ?info("Unknown info: ~p", [Unknown]),
+    {ok, St}.
 
 exometer_newentry(#exometer_entry{status=disabled}, St) ->
     {ok, St};
@@ -177,14 +186,7 @@ exometer_terminate(_, #st{mib_file_path=MibPath0}) ->
 %%%===================================================================
 
 get_mib() ->
-    Ref = make_ref(),
-    ?MODULE ! {get_mib, self(), Ref},
-    receive
-        {get_mib, Ref, MibVsn, MibName, Mib} ->
-            {ok, MibVsn, MibName, Mib}
-    after 5000 ->
-              {error, timeout}
-    end.
+    exometer_proc:call(?MODULE, get_mib).
 
 snmp_operation(get, {Metric, Dp}) ->
     ?info("SNMP Get ~p:~p", [Metric, Dp]),

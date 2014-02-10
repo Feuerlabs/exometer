@@ -401,6 +401,8 @@
    [
     exometer_init/1,
     exometer_info/2,
+    exometer_cast/2,
+    exometer_call/3,
     exometer_report/5,
     exometer_subscribe/5,
     exometer_unsubscribe/4,
@@ -490,6 +492,13 @@ exometer_report(Metric, DataPoint, Extra, Value, St)  ->
             { ok, St }
     end.
 
+exometer_call(Unknown, From, St) ->
+    ?info("Unknown call ~p from ~p", [Unknown, From]),
+    {ok, St}.
+
+exometer_cast(Unknown, St) ->
+    ?info("Unknown cast: ~p", [Unknown]),
+    {ok, St}.
 
 %% Handle death of inbound server.
 exometer_info({'DOWN', Ref, _, _, _},
