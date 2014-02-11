@@ -780,33 +780,27 @@ create_entry(#exometer_entry{module = exometer,
 create_entry(#exometer_entry{module = Module,
                              type = Type,
                              name = Name, 
-			     options = Opts} = E) ->
-
-    case 
-	case Module:behaviour() of 
-	    probe ->
-		{probe, exometer_probe:new(Name, Type, [{ type_arg, Module} | Opts ]) };
-
-	    entry ->
-		{entry, Module:new(Name, Type, Opts) };
-
-	    Other -> Other
-	end
-    of
-        {Behaviour, ok }->
-            [ets:insert(T, E#exometer_entry { behaviour = Behaviour })
-	     || T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
-            ok;
-
-        {Behaviour, {ok, Ref}} ->
-            [ets:insert(T, E#exometer_entry{ ref = Ref, behaviour = Behaviour })
+                             options = Opts} = E) ->
+    Spec = case Module:behaviour() of
+               probe ->
+                   {probe, exometer_probe:new(Name, Type, [{type_arg, Module} | Opts ])};
+               entry ->
+                   {entry, Module:new(Name, Type, Opts)};
+               Other ->
+                   Other
+           end,
+    case Spec of
+        {Behaviour, ok}->
+            [ets:insert(T, E#exometer_entry{behaviour=Behaviour})
              || T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
             ok;
-
+        {Behaviour, {ok, Ref}} ->
+            [ets:insert(T, E#exometer_entry{ref=Ref, behaviour=Behaviour})
+             || T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
+            ok;
         Other1 ->
             Other1
     end;
-
 create_entry(_Other) ->
     {error, unknown_argument}.
 
