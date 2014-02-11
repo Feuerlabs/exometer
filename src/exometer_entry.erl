@@ -39,6 +39,13 @@
 %% See individual functions for details on the
 %% in the exometer_entry behavior.
 %% 
+%% === behaviour/0 ===
+%% 
+%% The `behaviour()' function for an entry implementation should return
+%% the atom `entry'. This function will be involved by the
+%% exometer system in order to determine if a callback is
+%% an entry or a probe.
+%%
 %% === new/3 ===
 %% 
 %% The `new()' function is invoked as follows:
