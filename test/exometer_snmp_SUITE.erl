@@ -340,7 +340,7 @@ del_dir(Dir) ->
 
 agent_conf_path() ->
     OtpVersion = erlang:system_info(otp_release),
-    CompatList = ["R15B02", "R15B03", "R16B", "R16B01", "R16B02"],
+    CompatList = ["R15B01", "R15B02", "R15B03", "R16B", "R16B01", "R16B02"],
     case lists:member(OtpVersion, CompatList) of
         true ->
             "../../test/config/snmp_agent-compat-r15.config";
@@ -350,7 +350,7 @@ agent_conf_path() ->
 
 manager_conf_path() ->
     OtpVersion = erlang:system_info(otp_release),
-    CompatList = ["R15B02", "R15B03", "R16B", "R16B01", "R16B02"],
+    CompatList = ["R15B01", "R15B02", "R15B03", "R16B", "R16B01", "R16B02"],
     case lists:member(OtpVersion, CompatList) of
         true ->
             "../../test/config/snmp_manager-compat-r15.config";

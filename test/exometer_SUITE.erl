@@ -87,7 +87,7 @@ init_per_testcase(Case, Config) when
     exometer:start(),
     Config;
 init_per_testcase(test_ext_predef, Config) ->
-    ok = application:set_env(common_test, exometer_predefined, {script, "../../test/data/test_defaults.script"}),
+    ok = application:set_env(stdlib, exometer_predefined, {script, "../../test/data/test_defaults.script"}),
     ok = application:start(setup),
     exometer:start(),
     Config;
