@@ -1,6 +1,0 @@
-%% -*- erlang-mode -*-
-[
- {['_'], mem, [{module,exometer_function},
-	       {options, [{type_arg,{function,erlang,memory,['$dp'],value,
-				     [total,processes,ets,binary,atom]}}]}]}
-].

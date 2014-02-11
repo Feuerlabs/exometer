@@ -1,0 +1,8 @@
+%% -*- erlang-mode -*-
+[
+ {[preset, func], function, 
+  [
+   {module, exometer_function},
+   {type_arg, {function, erlang, memory, ['$dp'], value, [total, processes, ets, binary, atom]}}
+  ]}
+].

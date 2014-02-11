@@ -29,7 +29,8 @@
     test_history1_folsom/1,
     test_history4_slide/1,
     test_history4_slotslide/1,
-    test_history4_folsom/1
+    test_history4_folsom/1,
+    test_ext_predef/1
    ]).
 
 -include_lib("common_test/include/ct.hrl").
@@ -41,7 +42,8 @@
 all() ->
     [
      {group, test_counter},
-     {group, test_histogram}
+     {group, test_histogram},
+     {group, test_setup}
     ].
 
 groups() ->
@@ -61,6 +63,10 @@ groups() ->
        test_history4_slide,
        test_history4_slotslide,
        test_history4_folsom
+      ]},
+     {test_setup, [shuffle],
+      [
+       test_ext_predef
       ]}
     ].
 
@@ -80,6 +86,11 @@ init_per_testcase(Case, Config) when
     folsom:start(),
     exometer:start(),
     Config;
+init_per_testcase(test_ext_predef, Config) ->
+    ok = application:set_env(common_test, exometer_predefined, {script, "../../test/data/test_defaults.script"}),
+    ok = application:start(setup),
+    exometer:start(),
+    Config;
 init_per_testcase(_Case, Config) ->
     exometer:start(),
     Config.
@@ -90,6 +101,11 @@ end_per_testcase(Case, _Config) when
       Case == test_history4_folsom ->
     exometer:stop(),
     folsom:stop(),
+    ok;
+end_per_testcase(test_ext_predef, _Config) ->
+    ok = application:unset_env(common_test, exometer_predefined),
+    exometer:stop(),
+    ok = application:stop(setup),
     ok;
 end_per_testcase(_Case, _Config) ->
     exometer:stop(),
@@ -168,6 +184,10 @@ test_history4_slotslide(_Config) ->
 
 test_history4_folsom(_Config) ->
     test_history(4, folsom, "../../test/data/puts_time_hist4.bin").
+
+test_ext_predef(_Config) ->
+    {ok, [{total, _}]} = exometer:get_value([preset, func], [total]),
+    ok.
 
 %%%===================================================================
 %%% Internal functions
