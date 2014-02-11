@@ -197,9 +197,7 @@ take_since(_, _, _, Acc) ->
     Acc.
 
 decr(N) when is_integer(N) ->
-    N-1;
-decr(V) ->
-    V.
+    N-1.
 
 n_diff(A, B) when is_integer(A) ->
     A - B;

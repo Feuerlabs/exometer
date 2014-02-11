@@ -1,6 +1,6 @@
 %% -------------------------------------------------------------------
 %%
-%% Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved.
+%% Copyright (c) 2014 Basho Technologies, Inc.  All Rights Reserved.
 %%
 %%   This Source Code Form is subject to the terms of the Mozilla Public
 %%   License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -12,29 +12,34 @@
 %% @todo Clean up and document
 %%
 -module(exometer_probe).
+
 -behaviour(exometer_entry).
 
 % exometer_entry callb
--export([behaviour/0,
-	 new/3,
-         delete/3,
-         get_datapoints/3,
-         get_value/3, get_value/4,
-         update/4,
-         reset/3,
-         sample/3,
-         setopts/4]).
+-export(
+   [
+    behaviour/0,
+    new/3,
+    delete/3,
+    get_datapoints/3,
+    get_value/3, get_value/4,
+    update/4,
+    reset/3,
+    sample/3,
+    setopts/4
+   ]).
 
+-include_lib("exometer/include/exometer.hrl").
 
--include("exometer.hrl").
-
--record(st, {name,
-             type,
-             module = undefined,
-             mod_state,
-             sample_timer,
-             sample_interval = infinity, %% msec. infinity = disable probe_sample() peridoc calls.
-             opts = []}).
+-record(st, {
+          name,
+          type,
+          module = undefined,
+          mod_state,
+          sample_timer,
+          sample_interval = infinity, %% msec. infinity = disable probe_sample() peridoc calls.
+          opts = []
+         }).
 
 -type name()            :: exometer:name().
 -type options()         :: exometer:options().
@@ -149,62 +154,62 @@ handle_msg(Msg, St) ->
     Module = St#st.module,
     case Msg of
         {exometer_proc, {From, Ref}, {get_value, default} } ->
-	    {ok, DataPoints} = Module:probe_get_datapoints(St#st.mod_state),
-	    {Reply, NSt} = 
-		process_probe_reply(St, Module:probe_get_value(DataPoints, 
-							       St#st.mod_state)),
+            {ok, DataPoints} = Module:probe_get_datapoints(St#st.mod_state),
+            {Reply, NSt} = 
+            process_probe_reply(St, Module:probe_get_value(DataPoints, 
+                                                           St#st.mod_state)),
             From ! {Ref, Reply },
             NSt;
 
         {exometer_proc, {From, Ref}, {get_value, DataPoints} } ->
-	    {Reply, NSt} = 
-		process_probe_reply(St, Module:probe_get_value(DataPoints, 
-							       St#st.mod_state)),
+            {Reply, NSt} = 
+            process_probe_reply(St, Module:probe_get_value(DataPoints, 
+                                                           St#st.mod_state)),
             From ! {Ref, Reply },
             NSt;
 
         {exometer_proc, {From, Ref}, get_datapoints } ->
-	    {ok, DataPoints} =Module:probe_get_datapoints(St#st.mod_state),
+            {ok, DataPoints} =Module:probe_get_datapoints(St#st.mod_state),
             From ! {Ref, DataPoints },
             St;
 
         {exometer_proc, { update, Value } } ->
-	    Res = process_probe_noreply(St, Module:probe_update(Value, St#st.mod_state)),
-	    Res;
+            Res = process_probe_noreply(St, Module:probe_update(Value, St#st.mod_state)),
+            Res;
 
         {exometer_proc, reset } ->
-	    process_probe_noreply(St, Module:probe_reset(St#st.mod_state));
+            process_probe_noreply(St, Module:probe_reset(St#st.mod_state));
 
         {exometer_proc, sample } ->
-	    process_probe_noreply(St, Module:probe_sample(St#st.mod_state));
+            process_probe_noreply(St, Module:probe_sample(St#st.mod_state));
 
         {exometer_proc, {From, Ref}, {setopts, Options }} ->
-	    %% Extract probe-level options (sample_interval)
-	    {NSt, Opts1} = process_opts(Options, St),
+            %% Extract probe-level options (sample_interval)
+            {NSt, Opts1} = process_opts(Options, St),
 
-	    {Reply, NSt1} = %% Call module setopts for remainder of opts
-		process_probe_reply(NSt,  Module:probe_setopts(Opts1, NSt#st.mod_state)),
-	    
+            {Reply, NSt1} = %% Call module setopts for remainder of opts
+            process_probe_reply(NSt,  Module:probe_setopts(Opts1, NSt#st.mod_state)),
+
             From ! {Ref, Reply },
-	    %% Return state with options and any non-duplicate original opts.
-	    NSt1#st {  
-	      opts = Opts1 ++ 
-		  [{K,V} || {K,V} <- St#st.opts, not lists:keymember(K,1,Opts1) ]
-	     };
+            %% Return state with options and any non-duplicate original opts.
+            NSt1#st {  
+              opts = Opts1 ++ 
+              [{K,V} || {K,V} <- St#st.opts, not lists:keymember(K,1,Opts1) ]
+             };
 
-	{timeout, _TRef, sample} ->
-	    sample(St);
+        {timeout, _TRef, sample} ->
+            sample(St);
 
         {exometer_proc, delete} ->
-	    Module:probe_terminate(St),
-	    exometer_proc:stop();
-	     
+            Module:probe_terminate(St),
+            exometer_proc:stop();
+
         {exometer_proc, code_change} ->
-	    Module:probe_terminate(St),
-	    exometer_proc:stop();
-	     
-	Other ->
-	    process_probe_noreply(St, Module:probe_handle_msg(Other, St))
+            Module:probe_terminate(St),
+            exometer_proc:stop();
+
+        Other ->
+            process_probe_noreply(St, Module:probe_handle_msg(Other, St))
     end.
 
 
@@ -228,7 +233,7 @@ process_probe_reply(St, Err) ->
 
 
 process_probe_noreply(St, {ok, ModSt}) ->
-    St#st { mod_state = ModSt };
+    St#st{mod_state=ModSt};
 
 process_probe_noreply(St, _) ->
     St.
@@ -237,7 +242,7 @@ process_probe_noreply(St, _) ->
 
 sample(St) ->
     ModSt = restart_timer(sample, St),
-    {_, ModSt1} = process_probe_noreply(St, (St#st.module):probe_sample(ModSt)),
+    #st{mod_state=ModSt1} = process_probe_noreply(St, (St#st.module):probe_sample(ModSt)),
     ModSt1.
 
 restart_timer(sample, #st{sample_interval = Int} = St) ->

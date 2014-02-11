@@ -1,6 +1,6 @@
 %% -------------------------------------------------------------------
 %%
-%% Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved.
+%% Copyright (c) 2014 Basho Technologies, Inc.  All Rights Reserved.
 %%
 %%   This Source Code Form is subject to the terms of the Mozilla Public
 %%   License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -393,8 +393,8 @@
 %% No reply is sent in response to a `report' command.
 %%
 %% @end
-
 -module(exometer_report_riak).
+
 -behaviour(exometer_report).
 
 -export(
@@ -409,17 +409,17 @@
     exometer_terminate/2
    ]).
 
+-include_lib("exometer/include/exometer.hrl").
+-include("log.hrl").
+
 %% Extra functions involved by exometer_report:reporter_loop().
 %% Triggered by send_after() calls in this module
 -define(SERVER, ?MODULE).
 -define(SUBSCRIPTION_TABLE, subscribers).
 -define(CONNECTION_TABLE, connections).
 
--include("exometer.hrl").
-
 -define(SERVER_PATH_OPT, server_path).
 -define(DEFAULT_SERVER_PATH, "/tmp/exometer_report_riak.ux").
-
 
 -define(RESULT_OK, "0 ").
 -define(RESULT_SYNTAX_ERROR, "1 ").
@@ -427,17 +427,21 @@
 -define(RESULT_INVALID_SOCKET, "3 ").
 -define(RESULT_INTERNAL_ERROR, "4 ").
 
+%% calendar:datetime_to_gregorian_seconds({{1970,1,1},{0,0,0}}).
+-define(UNIX_EPOCH, 62167219200).
+
 -record(st, {
-          server_path :: string(),
-          server_pid :: pid(),
-          server_monitor :: reference() }).
+          server_path       :: string(),
+          server_pid        :: pid(),
+          server_monitor    :: reference()
+         }).
 
 -record(subscription, {
-          key = []         ::list(), %% [socket_path] + [metric] ++ datapoint.
-          hostid = []      ::list(), %% HostID associated with subscription
-          socket_path = [] ::list(), %% socket path. Matches ?CONNECT_TABLE entry
-          metric = []      ::list(), %% metric
-          datapoint = []   ::list()  %% data point
+          key = []         :: list(), %% [socket_path] + [metric] ++ datapoint.
+          hostid = []      :: list(), %% HostID associated with subscription
+          socket_path = [] :: list(), %% socket path. Matches ?CONNECT_TABLE entry
+          metric           :: exometer_report:metric(),
+          datapoint        :: exometer_report:datapoint()
          }).
 
 -record(connection, {
@@ -446,20 +450,15 @@
           count = 0        :: integer()
          }).
 
-%% calendar:datetime_to_gregorian_seconds({{1970,1,1},{0,0,0}}).
--define(UNIX_EPOCH, 62167219200).
-
--include("log.hrl").
-
 %% Callback from exometer_report:subscribe(), which is invoked
 %% from setup_outbound_subscription().
 exometer_subscribe(_Metric, _DataPoint, _Extra, _Interval, St) ->
-    { ok, St }.
+    {ok, St}.
 
 %% Callback from exometer_report:unsubscribe(), which is invoked
 %% from terminate_outbound_subscription().
 exometer_unsubscribe(_Metric, _DataPoint, _Extra, St) ->
-    { ok, St }.
+    {ok, St}.
 
 exometer_init(Opts) ->
     ?info("exometer_report_riak(~p): Starting~n", [Opts]),
@@ -470,9 +469,9 @@ exometer_init(Opts) ->
     ets:new(?CONNECTION_TABLE, [ named_table, { keypos, #connection.socket_path},
                               public, set ]),
 
-    { ok,
-      setup_inbound_server(get_opt(?SERVER_PATH_OPT, Opts,
-                                   ?DEFAULT_SERVER_PATH)) }.
+    {ok,
+     setup_inbound_server(get_opt(?SERVER_PATH_OPT, Opts,
+                                  ?DEFAULT_SERVER_PATH))}.
 
 %% Invoked through the remote_exometer() function to
 %% send out an update.
@@ -561,12 +560,8 @@ report_to_outbound_connection(#subscription {
             end
     end.
 
-
-
-
 setup_outbound_subscription(MasterProc, Metric, DataPoint,
-                          Interval, SocketPath, HostID) ->
-
+                            Interval, SocketPath, HostID) ->
     %% Incremenet usage counter for existing connection table entry,
     %% or create a new entry.
     ?info("Setting up subscription Socket(~p) Metric(~p) DataPoint(~p)~n",
@@ -604,7 +599,6 @@ setup_outbound_subscription(MasterProc, Metric, DataPoint,
                 Res ->
                     ?info("Subscription failed: ~p~n", [ Res ]),
                     unknown_metric %% No such metric/ data point
-
             end;
 
         [_] ->
@@ -619,7 +613,8 @@ setup_outbound_subscription(MasterProc, Metric, DataPoint,
                     add_subscription_entry(Metric, DataPoint, SocketPath, HostID),
                     update_outbound_connection_counter(SocketPath, 1),
                     ok;
-                _ -> unknown_metric %% Not found.
+                _ -> 
+                    unknown_metric %% Not found.
             end
     end.
 
@@ -718,12 +713,13 @@ find_subscription(Metric, DataPoint, SocketPath) ->
     end.
 
 find_subscriptions_by_socket_path(SocketPath) ->
-    RawMatch = ets:match(?SUBSCRIPTION_TABLE, #subscription {
+    RawMatch = ets:match(?SUBSCRIPTION_TABLE, 
+                         #subscription {
                             socket_path = SocketPath,
                             key = '_',
                             hostid = '$0',
                             metric = '$1',
-                            datapoint = '$2' }),
+                            datapoint = '$2'}),
     %% convert to #subscription records
     [ #subscription {
          hostid = HostID,
@@ -761,7 +757,7 @@ find_outbound_connection(SocketPath) ->
     end.
 
 setup_inbound_server(Path) ->
-    Self = self(),
+    Self = ?MODULE,
     {Pid, MRef} =
         spawn_monitor(
           fun() ->
@@ -825,15 +821,15 @@ parse_inbound_command(MasterProc, subscribe,
         [_] ->
             { syntax_error,
               "Metrics/datapoint argument must have at least one slash." };
-
-        MDPList ->
-            {Metric, [DataPoint]} = lists:split(length(MDPList)-1, MDPList),
-            case  setup_outbound_subscription(MasterProc,
-                                              Metric,
-                                              list_to_atom(DataPoint),
-                                              Interval,
-                                              SocketPath,
-                                              HostID) of
+        MDPList0 ->
+            MDPList1 = [erlang:list_to_atom(E) || E <- MDPList0],
+            {Metric, [DataPoint]} = lists:split(length(MDPList1)-1, MDPList1),
+            case setup_outbound_subscription(MasterProc,
+                                             Metric,
+                                             DataPoint,
+                                             Interval,
+                                             SocketPath,
+                                             HostID) of
                 ok ->
                     { ok, "Subscription successful" };
                 invalid_socket ->
@@ -841,13 +837,7 @@ parse_inbound_command(MasterProc, subscribe,
                 unknown_metric ->
                     { unknown_metric,
                       io_lib:format("Metric ~p or data point ~p unknown",
-                                   [ Metric, DataPoint ])};
-
-                Err ->
-                    { internal_error,
-                      io_lib:format("Internal error: ~p",
-                                   [ Err])
-                    }
+                                   [ Metric, DataPoint ])}
 
             end
     end;
@@ -949,7 +939,6 @@ metric_elem_to_list(E) when is_list(E) ->
 
 metric_elem_to_list(E) when is_integer(E) ->
     integer_to_list(E).
-
 
 value(V) when is_integer(V) -> integer_to_list(V);
 value(V) when is_float(V)   -> io_lib:format("~f", [V]);

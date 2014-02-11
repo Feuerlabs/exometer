@@ -281,26 +281,17 @@ default_definition_(Name, Type) ->
     end.
 
 exometer_default(Name, Type) ->
-    case module(Type) of
-        {M, Arg} ->
-            #exometer_entry{name = Name, type = Type,
-                            module = M,
-                            options = [{type_arg,Arg}]};
-        M when is_atom(M) ->
-            #exometer_entry{name = Name, type = Type,
-                            module = M}
-    end.
+    #exometer_entry{name=Name, type=Type, module=module(Type)}.
 
-module(counter )      -> exometer;
-module(fast_counter)  -> exometer;
-module(uniform)       -> exometer_uniform;
-module(duration)      -> exometer_duration;
-module(histogram)     -> exometer_histogram;
-module(spiral   )     -> exometer_spiral;
-module(netlink  )     -> exometer_netlink;
-module(cpu      )     -> exometer_cpu;
-module(function )     -> exometer_function.
-
+module(counter)         -> exometer;
+module(fast_counter)    -> exometer;
+module(uniform)         -> exometer_uniform;
+module(duration)        -> exometer_duration;
+module(histogram)       -> exometer_histogram;
+module(spiral)          -> exometer_spiral;
+module(netlink)         -> exometer_netlink;
+module(cpu)             -> exometer_cpu;
+module(function)        -> exometer_function.
 
 search_default(Name, Type) ->
     case ets:lookup(?EXOMETER_SHARED, {default,Type,Name}) of
