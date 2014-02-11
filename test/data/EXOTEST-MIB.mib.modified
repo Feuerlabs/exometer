@@ -22,44 +22,105 @@ exotest OBJECT IDENTIFIER ::= { experimental 8 }
 
 -- CONTENT START
 
--- METRIC testAppOne START
-testAppOne OBJECT-TYPE
+-- METRIC datapointTestAppOneValue START
+datapointTestAppOneValue OBJECT-TYPE
     SYNTAX Counter32
     MAX-ACCESS read-only
     STATUS current
     DESCRIPTION ""
     ::= { exotest 1 }
--- METRIC testAppOne END
+-- METRIC datapointTestAppOneValue END
 
--- METRIC testAppThree START
-testAppThree OBJECT-TYPE
-    SYNTAX Counter32
-    MAX-ACCESS read-only
-    STATUS current
-    DESCRIPTION ""
-    ::= { exotest 4 }
--- METRIC testAppThree END
-
--- METRIC testAppFour START
-testAppFour OBJECT-TYPE
+-- METRIC datapointTestAppOneMsSinceReset START
+datapointTestAppOneMsSinceReset OBJECT-TYPE
     SYNTAX Counter32
     MAX-ACCESS read-only
     STATUS current
     DESCRIPTION ""
     ::= { exotest 3 }
--- METRIC testAppFour END
+-- METRIC datapointTestAppOneMsSinceReset END
+
+-- METRIC datapointTestAppThreeValue START
+datapointTestAppThreeValue OBJECT-TYPE
+    SYNTAX Counter32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION ""
+    ::= { exotest 6 }
+-- METRIC datapointTestAppThreeValue END
+
+-- METRIC datapointTestAppThreeMsSinceReset START
+datapointTestAppThreeMsSinceReset OBJECT-TYPE
+    SYNTAX Counter32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION ""
+    ::= { exotest 7 }
+-- METRIC datapointTestAppThreeMsSinceReset END
+
+-- METRIC datapointTestAppFourValue START
+datapointTestAppFourValue OBJECT-TYPE
+    SYNTAX Counter32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION ""
+    ::= { exotest 5 }
+-- METRIC datapointTestAppFourValue END
+
+-- METRIC datapointTestAppFourMsSinceReset START
+datapointTestAppFourMsSinceReset OBJECT-TYPE
+    SYNTAX Counter32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION ""
+    ::= { exotest 4 }
+-- METRIC datapointTestAppFourMsSinceReset END
 
 -- OBJECT-GROUP allObjects START
 allObjects OBJECT-GROUP
     OBJECTS {
-        testAppFour,
-        testAppOne,
-        testAppThree
+        datapointTestAppFourMsSinceReset,
+        datapointTestAppFourValue,
+        datapointTestAppOneMsSinceReset,
+        datapointTestAppOneValue,
+        datapointTestAppThreeMsSinceReset,
+        datapointTestAppThreeValue
     }
     STATUS current
     DESCRIPTION ""
     ::= { exotest 2 }
 -- OBJECT-GROUP allObjects END
+
+-- INFORM reportTestAppOneValue START
+reportTestAppOneValue NOTIFICATION-TYPE
+    OBJECTS {
+        datapointTestAppOneValue
+    }
+    STATUS current
+    DESCRIPTION ""
+    ::= { exotest 8 }
+-- INFORM reportTestAppOneValue END
+
+-- INFORM reportTestAppThreeMsSinceReset START
+reportTestAppThreeMsSinceReset NOTIFICATION-TYPE
+    OBJECTS {
+        datapointTestAppThreeMsSinceReset
+    }
+    STATUS current
+    DESCRIPTION ""
+    ::= { exotest 10 }
+-- INFORM reportTestAppThreeMsSinceReset END
+
+-- NOTIFICATION-GROUP allNotifications START
+allNotifications NOTIFICATION-GROUP
+    NOTIFICATIONS {
+        reportTestAppOneValue,
+        reportTestAppThreeMsSinceReset
+    }
+    STATUS current
+    DESCRIPTION ""
+    ::= { exotest 9 }
+-- NOTIFICATION-GROUP allNotifications END
 
 -- CONTENT END
 

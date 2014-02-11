@@ -198,6 +198,12 @@
 -callback exometer_info(any(),mod_state()) ->
     callback_result().
 
+-callback exometer_call(any(), pid(), mod_state()) ->
+    {reply, any(), mod_state()} | {noreply, mod_state()} | any().
+
+-callback exometer_cast(any(), mod_state()) ->
+    {noreply, mod_state()} | any().
+
 -callback exometer_terminate(any(), mod_state()) ->
     any().
 
@@ -610,10 +616,13 @@ assert_no_duplicates([]) ->
     ok.
 
 spawn_reporter(Reporter, Opt) ->
-    spawn_monitor(fun() ->
-                          true = register(Reporter, self()),
-                          reporter_launch(Reporter, Opt)
-                  end).
+    Fun = fun() ->
+                  true = register(Reporter, self()),
+                  reporter_launch(Reporter, Opt)
+          end,
+    Pid = exometer_proc:spawn_process(Reporter, Fun),
+    MRef = erlang:monitor(process, Pid),
+    {Pid, MRef}.
 
 terminate_reporter(#reporter{pid = Pid, mref = MRef}) ->
     Pid ! {exometer_terminate, shutdown},
@@ -762,6 +771,23 @@ reporter_loop(Module, St) ->
               {exometer_terminate, Reason} ->
                   Module:exometer_terminate(Reason, St),
                   terminate;
+              {exometer_proc, {From, Ref}, Req} ->
+                  case Module:exometer_call(Req, From, St) of
+                      {reply, Reply, St1} ->
+                          From ! {Ref, Reply},
+                          {ok, St1};
+                      {noreply, St1} ->
+                          {ok, St1};
+                      _ ->
+                          {ok, St}
+                  end;
+              {exometer_proc, Req} ->
+                  case Module:exometer_cast(Req, St) of
+                      {noreply, St1} ->
+                          {ok, St1};
+                      _ ->
+                          {ok, St}
+                  end;
               %% Allow reporters to generate their own callbacks.
               Other ->
                   ?info("Custom invocation: ~p(~p)~n", [ Module, Other]),

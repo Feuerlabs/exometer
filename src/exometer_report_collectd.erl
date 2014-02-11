@@ -30,6 +30,8 @@
    [
     exometer_init/1,
     exometer_info/2,
+    exometer_cast/2,
+    exometer_call/3,
     exometer_report/5,
     exometer_subscribe/5,
     exometer_unsubscribe/4,
@@ -159,6 +161,14 @@ exometer_report(Metric, DataPoint, _Extra, Value, St)  ->
 
     %% Report the value and setup a new refresh timer.
     {ok, report_exometer_(Metric, DataPoint, Value, St)}.
+
+exometer_call(Unknown, From, St) ->
+    ?info("Unknown call ~p from ~p", [Unknown, From]),
+    {ok, St}.
+
+exometer_cast(Unknown, St) ->
+    ?info("Unknown cast: ~p", [Unknown]),
+    {ok, St}.
 
 exometer_info({exometer_callback, refresh_metric,
                Metric, DataPoint, Value}, St) ->
