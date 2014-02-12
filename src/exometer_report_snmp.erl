@@ -85,8 +85,8 @@ exometer_init(Opts) ->
 
     % load MIB template which is used through the operation of 
     % the process to dynamically export metrics
-    MibPath0 = exometer_util:get_env(snmp_mib_template, ?MIB_TEMPLATE),
-    MibWorkPath = exometer_util:get_env(snmp_mib_dir, ?MIB_DIR),
+    MibPath0 = proplists:get_value(mib_template, Opts, ?MIB_TEMPLATE),
+    MibWorkPath = proplists:get_value(mib_dir, Opts, ?MIB_DIR),
     MibPath1 = filename:join([MibWorkPath, filename:basename(MibPath0)]),
     ok = filelib:ensure_dir(MibPath1),
     {ok, _} = file:copy(MibPath0, MibPath1),
@@ -185,20 +185,26 @@ exometer_terminate(_, #st{mib_file_path=MibPath0}) ->
 %%% External API
 %%%===================================================================
 
+% @doc Returns the latest mib and its metadata.
 get_mib() ->
     exometer_proc:call(?MODULE, get_mib).
 
+% @doc 
+% Callback function used by the SNMP master agent upon operations performed by a manager.
+% Currently only get operations are handled.
+% @end
 snmp_operation(get, {Metric, Dp}) ->
     ?info("SNMP Get ~p:~p", [Metric, Dp]),
-    {ok, [V]} = exometer:get_value(Metric, Dp),
-    V;
+    {ok, [{Dp, V}]} = exometer:get_value(Metric, Dp),
+    snmp_value(Metric, Dp, V);
 snmp_operation(Op, Key) ->
     ?warning("Unhandled SNMP operation ~p on ~p", [Op, Key]),
-    error.
+    {noValue, noSuchObject}.
 
+% @doc See snmp_operation/2. Currently no operations are handled.
 snmp_operation(Op, Val, Key) ->
     ?warning("Unhandled SNMP operation ~p on ~p with value ~p", [Op, Key, Val]),
-    error.
+    {noValue, noSuchObject}.
 
 %%%===================================================================
 %%% Internal functions
@@ -316,7 +322,7 @@ modify_mib(enable_metric, Metric, Mib0, Domain, [Dp | Datapoints]) ->
         _ ->
             Nr1 = erlang:list_to_binary(erlang:integer_to_list(Nr0)),
             {A, B, C} = re_split(content, foo, Mib0),
-            case create_bin(Name, Metric) of
+            case create_bin(Name, Dp, Metric) of
                 {ok, Bin} ->
                     L = [
                          A, B, 
@@ -455,7 +461,7 @@ create_inform_bin(Name, Domain, Nr, Object) ->
      <<"-- INFORM ">>, Name, <<" END\n\n">>
     ].
 
-create_bin(Name, #exometer_entry{module=exometer, type=Type}) when
+create_bin(Name, _, #exometer_entry{module=exometer, type=Type}) when
       Type == counter; Type == fast_counter ->
     B = [
          Name, <<" OBJECT-TYPE\n">>,
@@ -466,12 +472,28 @@ create_bin(Name, #exometer_entry{module=exometer, type=Type}) when
         ],
     {ok, binary:list_to_bin(B)};
 
-create_bin(Name, #exometer_entry{module=Mod}=E) ->
+create_bin(Name, Dp, #exometer_entry{module=exometer_histogram, type=histogram}) ->
+    Type = case Dp of
+               mean ->
+                   <<"OCTET STRING (SIZE(0..64))">>;
+               _ ->
+                   <<"Gauge32">>
+           end,
+    B = [
+         Name, <<" OBJECT-TYPE\n">>,
+         <<"    SYNTAX ", Type/binary, "\n">>,
+         <<"    MAX-ACCESS read-only\n">>,
+         <<"    STATUS current\n">>,
+         <<"    DESCRIPTION \"\"\n">>
+        ],
+    {ok, binary:list_to_bin(B)};
+
+create_bin(Name, Dp, #exometer_entry{module=Mod}=E) ->
     Exports = Mod:module_info(exports),
     F = snmp_bin,
     case proplists:get_value(F, Exports) of
-        2 -> 
-            case Mod:snmp_bin(Name, E) of
+        3 ->
+            case Mod:snmp_bin(Name, Dp, E) of
                 undefined ->
                     {error, binary_representation_undefined};
                 Bin ->
@@ -481,10 +503,42 @@ create_bin(Name, #exometer_entry{module=Mod}=E) ->
             {error, {function_not_exported, {F, 1}}} 
     end.
 
+snmp_value(Name, Dp, Value) ->
+    Type = exometer:info(Name, type),
+    Mod = exometer:info(Name, module),
+    case {Mod, Type, Dp} of
+        {exometer, T, _} when T == counter; T == fast_counter ->
+            {value, Value};
+        {exometer_histogram, histogram, mean} ->
+            {value, erlang:float_to_list(Value)};
+        {exometer_histogram, histogram, _ } ->
+            {value, Value};
+        _ ->
+            Exports = Mod:module_info(exports),
+            F = snmp_value,
+            case proplists:get_value(F, Exports) of
+                3 ->
+                    case Mod:snmp_value(Name, Dp, Value) of
+                        undefined ->
+                            ?error("SNMP value representation undefined in module ~p for ~p:~p", [Mod, Name, Dp]),
+                            {noValue, noSuchObject};
+                        NewValue ->
+                            {value, NewValue}
+                    end;
+                _ ->
+                    ?error("snmp_value/3 not exported in module ~p for ~p:~p", [Mod, Name, Dp]),
+                    {noValue, noSuchObject}
+            end
+    end.
+
 metric_name(#exometer_entry{name=Name0}, Dp) ->
     metric_name(Name0, Dp);
-metric_name(Name0, Dp) when is_list(Name0) ->
-    Name1  = [atom_to_list(N) || N <- Name0++[Dp]],
+metric_name(Name0, Dp) when is_integer(Dp) ->
+    metric_name(Name0, erlang:integer_to_list(Dp));
+metric_name(Name0, Dp) when is_atom(Dp) ->
+    metric_name(Name0, erlang:atom_to_list(Dp));
+metric_name(Name0, Dp) when is_list(Name0), is_list(Dp) ->
+    Name1  = [erlang:atom_to_list(N) || N <- Name0] ++ [Dp],
     Name2 = [capitalize(N) || N <- Name1],
     binary:list_to_bin([<<"datapoint">>, Name2]).
 

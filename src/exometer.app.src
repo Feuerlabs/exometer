@@ -17,6 +17,5 @@
   {start_phases, [{preset_defaults, []}]},
   {env, 
    [
-    {snmp_export, false}
    ]}
  ]}.

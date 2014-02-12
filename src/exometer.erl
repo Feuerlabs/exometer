@@ -1,6 +1,6 @@
 %% -------------------------------------------------------------------
 %%
-%% Copyright (c) 2013 Basho Technologies, Inc.  All Rights Reserved.
+%% Copyright (c) 2014 Basho Technologies, Inc.  All Rights Reserved.
 %%
 %%   This Source Code Form is subject to the terms of the Mozilla Public
 %%   License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -536,7 +536,10 @@ info(Name, Item) ->
 
 datapoints(default, _E) ->
     default;
-
+datapoints(D, _) when is_atom(D) ->
+    [D];
+datapoints(D, _) when is_integer(D) ->
+    [D];
 datapoints(D, _) when is_list(D) ->
     D.
 

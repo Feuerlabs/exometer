@@ -46,12 +46,27 @@ snmp_option() = {<a href="exometer_entry.md#type-datapoint">exometer_entry:datap
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#exometer_info-2">exometer_info/2</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_init-1">exometer_init/1</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_newentry-2">exometer_newentry/2</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_report-5">exometer_report/5</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_setopts-4">exometer_setopts/4</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_subscribe-5">exometer_subscribe/5</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_terminate-2">exometer_terminate/2</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_unsubscribe-4">exometer_unsubscribe/4</a></td><td></td></tr><tr><td valign="top"><a href="#get_mib-0">get_mib/0</a></td><td></td></tr><tr><td valign="top"><a href="#snmp_operation-2">snmp_operation/2</a></td><td></td></tr><tr><td valign="top"><a href="#snmp_operation-3">snmp_operation/3</a></td><td></td></tr></table>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#exometer_call-3">exometer_call/3</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_cast-2">exometer_cast/2</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_info-2">exometer_info/2</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_init-1">exometer_init/1</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_newentry-2">exometer_newentry/2</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_report-5">exometer_report/5</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_setopts-4">exometer_setopts/4</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_subscribe-5">exometer_subscribe/5</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_terminate-2">exometer_terminate/2</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_unsubscribe-4">exometer_unsubscribe/4</a></td><td></td></tr><tr><td valign="top"><a href="#get_mib-0">get_mib/0</a></td><td>Returns the latest mib and its metadata.</td></tr><tr><td valign="top"><a href="#snmp_operation-2">snmp_operation/2</a></td><td>
+Callback function used by the SNMP master agent upon operations performed by a manager.</td></tr><tr><td valign="top"><a href="#snmp_operation-3">snmp_operation/3</a></td><td>See snmp_operation/2.</td></tr></table>
 
 
 <a name="functions"></a>
 
 ## Function Details ##
+
+<a name="exometer_call-3"></a>
+
+### exometer_call/3 ###
+
+`exometer_call(Unknown, From, St) -> any()`
+
+
+<a name="exometer_cast-2"></a>
+
+### exometer_cast/2 ###
+
+`exometer_cast(Unknown, St) -> any()`
+
 
 <a name="exometer_info-2"></a>
 
@@ -115,7 +130,7 @@ snmp_option() = {<a href="exometer_entry.md#type-datapoint">exometer_entry:datap
 
 `get_mib() -> any()`
 
-
+Returns the latest mib and its metadata.
 <a name="snmp_operation-2"></a>
 
 ### snmp_operation/2 ###
@@ -123,10 +138,12 @@ snmp_option() = {<a href="exometer_entry.md#type-datapoint">exometer_entry:datap
 `snmp_operation(Op, Key) -> any()`
 
 
+Callback function used by the SNMP master agent upon operations performed by a manager.
+Currently only get operations are handled.
 <a name="snmp_operation-3"></a>
 
 ### snmp_operation/3 ###
 
 `snmp_operation(Op, Val, Key) -> any()`
 
-
+See snmp_operation/2. Currently no operations are handled.

@@ -4,7 +4,7 @@
 
 Copyright (c) 2014 Basho Technologies, Inc.  All Rights Reserved.
 
-__Version:__ Feb 11 2014 08:53:36
+__Version:__ Feb 12 2014 11:28:52
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -46,6 +46,7 @@ with `exometer`.
 3. [Built in Reporters](#Built_in_Reporters)
     1. [exometer_report_graphite](#exometer_report_graphite)
     2. [exometer_report_collectd](#exometer_report_collectd)
+    3. [exometer_report_snmp](#exometer_report_snmp)
 4. [Instrumenting Erlang code](#Instrumenting_Erlang_code)
     1. [Exometer Start](#Exometer_Start)
     2. [Creating metrics](#Creating_metrics)
@@ -61,6 +62,7 @@ with `exometer`.
     4. [Configuring reporter plugins](#Configuring_reporter_plugins)
     5. [Configuring collectd reporter](#Configuring_collectd_reporter)
     6. [Configuring graphite reporter](#Configuring_graphite_reporter)
+    7. [Configuring snmp reporter](#Configuring_snmp_reporter)
 6. [Creating custom exometer entries](#Creating_custom_exometer_entries)
 7. [Creating custom probes](#Creating_custom_probes)
 8. [Creating custom reporter plugins](#Creating_custom_reporter_plugins)
@@ -301,7 +303,7 @@ system without having to write a complete entry.
 
 ### <a name="Built_in_Reporters">Built in Reporters</a> ###
 
-Two reporters are shipped with Exometer to forward updated
+Exometer ships with some built-in reporters which can be used to forward updated
 metrics and their data points to external systems. They can also
 serve as templates for custom-developed reporters.
 
@@ -386,6 +388,44 @@ Will be added to the end of the metrics string.
 
 Please see [Configuring collectd reporter](#Configuring_collectd_reporter) for details on the
 application environment parameters listed above.
+
+
+#### <a name="exometer_report_snmp">exometer_report_snmp</a> ####
+
+The SNMP reporter enables the export of metrics and their datapoints to SNMP managers.
+The export needs to be enabled for each metric through their options. 
+Moreover, SNMP notifications can be created using the options to send periodic reports
+on datapoints to SNMP managers. All SNMP protocol handling is done by the snmp application
+shipped with Erlang/OTP. Thus, the snmp application needs to be started and 
+the local SNMP master agent needs to be configured correctly for SNMP export to work
+properly.
+
+To configure SNMP export for a single metric use these options:
+
++ `{snmp, disabled}` (default)
+<br></br>
+Disables SNMP export for the metric. Same as not specifying the option at all.
+
++ `{snmp, []}`
+<br></br>
+Enables SNMP export for the metric. No subscriptions are setup.
+
++ `{snmp, [{Datapint, Interval}]}`
+<br></br>
+Enables SNMP export for the metric.
+<br></br>
+Subscriptions are setup for the given Datapoint/Interval pairs.
+<br></br>
+Each subscription report will be forwarded to SNMP mangers as notifications.
+
++ `{snmp, [{Datapint, Interval, Extra}]}`
+<br></br>
+Same as above, but using an addition extra identification for the subscriptions.
+<br></br>
+Allow the creation ofmultiple subscriptions for a single datapoint.
+
+Please see [Configuring collectd reporter](#Configuring_collectd_reporter) for details on how to configure the
+SNMP reporter.
 
 
 ### <a name="Instrumenting_Erlang_code">Instrumenting Erlang code</a> ###
@@ -565,16 +605,17 @@ Below is an example, from `exometer/priv/app.config`:
 
 ```erlang
 
- {exometer, [
-             {defaults,
-              [{['_'], function , [{module, exometer_function}]},
-               {['_'], counter  , [{module, exometer}]},
-               {['_'], histogram, [{module, exometer_histogram}]},
-               {['_'], spiral   , [{module, exometer_spiral}]},
-               {['_'], duration , [{module, exometer_folsom}]},
-               {['_'], meter    , [{module, exometer_folsom}]},
-               {['_'], gauge    , [{module, exometer_folsom}]}
-              ]}
+{exometer, [
+    {defaults, [
+        {['_'], function , [{module, exometer_function}]},
+        {['_'], counter  , [{module, exometer}]},
+        {['_'], histogram, [{module, exometer_histogram}]},
+        {['_'], spiral   , [{module, exometer_spiral}]},
+        {['_'], duration , [{module, exometer_folsom}]},
+        {['_'], meter    , [{module, exometer_folsom}]},
+        {['_'], gauge    , [{module, exometer_folsom}]}
+    ]}
+]}
 ```
 
 In systems that use CuttleFish, the file `exometer/priv/exometer.schema`
@@ -617,14 +658,14 @@ Below is an example, from `exometer/priv/app.config`:
 
 ```erlang
 
- {exometer, [
-     {report, [ 
-	{ subscribers, [ 
-	  { exometer_report_collectd, [db, cache, hits], mean, 2000, true } 
-	  { exometer_report_collectd, [db, cache, hits], max, 5000, false } 
+{exometer, [
+    {report, [ 
+        {subscribers, [ 
+            {exometer_report_collectd, [db, cache, hits], mean, 2000, true},
+            {exometer_report_collectd, [db, cache, hits], max, 5000, false}
         ]}
-     ]}
-  ]}
+    ]}
+]}
 ```
 
 The `report` section configures static subscriptions and reporter
@@ -685,25 +726,25 @@ its correct location in the hierarchy:
 
 ```erlang
 
- {exometer, [
-     {report, 
-	{ reporters, [ 
-	    { exometer_report_collectd, [ 
-		{ reconnect_interval, 10 },
-		{ refresh_interval, 20 }, 
-		{ read_timeout, 5000 }, 
-		{ connect_timeout, 8000 }, 
-		{ hostname, "testhost" }, 
-		{ path, "/var/run/collectd-unixsock" },
-		{ plugin_name, "testname" },
-		{ plugin_instance, "testnode" },
-		{ type_map, 
-		  [ { [ db, cache, hits, max ], "gauge"} ]
-		}]
-	    }]
-	}]
-     }]
- }
+{exometer, [
+    {report, [
+        {reporters, [ 
+            {exometer_report_collectd, [ 
+                {reconnect_interval, 10},
+                {refresh_interval, 20}, 
+                {read_timeout, 5000}, 
+                {connect_timeout, 8000}, 
+                {hostname, "testhost"}, 
+                {path, "/var/run/collectd-unixsock"},
+                {plugin_name, "testname"},
+                {plugin_instance, "testnode"},
+                {type_map, 
+                    [{[db, cache, hits, max], "gauge"}]
+                }
+            ]}
+        ]}
+    ]}
+]}
 ```
 
 The following attributes are available for configuration:
@@ -795,19 +836,19 @@ its correct location in the hierarchy:
 
 ```erlang
 
- {exometer, [
-     {report, 
-	{ reporters, [ 
-	    { exometer_report_graphite, [ 
-		{ connect_timeout, 5000 },
-		{ prefix, "web_stats" }, 
-		{ host, "carbon.hostedgraphite.com" }, 
-		{ port, 2003 }, 
-		{ api_key, "267d121c-8387-459a-9326-000000000000" }
-	    }]
-	}]
-     }]
- }
+{exometer, [
+    {report, [
+        {reporters, [ 
+            {exometer_report_graphite, [ 
+                {connect_timeout, 5000},
+                {prefix, "web_stats"}, 
+                {host, "carbon.hostedgraphite.com"}, 
+                {port, 2003}, 
+                {api_key, "267d121c-8387-459a-9326-000000000000"}
+            ]}
+        ]}
+    ]}
+]}
 ```
 
 The following attributes are available for configuration:
@@ -840,6 +881,37 @@ If `prefix` is not specified, but `api_key` is, each metrics will be reported as
 If `prefix` is specified, but `api_key` is not, each metrics will be reported as `Prefix.Metric`.
 
 if neither `prefix` or `api_key` is specified, each metric will be reported simply as `Metric`.
+
+
+#### <a name="Configuring_snmp_reporter">Configuring snmp reporter</a> ####
+
+
+Below is an example of the a snmp reporter application environment, with
+its correct location in the hierarchy:
+
+```erlang
+
+{exometer, [
+    {report, [
+        {reporters, [ 
+            {exometer_report_snmp, [ 
+                {mib_template, "priv/MYORG-EXOMETER-METRICS.mib"},
+                {mib_dir, "/tmp/exometer"}
+            ]}
+        ]}
+    ]}
+]}
+```
+
+The following attributes are available for configuration:
+
++ `mib_template` (string - default: "mibs/EXOMETER-METRICS-MIB.mib")
+<br></br>
+Specifies where to find the MIB template used for dynamically assembline an internal MIB. Take a look at the MIB template shipped with Exometer for reference in case you want to define your own template.
+
++ `mib_dir` (string - default: "tmp/exometer_report_snmp")
+<br></br>
+Specifies temporary direction which will be used by Exometer to store dymanically created MIB files.
 
 
 ### <a name="Creating_custom_exometer_entries">Creating custom exometer entries</a> ###

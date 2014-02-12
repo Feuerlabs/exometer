@@ -10,7 +10,5 @@
 
 # Misc
 
-- cleanup copright info, switch to 2014
 - use proper module organization in all modules, e.g. exports, includes, external API, internal API
-- document SNMP export
 - update documentation

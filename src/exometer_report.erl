@@ -345,16 +345,6 @@ init(Opts) ->
                      false -> 
                          []
                  end,
-    %% start internal reporters
-    Reporters1 = case exometer_util:get_env(snmp_export, false) of
-                     true ->
-                         {Pid, MRef} = spawn_reporter(exometer_report_snmp, []),
-                         [#reporter{module = exometer_report_snmp,
-                                    pid = Pid,
-                                    mref = MRef} | Reporters0];
-                     _ ->
-                         Reporters0
-                 end,
     %% Dig out configured 'static' subscribers
     SubsList =
         case lists:keyfind(subscribers, 1, Opts) of
@@ -364,7 +354,7 @@ init(Opts) ->
         end,
 
     {ok, #st {
-            reporters = Reporters1,
+            reporters = Reporters0,
             subscribers = SubsList
            }}.
 
