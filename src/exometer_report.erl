@@ -153,7 +153,7 @@
     list_reporters/0,
     list_subscriptions/1,
     add_reporter/2,
-    remove_reporter/1,
+    remove_reporter/1, remove_reporter/2,
     terminate_reporter/1,
     setopts/3,
     new_entry/1
@@ -232,9 +232,11 @@
           t_ref     :: reference()
          }).
 
--record(restart, {spec = default_restart() :: restart(),
-                  history = [] :: [pos_integer()],
-                  save_n = 10  :: pos_integer()}).
+-record(restart, {
+          spec = default_restart()  :: restart(),
+          history = []              :: [pos_integer()],
+          save_n = 10               :: pos_integer()}
+       ).
 
 -record(reporter, {
           pid       :: pid(),
@@ -314,6 +316,9 @@ add_reporter(Reporter, Options) ->
 
 remove_reporter(Reporter) ->
     call({remove_reporter, Reporter}).
+
+remove_reporter(Reporter, Reason) ->
+    cast({remove_reporter, Reporter, Reason}).
 
 setopts(Metric, Options, Status) ->
     call({setopts, Metric, Options, Status}).
@@ -474,14 +479,12 @@ handle_call({add_reporter, Reporter, Opts}, _, #st{reporters = Rs} = St) ->
             {reply, ok, St#st{reporters = Rs1}}
     end;
 
-handle_call({remove_reporter, Reporter}, _, #st{reporters = Rs} = St) ->
-    case lists:keyfind(Reporter, #reporter.module, Rs) of
-        #reporter{} = R ->
-            terminate_reporter(R),
-            St1 = remove_reporter(R, St),
+handle_call({remove_reporter, Reporter}, _, St0) ->
+    case do_remove_reporter(Reporter, St0) of
+        {ok, St1} ->
             {reply, ok, St1};
-        false ->
-            {reply, {error, not_found}, St}
+        E ->
+            {reply, E, St0}
     end;
 
 handle_call({setopts, Metric, Options, Status}, _, #st{reporters=Rs}=St) ->
@@ -504,6 +507,19 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_cast({remove_reporter, Reporter, Reason}, St0) ->
+    Terminate = case Reason of
+                    user ->
+                        true;
+                    _ ->
+                        false
+                end,
+    case do_remove_reporter(Reporter, St0, Terminate) of
+        {ok, St1} ->
+            {noreply, St1};
+        _ ->
+            {noreply, St0}
+    end;
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -579,7 +595,7 @@ handle_info({'DOWN', Ref, process, _Pid, Reason}, S) ->
                              _ ->
                                  ok
                          end,
-                         remove_reporter(R, S);
+                         S;
                      {restart, Restart1} ->
                          restart_reporter(R#reporter{restart = Restart1}, S)
                  end;
@@ -594,9 +610,9 @@ handle_info(_Info, State) ->
 restart_reporter(#reporter{module = Mod, opts = Opts} = R,
                  #st{subscribers = Subs, reporters = Reporters} = S) ->
     {Pid, MRef} = spawn_reporter(Mod, Opts),
-    Subs1 = re_subscribe(Mod, Subs),
+    Subs1 = re_subscribe(Subs, Mod),
     R1 = R#reporter{pid = Pid, mref = MRef},
-    S#st{subscribers = re_subscribe(Subs1, R1),
+    S#st{subscribers = Subs1,
          reporters = lists:keyreplace(Mod, #reporter.module, Reporters, R1)}.
 
 re_subscribe([#subscriber{key = #key{reporter = Mod,
@@ -673,10 +689,6 @@ terminate_reporter(#reporter{pid = Pid, mref = MRef}) ->
             erlang:demonitor(MRef, [flush])
     end.
 
-remove_reporter(#reporter{module = M}, #st{reporters = Rs,
-                                           subscribers = Subs} = S) ->
-    S#st{reporters = lists:keydelete(M, #reporter.module, Rs),
-         subscribers = purge_subscriptions(M, Subs)}.
 
 subscribe_( Reporter, Metric, DataPoint, Interval, RetryFailedMetrics, Extra) ->
     Key = #key { reporter = Reporter,
@@ -845,6 +857,9 @@ reporter_loop(Module, St) ->
 call(Req) ->
     gen_server:call(?MODULE, Req).
 
+cast(Req) ->
+    gen_server:cast(?MODULE, Req).
+
 init_subscriber({Reporter, Metric, DataPoint, Interval, RetryFailedMetrics}, Acc) ->
     [subscribe_(Reporter, Metric, DataPoint, Interval, RetryFailedMetrics, undefined) | Acc];
 
@@ -886,7 +901,7 @@ match_frequency([H|T], R, Since, Spec) ->
 match_frequency([], _, _, _) ->
     restart.
 
-find_match([{R1,T1}|Tail], R, T) when R1 >= R, T1 =< T ->
+find_match([{R1,T1}|Tail], R, T) when R1 =< R, T1 >= T ->
     {true, find_action(Tail)};
 find_match([_|Tail], R, T) ->
     find_match(Tail, R, T);
@@ -900,7 +915,7 @@ find_action([]) ->
     no_action.
 
 default_restart() ->
-    [{3, 1}, {10, 30}, kill].
+    [{3, 1}, {10, 30}, {?MODULE, remove_reporter}].
 
 get_restart(Opts) ->
     case lists:keyfind(restart, 1, Opts) of
@@ -911,11 +926,14 @@ get_restart(Opts) ->
     end.
 
 restart_rec(L) ->
-    Save = lists:foldl(fun({R,_}, Acc) -> erlang:max(R, Acc);
-                          (_, Acc) -> Acc
-                       end, 0, L),
-    #restart{spec = L,
-             save_n = Save}.
+    Save = lists:foldl(
+             fun
+                 ({R,_}, Acc) when is_integer(R) -> 
+                     erlang:max(R, Acc);
+                 (_, Acc) -> 
+                     Acc
+             end, 0, L),
+    #restart{spec = L, save_n = Save}.
 
 valid_restart(L) when is_list(L) ->
     lists:foreach(
@@ -926,4 +944,22 @@ valid_restart(L) when is_list(L) ->
               erlang:error({invalid_restart_spec, L})
       end, L),
     L.
-               
+
+do_remove_reporter(Reporter, St0) ->
+    do_remove_reporter(Reporter, St0, true).
+
+do_remove_reporter(Reporter, #st{subscribers=Subs, reporters=Rs}=St0, Terminate) ->
+    case lists:keyfind(Reporter, #reporter.module, Rs) of
+        #reporter{module=M} = R ->
+            case Terminate of
+                true ->
+                    terminate_reporter(R);
+                false ->
+                    ok
+            end,
+            St1 = St0#st{reporters = lists:keydelete(M, #reporter.module, Rs),
+                         subscribers = purge_subscriptions(M, Subs)},
+            {ok, St1};
+        false ->
+            {error, not_found}
+    end.
