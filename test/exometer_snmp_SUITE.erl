@@ -16,7 +16,6 @@
     suite/0,
     groups/0,
     init_per_suite/1, end_per_suite/1,
-    init_per_group/2, end_per_group/2,
     init_per_testcase/2, end_per_testcase/2
    ]).
 
@@ -79,19 +78,6 @@ init_per_suite(Config) ->
 end_per_suite(_Config) ->
     ok.
 
-init_per_group(test_distributed, Config) ->
-    case os:getenv("TRAVIS") of
-        false ->
-            Config;
-        _ ->
-            {skip, "Running on Travis CI. Starting slave nodes not working."}
-    end;
-init_per_group(_Group, Config) ->
-    Config.
-
-end_per_group(_Group, _Config) ->
-    ok.
-
 init_per_testcase(test_snmp_export_disabled, Config) ->
     application:load(exometer),
     application:set_env(exometer, report, []),
@@ -103,8 +89,13 @@ init_per_testcase(Case, Config) when
       Case == test_counter_get;
       Case == test_counter_reports;
       Case == test_histogram_support ->
-    Conf0 = snmp_init_testcase(Case),
-    start_manager(Conf0 ++ Config);
+    case os:getenv("TRAVIS") of
+        false ->
+            Conf0 = snmp_init_testcase(Case),
+            start_manager(Conf0 ++ Config);
+        _ ->
+            {skip, "Running on Travis CI. Starting slave nodes not working."}
+    end;
 init_per_testcase(Case, Config) ->
     Conf = snmp_init_testcase(Case),
     Conf ++ Config.
