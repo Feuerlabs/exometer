@@ -37,7 +37,7 @@ start_link() ->
     gen_server:start_link({local,?MODULE}, ?MODULE, [], []).
 
 read(Name, DataPoint) ->
-    case ets:lookup(?TABLE, Name ++ [DataPoint]) of
+    case ets:lookup(?TABLE, path(Name, DataPoint)) of
         [#cache{value = Val}] ->
             {ok, Val};
         _ ->
@@ -48,7 +48,7 @@ write(Name, DataPoint, Value) ->
     write(Name, Value, DataPoint, undefined).
 
 write(Name, DataPoint, Value, TTL) ->
-    Path = Name ++ [ DataPoint],
+    Path = path(Name,  DataPoint),
     try OldTRef = ets:lookup_element(?TABLE, Path, #cache.tref),
          erlang:cancel_timer(OldTRef)
     catch error:_ -> ok
@@ -61,7 +61,7 @@ write(Name, DataPoint, Value, TTL) ->
 
 delete(Name, DataPoint) ->
     %% Cancel the timer?
-    ets:delete(?TABLE, Name ++ [DataPoint]).
+    ets:delete(?TABLE, path(Name, DataPoint)).
 
 start_timer(Name, TTL, TS) ->
     gen_server:cast(?MODULE, {start_timer, Name, TTL, TS}).
@@ -137,3 +137,6 @@ restart_timers({Names, Cont}, TTL, TS) ->
     restart_timers(ets:select(Cont), TTL, TS);
 restart_timers('$end_of_table', _, _) ->
     ok.
+
+path( Name, DataPoint) ->
+    { Name, DataPoint }.
