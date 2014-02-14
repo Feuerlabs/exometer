@@ -816,6 +816,7 @@ create_entry(#exometer_entry{module = exometer,
 create_entry(#exometer_entry{module = Module,
                              type = Type,
                              name = Name, 
+			     options = Opts} = E) ->
     case 
 	case Module:behaviour() of 
 	    probe ->
