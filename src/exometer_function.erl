@@ -74,17 +74,20 @@ behaviour() ->
 %% interpreter. The `ArgSpec' is evaluated as follows: 
 %%
 %% <ul>
-%%   <li>`[]' means to call with no arguments, i.e. `M:F()'</li> 
-%%   <li>A list of patterns will be used as arguments, substituting the following
-%%       patterns: <ul><li><code>'$dp'</code> is replaced by the current
-%%       data point</li> 
-%%   <li><code>'$datapoints'</code> is replaced by the
-%%     requested list of data points. Note that <code>'$dp'</code> and
-%%     <code>'$datapoints'</code> are mutually exclusive</li>
-%%   <li><code>{'$call', M, F, Args0}</code> will be replaced by the
-%%     result of calling `apply(M, F, Args)' where `Args' is the list of
-%%     arguments after performing substitution on `Args0'.</li>
-%%   <li><code>{'$value', Term}</code> uses `Term' without substitution.</li>
+%%  <li>`[]' means to call with no arguments, i.e. `M:F()'</li>
+%%  <li>A list of patterns will be used as arguments, substituting the
+%%      following patterns:
+%%     <ul>
+%%       <li><code>'$dp'</code> is replaced by the current data point</li>
+%%       <li><code>'$datapoints'</code> is replaced by the requested list of
+%%           data points. Note that <code>'$dp'</code> and
+%%           <code>'$datapoints'</code> are mutually exclusive</li>
+%%       <li><code>{'$call', M, F, Args0}</code> will be replaced by the result
+%%           of calling `apply(M, F, Args)' where `Args' is the list of
+%%           arguments after performing substitution on `Args0'.</li>
+%%       <li><code>{'$value', Term}</code> uses `Term' without
+%%           substitution.</li>
+%%     </ul></li>
 %% </ul>
 %%
 %% The return value of the above call will be processed according to `Type':

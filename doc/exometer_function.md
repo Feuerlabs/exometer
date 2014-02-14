@@ -227,6 +227,7 @@ which is syntactic sugar for
 ```
 
 
+
 `{function,...}` can be `{function, Mod, Fun}`, in which case
 where `get_value(Name, DataPoints)` will result in a call to
 `Mod:Fun(DataPoints)`.
@@ -236,24 +237,30 @@ values.
 
 `{function,...}` can also be setup as `{function,
 Mod,Fun,ArgSpec,Type,DataPoints}` in order to invoke a limited
-interpreter. The `ArgSpec` is evaluated as follows:  * `[]`
-means to call with no arguments, i.e. `M:F()`
- * A list of
-patterns will be used as arguments, substituting the following
-patterns:  * `'$dp'` is replaced by the current
-data point
- * `'$datapoints'` is replaced by the
-requested list of data points. Note that `'$dp'` and
+interpreter. The `ArgSpec` is evaluated as follows:
+
+
+
+* `[]` means to call with no arguments, i.e. `M:F()`
+
+* A list of patterns will be used as arguments, substituting the
+following patterns:
+
+* `'$dp'` is replaced by the current data point
+
+* `'$datapoints'` is replaced by the requested list of
+data points. Note that `'$dp'` and
 `'$datapoints'` are mutually exclusive
 
-* `{'$call', M, F, Args0}` will be replaced by the
-result of calling `apply(M, F, Args)` where `Args` is the list of
+* `{'$call', M, F, Args0}` will be replaced by the result
+of calling `apply(M, F, Args)` where `Args` is the list of
 arguments after performing substitution on `Args0`.
 
 * `{'$value', Term}` uses `Term` without
 substitution.
 
- 
+
+
 
 The return value of the above call will be processed according to `Type`:
 
