@@ -61,29 +61,28 @@ behaviour() ->
 %% <pre lang="erlang">
 %% exometer:new(Name,function,[{arg,{function,...}}|Opts])
 %% </pre>
-%% where `{function,...}' is either simply `{function, Module,
-%% Function}', in which case `get_value(Name, DataPoints)' will result
-%% in a call to `Module:Function(DataPoints)', and get_value(Name)
-%% will result in a call to `Module:Function(default), which must
-%% return a (default) list of data point values; or
-%% `{Mod,Fun,ArgSpec,Type,DataPoints}', which will invoke a limited
-%% interpreter. The `ArgSpec' is evaluated as follows:
-%% <ul>
-%%  <li>`[]' means to call with no arguments, i.e. `M:F()'</li>
-%%  <li>A list of patterns will be used as arguments, substituting the
-%%      following patterns:
-%%     <ul>
-%%       <li><code>'$dp'</code> is replaced by the current data point</li>
-%%       <li><code>'$datapoints'</code> is replaced by the requested list of
-%%           data points. Note that <code>'$dp'</code> and
-%%           <code>'$datapoints'</code> are mutually exclusive</li>
-%%       <li><code>{'$call', M, F, Args0}</code> will be replaced by the result
-%%           of calling `apply(M, F, Args)' where `Args' is the list of
-%%           arguments after performing substitution on `Args0'.</li>
-%%       <li><code>{'$value', Term}</code> uses `Term' without
-%%           substitution.</li>
-%%     </ul></li>
-%% </ul>
+%%
+%% `{function,...}' can be `{function, Mod, Fun}', in which case
+%% where `get_value(Name, DataPoints)' will result in a call to
+%% `Mod:Fun(DataPoints)'. 
+%%  Invoking get_value(Name) (with no datapoints), will call
+%%  `Mod:Fun(default), which must return a default list of data point
+%%  values.
+%%
+%% `{function,...}' can also be setup as `{function,
+%% Mod,Fun,ArgSpec,Type,DataPoints}' in order to invoke a limited
+%% interpreter. The `ArgSpec' is evaluated as follows: <ul> <li>`[]'
+%% means to call with no arguments, i.e. `M:F()'</li> <li>A list of
+%% patterns will be used as arguments, substituting the following
+%% patterns: <ul> <li><code>'$dp'</code> is replaced by the current
+%% data point</li> <li><code>'$datapoints'</code> is replaced by the
+%% requested list of data points. Note that <code>'$dp'</code> and
+%% <code>'$datapoints'</code> are mutually exclusive</li>
+%% <li><code>{'$call', M, F, Args0}</code> will be replaced by the
+%% result of calling `apply(M, F, Args)' where `Args' is the list of
+%% arguments after performing substitution on `Args0'.</li>
+%% <li><code>{'$value', Term}</code> uses `Term' without
+%% substitution.</li> </ul></li> </ul>
 %%
 %% The return value of the above call will be processed according to `Type':
 %% <ul>
