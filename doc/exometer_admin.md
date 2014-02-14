@@ -4,7 +4,7 @@
 * [Function Index](#index)
 * [Function Details](#functions)
 
-
+__Behaviours:__ [`gen_server`](gen_server.md).
 <a name="index"></a>
 
 ## Function Index ##

@@ -67,6 +67,18 @@ in the exometer_entry behavior.
 
 
 
+#### <a name="behaviour/0">behaviour/0</a> ####
+
+
+
+The `behaviour()` function for an entry implementation should return
+the atom `entry`. This function will be involved by the
+exometer system in order to determine if a callback is
+an entry or a probe.
+
+
+
+
 #### <a name="new/3">new/3</a> ####
 
 
