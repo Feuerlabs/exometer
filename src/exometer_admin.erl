@@ -10,7 +10,7 @@
 
 -module(exometer_admin).
 
--behavior(gen_server).
+-behaviour(gen_server).
 
 -export(
    [
