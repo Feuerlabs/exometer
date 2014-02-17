@@ -183,6 +183,7 @@ fast_incr(0, _, _) ->
 %% value will be returned.
 %% @end
 -spec get_value(name()) -> {ok, value()} | {error, not_found}.
+
 get_value(Name) when is_list(Name) ->
     get_value(Name, default).
 
@@ -204,6 +205,12 @@ get_value(Name, DataPoints) when is_list(Name) ->
 %% If the entry is disabled, just err out.
 get_value_(#exometer_entry{ status = disabled }, _DataPoints) ->
     disabled; 
+
+%% If the value is cached, see if we can find it.
+%% In the default case, call again with resolved data points.
+get_value_(#exometer_entry{cache = Cache } = E, 
+	   DataPoints) when Cache =/= 0 ->
+    get_cached_value_(E, DataPoints);
 
 get_value_(#exometer_entry{ module = ?MODULE, 
 			    type = counter} = E, default) ->
@@ -238,16 +245,36 @@ get_value_(#exometer_entry{behaviour = probe,
     exometer_probe:get_value(Name, Type, Ref, datapoints(DataPoints0, E)).
 
 
-%% FIXME: NOT USED?
-%% get_value_(#exometer_entry{cache = Cache,
-%%                            name = Name, module = M,
-%% 			   type = Type, ref = Ref},
-%%            DataPoints) ->
-%%     if Cache > 0 ->
-%% 	    exometer_cache:read(Name, M, Type, Ref, DataPoints);
-%%        Cache == 0 ->
-%% 	    M:get_value(Name, Type, Ref, DataPoints)
-%%     end;
+get_cached_value_(E, default) ->
+    get_cached_value_(E, get_datapoints_(E));
+
+get_cached_value_(#exometer_entry{name = Name,
+				 cache = CacheTTL } = E, 
+		 DataPoints) ->
+
+    %% Dig through all the data points and check for cache hit.
+    %% Store all cached KV pairs, and all keys that must be 
+    %% read and cached.
+    { Cached, Uncached } = 
+	lists:foldr(fun(DataPoint, {Cached1, Uncached1}) ->
+			    case exometer_cache:read(Name, DataPoint) of
+				not_found ->
+				    { Cached1, [DataPoint | Uncached1] };
+				{_, Value } ->
+				    { [{ DataPoint, Value } | Cached1], Uncached1 }
+			    end
+		    end, {[],[]}, DataPoints),
+
+    %% Go through all cache misses and retreive their actual values. 
+    Result = get_value_(E#exometer_entry { cache = 0 }, Uncached),
+
+    %% Update the cache with all the shiny new values retrieved.
+    [ exometer_cache:write(Name, DataPoint1, Value1, CacheTTL) 
+      || { DataPoint1, Value1 } <- Result],
+    All = Result ++ Cached,
+    [{_,_} = lists:keyfind(DP, 1, All) || DP <- DataPoints].
+	
+    
 
 -spec delete(name()) -> ok | error().
 %% @doc Delete the metric
@@ -264,15 +291,18 @@ delete(Name) when is_list(Name) ->
                 T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
             ok;
         [#exometer_entry{behaviour = probe,
-			 type = Type, ref = Ref}] ->
-	    exometer_cache:delete(Name),
+			 type = Type, ref = Ref} = E] ->
+	    [ exometer_cache:delete(Name, DataPoint) ||
+		DataPoint <- get_datapoints_(E)],
+
 	    exometer_probe:delete(Name, Type, Ref),
             [ets:delete(T, Name) ||
                 T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
             ok;
         [#exometer_entry{module= Mod, behaviour = entry,
-			 type = Type, ref = Ref}] ->
-            exometer_cache:delete(Name),
+			 type = Type, ref = Ref} = E] ->
+	    [ exometer_cache:delete(Name, DataPoint) ||
+		DataPoint <- get_datapoints_(E)],
             try Mod:delete(Name, Type, Ref)
             after
                 [ets:delete(T, Name) ||
@@ -347,13 +377,17 @@ reset(Name)  when is_list(Name) ->
 
         [#exometer_entry{behaviour = probe,
                          module = ?MODULE, type = Type,
-                         ref = Ref}] ->
-            exometer_cache:delete(Name),
+                         ref = Ref} = E] ->
+	    
+	    [ exometer_cache:delete(Name, DataPoint) ||
+		DataPoint <- get_datapoints_(E)],
             exometer_probe:reset(Name, Type, Ref),
             ok;
         [#exometer_entry{behaviour = entry,
-                         module = M, type = Type, ref = Ref}] ->
-            exometer_cache:delete(Name),
+                         module = M, type = Type, ref = Ref} = E] ->
+	    [ exometer_cache:delete(Name, DataPoint) ||
+		DataPoint <- get_datapoints_(E)],
+
             M:reset(Name, Type, Ref);
         [] ->
             {error, not_found}
@@ -713,11 +747,11 @@ update_opts(New, Old) ->
                              lists:keystore(K, 1, Acc, Opt)
                      end, Old, New)).
 
-type_arg_first([{type_arg,_}|_] = Opts) ->
+type_arg_first([{arg,_}|_] = Opts) ->
     Opts;
 
 type_arg_first(Opts) ->
-    case lists:keyfind(type_arg, 1, Opts) of
+    case lists:keyfind(arg, 1, Opts) of
         false ->
             Opts;
         Arg ->
@@ -783,19 +817,21 @@ create_entry(#exometer_entry{module = exometer,
 create_entry(#exometer_entry{module = Module,
                              type = Type,
                              name = Name, 
-                             options = Opts} = E) ->
-    Spec = case Module:behaviour() of
-               probe ->
-                   {probe, exometer_probe:new(Name, Type, [{type_arg, Module} | Opts ])};
-               entry ->
-                   {entry, Module:new(Name, Type, Opts)};
-               Other ->
-                   Other
-           end,
-    case Spec of
-        {Behaviour, ok}->
-            [ets:insert(T, E#exometer_entry{behaviour=Behaviour})
-             || T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
+			     options = Opts} = E) ->
+    case 
+	case Module:behaviour() of 
+	    probe ->
+		{probe, exometer_probe:new(Name, Type, [{ arg, Module} | Opts ]) };
+
+	    entry ->
+		{entry, Module:new(Name, Type, Opts) };
+
+	    Other -> Other
+	end
+    of
+        {Behaviour, ok }->
+            [ets:insert(T, E#exometer_entry { behaviour = Behaviour })
+	     || T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
             ok;
         {Behaviour, {ok, Ref}} ->
             [ets:insert(T, E#exometer_entry{ref=Ref, behaviour=Behaviour})

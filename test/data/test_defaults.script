@@ -3,6 +3,6 @@
  {[preset, func], function, 
   [
    {module, exometer_function},
-   {type_arg, {function, erlang, memory, ['$dp'], value, [total, processes, ets, binary, atom]}}
+   {arg, {erlang, memory, ['$dp'], value, [total, processes, ets, binary, atom]}}
   ]}
 ].

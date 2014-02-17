@@ -31,7 +31,7 @@ new(Name, counter, _Opts) ->
 new(Name, spiral, _Opts) ->
     folsom_metrics:new_spiral(Name);
 new(Name, histogram, Opts) ->
-    case lists:keysearch(type_arg, 1, Opts) of
+    case lists:keysearch(arg, 1, Opts) of
         {_, {histogram, SampleType, SampleArgs}} ->
             {folsom_metrics:new_histogram(Name, SampleType, SampleArgs),
              opt_ref(Opts)};

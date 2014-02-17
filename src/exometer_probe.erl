@@ -69,7 +69,7 @@
 %% FIXME: Invoke this.
 -callback probe_code_change(any(), mod_state(), any()) -> {ok, mod_state()}.
 
-new(Name, Type, [{type_arg, Module}|Opts]) ->
+new(Name, Type, [{arg, Module}|Opts]) ->
     { ok, exometer_proc:spawn_process(
            Name, fun() ->
                          init(Name, Type, Module, Opts)
@@ -80,7 +80,7 @@ new(Name, Type, [{type_arg, Module}|Opts]) ->
 new(Name, Type, Options) ->
     %% Extract the module to use.
     {value, { module, Module }, Opts1 } = lists:keytake(module, 1, Options),
-    new(Name, Type, [{type_arg, Module} | Opts1]).
+    new(Name, Type, [{arg, Module} | Opts1]).
 
 %% Should never be called directly for exometer_probe.
 behaviour() ->

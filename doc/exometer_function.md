@@ -223,14 +223,23 @@ which is syntactic sugar for
 
 ```erlang
 
-  exometer:new(Name,function,[{type_arg,{function,...}}|Opts])
+  exometer:new(Name,function,[{arg,{function,...}}|Opts])
 ```
 
-where `{function,...}` is either simply `{function, Module, Function}`,
-in which case `get_value(Name, DataPoints)` will result in a call to
-`Module:Function(DataPoints)`, which must return a list of data point values.
-or `{Mod,Fun,ArgSpec,Type,DataPoints}`, which will invoke a limited
+
+
+`{function,...}` can be `{function, Mod, Fun}`, in which case
+where `get_value(Name, DataPoints)` will result in a call to
+`Mod:Fun(DataPoints)`.
+Invoking get_value(Name) (with no datapoints), will call
+`Mod:Fun(default), which must return a default list of data point
+values.
+
+`{function,...}` can also be setup as `{function,
+Mod,Fun,ArgSpec,Type,DataPoints}` in order to invoke a limited
 interpreter. The `ArgSpec` is evaluated as follows:
+
+
 
 * `[]` means to call with no arguments, i.e. `M:F()`
 
