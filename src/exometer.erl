@@ -271,7 +271,8 @@ get_cached_value_(#exometer_entry{name = Name,
     %% Update the cache with all the shiny new values retrieved.
     [ exometer_cache:write(Name, DataPoint1, Value1, CacheTTL) 
       || { DataPoint1, Value1 } <- Result],
-     Result ++ Cached.
+    All = Result ++ Cached,
+    [{_,_} = lists:keyfind(DP, 1, All) || DP <- DataPoints].
 	
     
 
