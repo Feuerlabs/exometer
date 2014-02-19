@@ -151,6 +151,17 @@ new(_Name, function, Opts) ->
             {ok, {?MODULE, empty}}
     end.
 
+get_value(_, function, {M, F, once, ArgsP, match, Pat}, DataPoints0) ->
+    DataPoints = if DataPoints0 == default ->
+                         pattern_datapoints(Pat);
+                    is_list(DataPoints0) ->
+                         DataPoints0
+                 end,
+    try call_once(M, F, ArgsP, match, {Pat, DataPoints})
+    catch
+        error:_ ->
+            {error, unavailable}
+    end;
 get_value(_, _, {M, F, each, ArgsP, Type, DPs}, DataPoints) ->
     [{D,call(M,F,ArgsP,Type,D)} || D <- datapoints(DataPoints, DPs),
                                    lists:member(D, DPs)];
@@ -161,17 +172,6 @@ get_value(_, _, {M, F, once, ArgsP, Type, DPs}, DataPoints0) ->
                                lists:member(D, DPs)]
                  end,
     try call_once(M, F, ArgsP, Type, DataPoints)
-    catch
-        error:_ ->
-            {error, unavailable}
-    end;
-get_value(_, function, {M, F, once, ArgsP, match, Pat}, DataPoints0) ->
-    DataPoints = if DataPoints0 == default ->
-                         pattern_datapoints(Pat);
-                    is_list(DataPoints0) ->
-                         DataPoints0
-                 end,
-    try call_once(M, F, ArgsP, match, {Pat, DataPoints})
     catch
         error:_ ->
             {error, unavailable}

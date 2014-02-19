@@ -153,7 +153,7 @@
     list_reporters/0,
     list_subscriptions/1,
     add_reporter/2,
-    remove_reporter/1,
+    remove_reporter/1, remove_reporter/2,
     terminate_reporter/1,
     setopts/3,
     new_entry/1
@@ -178,6 +178,11 @@
 -type interval()        :: pos_integer().
 -type callback_result() :: {ok, mod_state()} | any().
 -type extra()           :: any().
+%% Restart specification
+-type maxR()            :: pos_integer().
+-type maxT()            :: pos_integer().
+-type action()          :: {atom(), atom()}.
+-type restart()         :: [{maxR(), maxT()} | action()].
 
 %% Callback for function, not cast-based, reports that
 %% are invoked in-process.
@@ -227,10 +232,18 @@
           t_ref     :: reference()
          }).
 
+-record(restart, {
+          spec = default_restart()  :: restart(),
+          history = []              :: [pos_integer()],
+          save_n = 10               :: pos_integer()}
+       ).
+
 -record(reporter, {
           pid       :: pid(),
           mref      :: reference(),
-          module    :: module()
+          module    :: module(),
+          opts = [] :: [{atom(), any()}],
+          restart = #restart{}
          }).
 
 -record(st, {
@@ -304,6 +317,9 @@ add_reporter(Reporter, Options) ->
 remove_reporter(Reporter) ->
     call({remove_reporter, Reporter}).
 
+remove_reporter(Reporter, Reason) ->
+    cast({remove_reporter, Reporter, Reason}).
+
 setopts(Metric, Options, Status) ->
     call({setopts, Metric, Options, Status}).
 
@@ -337,10 +353,13 @@ init(Opts) ->
                          assert_no_duplicates(ReporterList),
                          lists:foldr(
                            fun({Reporter, Opt}, Acc) ->
+                                   Restart = get_restart(Opt),
                                    {Pid, MRef} = spawn_reporter(Reporter, Opt),
                                    [ #reporter { module = Reporter,
                                                  pid = Pid,
-                                                 mref = MRef} | Acc]
+                                                 mref = MRef,
+                                                 opts = Opt,
+                                                 restart = Restart} | Acc]
                            end, [], ReporterList);
                      false -> 
                          []
@@ -460,14 +479,12 @@ handle_call({add_reporter, Reporter, Opts}, _, #st{reporters = Rs} = St) ->
             {reply, ok, St#st{reporters = Rs1}}
     end;
 
-handle_call({remove_reporter, Reporter}, _, #st{reporters = Rs} = St) ->
-    case lists:keyfind(Reporter, #reporter.module, Rs) of
-        #reporter{} = R ->
-            terminate_reporter(R),
-            St1 = remove_reporter(R, St),
+handle_call({remove_reporter, Reporter}, _, St0) ->
+    case do_remove_reporter(Reporter, St0) of
+        {ok, St1} ->
             {reply, ok, St1};
-        false ->
-            {reply, {error, not_found}, St}
+        E ->
+            {reply, E, St0}
     end;
 
 handle_call({setopts, Metric, Options, Status}, _, #st{reporters=Rs}=St) ->
@@ -490,6 +507,19 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_cast({remove_reporter, Reporter, Reason}, St0) ->
+    Terminate = case Reason of
+                    user ->
+                        true;
+                    _ ->
+                        false
+                end,
+    case do_remove_reporter(Reporter, St0, Terminate) of
+        {ok, St1} ->
+            {noreply, St1};
+        _ ->
+            {noreply, St0}
+    end;
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -554,18 +584,53 @@ handle_info({ report, #key{ reporter = Reporter,
             {noreply, St}
     end;
 
-handle_info({'DOWN', Ref, process, _Pid, _Reason}, S) ->
-    Subs =
-        case lists:keyfind(Ref, #reporter.mref, S#st.reporters) of
-            #reporter {module = Module} ->
-                purge_subscriptions(Module, S#st.subscribers);
-            _ -> S#st.subscribers
-        end,
-    {noreply, S#st { subscribers = Subs }};
+handle_info({'DOWN', Ref, process, _Pid, Reason}, S) ->
+    S1 = case lists:keyfind(Ref, #reporter.mref, S#st.reporters) of
+             #reporter {module = Module, restart = Restart} = R ->
+                 case add_restart(Restart) of
+                     {remove, How} ->
+                         case How of
+                             {M, F} when is_atom(M), is_atom(F) ->
+                                 try M:F(Module, Reason) catch _:_ -> ok end;
+                             _ ->
+                                 ok
+                         end,
+                         S;
+                     {restart, Restart1} ->
+                         restart_reporter(R#reporter{restart = Restart1}, S)
+                 end;
+             _ -> S
+         end,
+    {noreply, S1};
 
 handle_info(_Info, State) ->
     ?warning("exometer_report:info(??): ~p~n", [ _Info ]),
     {noreply, State}.
+
+restart_reporter(#reporter{module = Mod, opts = Opts} = R,
+                 #st{subscribers = Subs, reporters = Reporters} = S) ->
+    {Pid, MRef} = spawn_reporter(Mod, Opts),
+    Subs1 = re_subscribe(Subs, Mod),
+    R1 = R#reporter{pid = Pid, mref = MRef},
+    S#st{subscribers = Subs1,
+         reporters = lists:keyreplace(Mod, #reporter.module, Reporters, R1)}.
+
+re_subscribe([#subscriber{key = #key{reporter = Mod,
+                                     metric = Metric,
+                                     datapoint = DataPoint,
+                                     extra = Extra} = Key,
+                          t_ref = OldTRef,
+                          interval = Interval} = S | Subs],
+             #reporter{module = Mod} = R) ->
+    Mod ! {exometer_subscribe, Metric, DataPoint, Interval, Extra},
+    erlang:cancel_timer(OldTRef),
+    TRef = erlang:send_after(Interval, self(), {report, Key, Interval}),
+    [S#subscriber{t_ref = TRef} | re_subscribe(Subs, R)];
+re_subscribe([S|Subs], R) ->
+    [S|re_subscribe(Subs, R)];
+re_subscribe([], _) ->
+    [].
+
 
 %%--------------------------------------------------------------------
 %% @private
@@ -624,10 +689,6 @@ terminate_reporter(#reporter{pid = Pid, mref = MRef}) ->
             erlang:demonitor(MRef, [flush])
     end.
 
-remove_reporter(#reporter{module = M}, #st{reporters = Rs,
-                                           subscribers = Subs} = S) ->
-    S#st{reporters = lists:keydelete(M, #reporter.module, Rs),
-         subscribers = purge_subscriptions(M, Subs)}.
 
 subscribe_( Reporter, Metric, DataPoint, Interval, RetryFailedMetrics, Extra) ->
     Key = #key { reporter = Reporter,
@@ -796,6 +857,9 @@ reporter_loop(Module, St) ->
 call(Req) ->
     gen_server:call(?MODULE, Req).
 
+cast(Req) ->
+    gen_server:cast(?MODULE, Req).
+
 init_subscriber({Reporter, Metric, DataPoint, Interval, RetryFailedMetrics}, Acc) ->
     [subscribe_(Reporter, Metric, DataPoint, Interval, RetryFailedMetrics, undefined) | Acc];
 
@@ -808,3 +872,94 @@ init_subscriber(Other, Acc) ->
     ?warning("Incorrect static subscriber spec ~p. "
              "Use { Reporter, Metric, DataPoint, Interval [, Extra ]}~n", [ Other ]),
     Acc.
+
+add_restart(#restart{spec = Spec,
+                     history = H,
+                     save_n = N} = R) ->
+    T = exometer_util:timestamp(),
+    H1 = lists:sublist([T|H], 1, N),
+    case match_frequency(H1, Spec) of
+        {remove, Action} ->
+            {remove, Action};
+        restart ->
+            {restart, R#restart{history = H1}}
+    end.
+
+match_frequency([H|T], Spec) ->
+    match_frequency(T, 1, H, Spec).
+
+match_frequency([H|T], R, Since, Spec) ->
+    R1 = R+1,
+    %% Note that we traverse millisec timestamps backwards in time
+    Span = (Since - H) div 1000,
+    case find_match(Spec, R1, Span) of
+        {true, Action} ->
+            {remove, Action};
+        false ->
+            match_frequency(T, R1, Since, Spec)
+    end;
+match_frequency([], _, _, _) ->
+    restart.
+
+find_match([{R1,T1}|Tail], R, T) when R1 =< R, T1 >= T ->
+    {true, find_action(Tail)};
+find_match([_|Tail], R, T) ->
+    find_match(Tail, R, T);
+find_match([], _, _) ->
+    false.
+
+find_action([{M,F} = H|_]) when is_atom(M), is_atom(F) -> H;
+find_action([_|T]) ->
+    find_action(T);
+find_action([]) ->
+    no_action.
+
+default_restart() ->
+    [{3, 1}, {10, 30}, {?MODULE, remove_reporter}].
+
+get_restart(Opts) ->
+    case lists:keyfind(restart, 1, Opts) of
+        {_, R} ->
+            restart_rec(valid_restart(R));
+        false ->
+            restart_rec(default_restart())
+    end.
+
+restart_rec(L) ->
+    Save = lists:foldl(
+             fun
+                 ({R,_}, Acc) when is_integer(R) -> 
+                     erlang:max(R, Acc);
+                 (_, Acc) -> 
+                     Acc
+             end, 0, L),
+    #restart{spec = L, save_n = Save}.
+
+valid_restart(L) when is_list(L) ->
+    lists:foreach(
+      fun({R,T}) when is_integer(R), is_integer(T), R > 0, T > 0 ->
+              ok;
+         ({M,F}) when is_atom(M), is_atom(F) -> ok;
+         (_) ->
+              erlang:error({invalid_restart_spec, L})
+      end, L),
+    L.
+
+do_remove_reporter(Reporter, St0) ->
+    do_remove_reporter(Reporter, St0, true).
+
+do_remove_reporter(Reporter, #st{subscribers=Subs, reporters=Rs}=St0, Terminate) ->
+    case lists:keyfind(Reporter, #reporter.module, Rs) of
+        #reporter{module=M} = R ->
+            case Terminate of
+                true ->
+                    terminate_reporter(R);
+                false ->
+                    ok
+            end,
+            St1 = St0#st{reporters = lists:keydelete(M, #reporter.module, Rs),
+                         subscribers = purge_subscriptions(M, Subs)},
+            {ok, St1};
+        false ->
+            {error, not_found}
+    end.
