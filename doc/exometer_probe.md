@@ -17,8 +17,8 @@ __This module defines the `exometer_probe` behaviour.__
 ## Description ##
 
 
+<br></br>
 
-FIXME: EXPLAIN WHEN EACH FUNCTION IS CALLED!
 
 
 
@@ -55,10 +55,12 @@ to do the gathering in-process.
 
 
 
-A probe is created throgh the `new` call, which will spawn a new process
-and invoke the argument-provided implementation of `exometer_probe`.
-While the process is not a gen_server, it behaves similarly and provides
-a state to all implementation calls.
+A probe is created throgh the `exomter_probe:new/3` call, which in
+its turn is called by `exometer:new/3`. During probe creation, a
+new process is spawned to handle the probe and call its
+implementation.  While the created process is not a gen_server, it
+behaves similarly and provides a state to all implementation
+calls.
 
 
 
@@ -68,11 +70,11 @@ Once running, the probe collects data from a subsystem, such as
 
 
 
-The probe is free to setup any number of data points, where each
-data point is a specifric sample from the probe. For example, a
-probe that measures network traffic would have `rx_packets`,
-`tx_packets`, `errors`, `dropped`, and other data points reported
-by `ifconfig(8)` and `ip(8)`.
+A probe implementation can support any number of data points,
+where each data point is a specifric sample from the probe. For
+example, a probe that measures network traffic would have
+`rx_packets`, `tx_packets`, `errors`, `dropped`, and other data
+points reported by `ifconfig(8)` and `ip(8)`.
 
 
 
@@ -83,7 +85,8 @@ caller.
 
 
 
-The probe callback interface
+
+### <a name="The_probe_callback_interface">The probe callback interface</a> ###
 
 
 
@@ -119,9 +122,9 @@ The `probe_init/3` function is invoked as follows:
 
 
 
-Create the necessary probe implementation state for the new metric
-and return it for furure access through `probe_update/2`,
-`probe_sample/1` and `get_value/2` calls.
+The implementation shall initiate the probe, create the
+necessary state, and return it for furure access
+through `probe_update/2`, `probe_sample/1` and `get_value/2` calls.
 
 
 
@@ -130,15 +133,11 @@ The arguments are as follows:
 
 
 + `Name`
-
-<br></br>
 Specifies the name of the metric to be created as a list of atoms.
 
 
 
 + `Type`
-
-<br></br>
 Specifies the type provided to the `exometer:new/3` call (before it
 was translated by the type - exometer probe map). It can be used if several
 different types are mapped to the same probe module.
@@ -146,8 +145,6 @@ different types are mapped to the same probe module.
 
 
 + `Options`
-
-<br></br>
 Specifies an option list that contains additional setup directives to
 the probe. The actual options to support are a combination of the
 standard options, described below, and probe specific options
