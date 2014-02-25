@@ -145,7 +145,7 @@ exometer_report(_Metric, _DataPoint, _Extra, _Value, St)
 
 %% Invoked through the remote_exometer() function to
 %% send out an update.
-exometer_report(Metric, DataPoint, _Extra, Value, St)  ->
+exometer_report(Metric, DataPoint, Extra, Value, St)  ->
     ?debug("Report metric ~p_~p = ~p~n", [Metric, DataPoint, Value]),
     %% Cancel and delete any refresh timer, if it exists
     case ets:lookup(exometer_collectd, ets_key(Metric, DataPoint)) of
@@ -160,7 +160,7 @@ exometer_report(Metric, DataPoint, _Extra, Value, St)  ->
     end,
 
     %% Report the value and setup a new refresh timer.
-    {ok, report_exometer_(Metric, DataPoint, Value, St)}.
+    {ok, report_exometer_(Metric, DataPoint, Extra, Value, St)}.
 
 exometer_call(Unknown, From, St) ->
     ?info("Unknown call ~p from ~p", [Unknown, From]),
@@ -171,7 +171,7 @@ exometer_cast(Unknown, St) ->
     {ok, St}.
 
 exometer_info({exometer_callback, refresh_metric,
-               Metric, DataPoint, Value}, St) ->
+               Metric, DataPoint, Extra, Value}, St) ->
     %% Make sure that we still have an entry in the ets table.
     %% If not, exometer_unsubscribe() has been called to remove
     %% the entry, and we should do nothing.
@@ -183,7 +183,7 @@ exometer_info({exometer_callback, refresh_metric,
         [{_, _TRef}] ->
             ?info("Refreshing metric ~p_~p = ~p~n",
                   [Metric, DataPoint, Value]),
-            {ok, report_exometer_(Metric, DataPoint, Value, St)}
+            {ok, report_exometer_(Metric, DataPoint, Extra, Value, St)}
     end;
 exometer_info({exometer_callback, reconnect}, St) ->
     ?info("Reconnecting: ~p~n", [St]),
@@ -208,13 +208,13 @@ exometer_setopts(_Metric, _Options, _Status, St) ->
 exometer_terminate(_, _) ->
     ignore.
 
-report_exometer_(Metric, DataPoint, Value,
+report_exometer_(Metric, DataPoint, Extra, Value,
                  #st{hostname = HostName,
                      plugin_name = PluginName,
                      plugin_instance = PluginInstance,
                      socket = Sock,
                      type_map = TypeMap} = St) ->
-    case  get_type(TypeMap, ets_key(Metric, DataPoint)) of
+    case  get_type(TypeMap, Extra, ets_key(Metric, DataPoint)) of
         undefined ->
             ?warning(
                "Could not resolve ~p to a collectd type."
@@ -226,10 +226,10 @@ report_exometer_(Metric, DataPoint, Value,
                        PluginName, "-", PluginInstance, "/",
                        Type, "-", name(Metric, DataPoint), $\s,
                        timestamp(), ":", value(Value), $\n],
-            send_request(Sock, Request, Metric, DataPoint, Value, St)
+            send_request(Sock, Request, Metric, DataPoint, Extra, Value, St)
     end.
 
-send_request(Sock, Request, Metric, DataPoint, Value,
+send_request(Sock, Request, Metric, DataPoint, Extra, Value,
              #st{read_timeout = TOut} = St) ->
     try afunix:send(Sock, Request) of
         ok ->
@@ -244,7 +244,7 @@ send_request(Sock, Request, Metric, DataPoint, Value,
                             ?debug("Setting up refresh~n"),
                             setup_refresh(
                               St1#st.refresh_interval, Metric,
-                              DataPoint, Value),
+                              DataPoint, Extra, Value),
                             St1;
                         %% Something went wrong with reply.
                         %% Do not refresh
@@ -371,8 +371,9 @@ parse_reply(<< $\s, Rem/binary >>, RetVal) ->
 parse_reply(<< C:1/integer-unit:8,Rem/binary >>, RetVal) ->
     parse_reply(Rem, [ C | RetVal ]).
 
-get_type(TypeMap, Name) ->
-    Res = get_opt(Name, TypeMap, undefined),
+get_type(TypeMap, Extra, Name) ->
+    Res = exometer_util:report_type(Name, Extra, TypeMap),
+    %% Res = get_opt(Name, TypeMap, undefined),
     ?debug("type_map(~p) -> ~p~n", [ Name, Res ]),
     Res.
 
@@ -386,10 +387,11 @@ reconnect_after(Socket, ReconnectInterval) ->
 reconnect_after(ReconnectInterval) ->
    erlang:send_after(ReconnectInterval, self(), {exometer_callback, reconnect}).
 
-setup_refresh(RefreshInterval, Metric, DataPoint, Value) ->
+setup_refresh(RefreshInterval, Metric, DataPoint, Extra, Value) ->
     ?debug("Will refresh after ~p~n", [ RefreshInterval ]),
     TRef = erlang:send_after(RefreshInterval, self(),
-                             { exometer_callback, refresh_metric, Metric, DataPoint, Value}),
+                             {exometer_callback, refresh_metric,
+                              Metric, DataPoint, Extra, Value}),
 
     ets:insert(exometer_collectd, { ets_key(Metric, DataPoint), TRef}),
     ok.

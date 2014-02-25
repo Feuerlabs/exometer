@@ -253,7 +253,7 @@ start_link() ->
     Opts = exometer_util:get_env(report, []),
     gen_server:start_link({local, ?MODULE}, ?MODULE,  Opts, []).
 
--spec subscribe(module(), metric(), datapoint(), interval()) -> 
+-spec subscribe(module(), metric(), datapoint() | [datapoint()], interval()) ->
     ok | not_found | unknown_reporter.
 subscribe(Reporter, Metric, DataPoint, Interval) ->
     subscribe(Reporter, Metric, DataPoint, Interval, []).
@@ -272,7 +272,7 @@ subscribe(Reporter, Metric, DataPoint, Interval, Extra) ->
 unsubscribe(Reporter, Metric, DataPoint) ->
     unsubscribe(Reporter, Metric, DataPoint, undefined).
 
--spec unsubscribe(module(), metric(), datapoint(), extra()) -> 
+-spec unsubscribe(module(), metric(), datapoint() | [datapoint()], extra()) -> 
     ok | not_found.
 unsubscribe(Reporter, Metric, DataPoint, Extra) ->
     call({unsubscribe, #key{reporter = Reporter,
@@ -401,7 +401,7 @@ handle_call({subscribe,
     %% Verify that the given metric/data point actually exist.
     case lists:keyfind(Reporter, #reporter.module, Rs) of
         #reporter{} ->
-            case exometer:get_value(Metric, DataPoint) of
+            case exometer:get_value(Metric, first_datapoint(DataPoint)) of
                 {ok, _} ->
                     Reporter ! {exometer_subscribe, Metric,
                                 DataPoint, Interval, Extra},
@@ -528,11 +528,12 @@ handle_info({ report, #key{ reporter = Reporter,
             #st{subscribers = Subs} = St) ->
     case lists:keyfind(Key, #subscriber.key, Subs) of
         #subscriber{} = Sub ->
-            case { RetryFailedMetrics,  exometer:get_value(Metric, DataPoint) } of
+            case {RetryFailedMetrics,  exometer:get_value(Metric, DataPoint)} of
                 %% We found a value.
-                { _, {ok, [{_, Val}]}} ->
+                {_, {ok, Values}} ->
                     %% Distribute metric value to the correct process
-                    report_value(Reporter, Metric, DataPoint, Extra, Val),
+                    [report_value(Reporter, Metric, DataPoint, Extra, Val)
+                     || {DataPoint, Val} <- Values],
 
                     %% Re-arm the timer for next round
                     TRef = erlang:send_after(Interval, self(),
@@ -546,7 +547,7 @@ handle_info({ report, #key{ reporter = Reporter,
                                           Sub#subscriber{ t_ref = TRef })}};
 
                 %% We did not find a value, but we should try again.
-                { true, _ } ->
+                {true, _ } ->
                     ?info("Metric(~p) Datapoint(~p) not found. Will try again in ~p msec~n",
                            [Metric, DataPoint, Interval]),
                     %% Re-arm the timer for next round
@@ -614,6 +615,12 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+first_datapoint([DP|_]) ->
+    DP;
+first_datapoint(DP) when is_atom(DP) ->
+    DP.
+
 
 assert_no_duplicates([{R,_}|T]) ->
     case lists:keymember(R, 1, T) of
@@ -742,7 +749,7 @@ purge_subscriptions(Module, Subs) ->
 %% Module is expected to implement exometer_report behavior
 reporter_launch(Module, Opts) ->
     case Module:exometer_init(Opts) of
-        {ok, St} -> 
+        {ok, St} ->
             reporter_loop(Module, St);
         {error, Reason} ->
             ?error("Failed to start reporter ~p: ~p~n", [Module, Reason]),

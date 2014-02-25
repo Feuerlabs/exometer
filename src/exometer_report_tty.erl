@@ -47,7 +47,7 @@
 %% calendar:datetime_to_gregorian_seconds({{1970,1,1},{0,0,0}}).
 -define(UNIX_EPOCH, 62167219200).
 
--record(st, {}).
+-record(st, {type_map = []}).
 
 %%%===================================================================
 %%% exometer_report callback API
@@ -55,7 +55,8 @@
 
 exometer_init(Opts) ->
     ?info("~p(~p): Starting~n", [?MODULE, Opts]),
-    {ok, #st{}}.
+    TypeMap = proplists:get_value(type_map, Opts, []),
+    {ok, #st{type_map = TypeMap}}.
 
 exometer_subscribe(_Metric, _DataPoint, _Extra, _Interval, St) ->
     {ok, St}.
@@ -65,11 +66,16 @@ exometer_unsubscribe(_Metric, _DataPoint, _Extra, St) ->
 
 %% Invoked through the remote_exometer() function to
 %% send out an update.
-exometer_report(Metric, DataPoint, _Extra, Value, St)  ->
+exometer_report(Metric, DataPoint, Extra, Value, St)  ->
     ?debug("Report metric ~p_~p = ~p~n", [Metric, DataPoint, Value]),
     %% Report the value and setup a new refresh timer.
+    Key = Metric ++ [DataPoint],
+    Type = case exometer_util:report_type(Key, Extra, St#st.type_map) of
+               {ok, T} -> T;
+               error   -> unknown
+           end,
     Str = [?MODULE_STRING, ": ", name(Metric, DataPoint), $\s,
-           timestamp(), ":", value(Value), $\n],
+           timestamp(), ":", value(Value), io_lib:format(" (~w)", [Type]), $\n],
     io:format(Str, []),
     {ok, St}.
 
