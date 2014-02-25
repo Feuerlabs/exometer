@@ -155,6 +155,8 @@
     add_reporter/2,
     remove_reporter/1,
     terminate_reporter/1,
+    call_reporter/2,
+    cast_reporter/2,
     setopts/3,
     new_entry/1
    ]).
@@ -254,7 +256,7 @@ start_link() ->
 -spec subscribe(module(), metric(), datapoint(), interval()) -> 
     ok | not_found | unknown_reporter.
 subscribe(Reporter, Metric, DataPoint, Interval) ->
-    subscribe(Reporter, Metric, DataPoint, Interval, undefined).
+    subscribe(Reporter, Metric, DataPoint, Interval, []).
 
 -spec subscribe(module(), metric(), datapoint(), interval(), extra()) -> 
     ok | not_found | unknown_reporter.
@@ -303,6 +305,22 @@ add_reporter(Reporter, Options) ->
 
 remove_reporter(Reporter) ->
     call({remove_reporter, Reporter}).
+
+call_reporter(Reporter, Msg) ->
+    case lists:keyfind(Reporter, 1, list_reporters()) of
+        {_, Pid} ->
+            exometer_proc:call(Pid, Msg);
+        false ->
+            {error, {no_such_reporter, Reporter}}
+    end.
+
+cast_reporter(Reporter, Msg) ->
+    case lists:keyfind(Reporter, 1, list_reporters()) of
+        {_, Pid} ->
+            exometer_proc:cast(Pid, Msg);
+        false ->
+            {error, {no_such_reporter, Reporter}}
+    end.
 
 setopts(Metric, Options, Status) ->
     call({setopts, Metric, Options, Status}).
