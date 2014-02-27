@@ -158,37 +158,27 @@ Standard options are processed directly by `new/3`, before
 
 
 + `{priority, P}`
-
-<br></br>
-Will be forwarded by the probe's process to process_flag/2.
+Will be forwarded by the probe's process to `erlang:process_flag/2`.
 
 
 
 + `{min_heap_size, S}`
-
-<br></br>
-Will be forwarded by the probe's process to process_flag/2.
+Will be forwarded by the probe's process to `erlang:process_flag/2`.
 
 
 
 + `{min_bin_vheap_size, S}`
-
-<br></br>
-Will be forwarded by the probe's process to process_flag/2.
+Will be forwarded by the probe's process to `erlang:process_flag/2`.
 
 
 
 + `{sensitive, true | false}`
-
-<br></br>
-Will be forwarded by the probe's process to process_flag/2.
+Will be forwarded by the probe's process to `erlang:process_flag/2`.
 
 
 
 + `{sample_interval, t}`
-
-<br></br>
-Specifies the interval, in milliseconds, that `probe_sample/2`
+Specifies the interval, in milliseconds, that `erlang:process_flag/2`.
 should be invoked at.
 
 
@@ -205,12 +195,11 @@ future probe implementation calls for the metric.
 
 
 
-If the `sample_interval` option has been specified in `Opts`, the
-`probe_sample/2` implementation will be invoked by the probe
-process at the millisecond-specified interval. In these cases
-`probe_sample/2` will be invoked immediately after `probe_init/2`
-to retrieve a first sample. After that, `probe_sample/2` will be
-periodically invoked at the given interval.
+If the `sample_interval` option has been specified in `Opts`,
+probe_sample/2' will be invoked immediately after `probe_init/2`
+returns to retrieve a first sample. After that, `probe_sample/2`
+will repeatedly will be called by the probe process at the
+millisecond-specified interval.
 
 
 
@@ -242,8 +231,6 @@ The arguments are as follows:
 
 
 + `State`
-
-<br></br>
 The probe state, originally returned by `probe_init/3` and subsequentially
 modified by other probe implementation calls.
 
@@ -284,15 +271,11 @@ The arguments are as follows:
 
 
 + `Opts`
-
-<br></br>
 The probe-specific options to be processed.
 
 
 
 + `State`
-
-<br></br>
 The probe state, originally returned by `probe_init/3` and subsequentially
 modified by other probe implementation calls.
 
@@ -325,15 +308,11 @@ The arguments are as follows:
 
 
 + `Value`
-
-<br></br>
 The value to integrate.
 
 
 
 + `State`
-
-<br></br>
 The probe state, originally returned by `probe_init/3` and subsequentially
 modified by other probe implementation calls.
 
@@ -344,15 +323,15 @@ call to have the probe process a value given in `Value`.
 
 
 
-Once processed, `probe_update/2` shall return `{ok, NewState}`,
-where `NewState` contains the new probe state with the processed
-value.
-
-
-
 The `probe_update/2` implementation is invoked by `exometer:update/2`, which
 calls `exometer_probe:update/4`, which invokes the probe
 implementation.
+
+
+
+Once processed, `probe_update/2` shall return `{ok, NewState}`,
+where `NewState` contains the new probe state with the processed
+value.
 
 
 #### <a name="probe_get_value/2">probe_get_value/2</a> ####
@@ -379,22 +358,13 @@ The arguments are as follows:
 
 
 + `DataPoints`
-
-<br></br>
 List of data point atoms to retrieve values for.
 
 
 
 + `State`
-
-<br></br>
 The probe state, originally returned by `probe_init/3` and subsequentially
 modified by other probe implementation calls.
-
-
-
-This function can be called outside the periodic `probe_sample/1`
-call to have the probe process a value given in `Value`.
 
 
 
@@ -406,7 +376,7 @@ which invokes the probe implementation.
 
 If `exometer:get_value/2` is invoked with `default` as a single
 data point, the probe's `probe_get_datapoints/1` function will be
-invoked to retrieve all data points supported by the probe
+called to retrieve all data points supported by the probe
 implementation. `probe_get_value/2` will then be called with the
 returned set of data points provided as an argument.
 
@@ -439,7 +409,7 @@ the tuple returned for that data point shall be `{ DP, {error, undefined}`.
 
 
 For example, if the provided `DataPoint` argument is set to `[ min,
-max, xyzzy ]`, and only `min` and `max` are data points supported
+max, xyzzy ]`, and only `min` and `max` are supported
 by the probe, the returned list shall look like below:
 
 
@@ -452,8 +422,8 @@ by the probe, the returned list shall look like below:
 
 
 The `probe_get_value/2` implementation shall return `{ok, List}`,
-where `List` is the list of data points described above. No new
-state is returned by this function.
+where `List` is the list of data points and their values described
+above. No new state is returned by this function.
 
 
 #### <a name="probe_get_datapoints/1">probe_get_datapoints/1</a> ####
@@ -480,8 +450,6 @@ The arguments are as follows:
 
 
 + `State`
-
-<br></br>
 The probe state, originally returned by `probe_init/3` and subsequentially
 modified by other probe implementation calls.
 
@@ -527,8 +495,6 @@ The arguments are as follows:
 
 
 + `State`
-
-<br></br>
 The probe state, originally returned by `probe_init/3` and subsequentially
 modified by other probe implementation calls.
 
@@ -566,8 +532,6 @@ The arguments are as follows:
 
 
 + `State`
-
-<br></br>
 The probe state, originally returned by `probe_init/3` and subsequentially
 modified by other probe implementation calls.
 
@@ -616,16 +580,12 @@ The arguments are as follows:
 
 
 + `State`
-
-<br></br>
 The probe state, originally returned by `probe_init/3` and subsequentially
 modified by other probe implementation calls.
 
 
 
 + `Msg`
-
-<br></br>
 The probe state, originally returned by `probe_init/3` and subsequentially
 modified by other probe implementation calls.
 
