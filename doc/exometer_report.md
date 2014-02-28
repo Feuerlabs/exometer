@@ -137,7 +137,7 @@ as a list of atoms.
 
 + `DataPoint`
 <br></br>
-Specifies the data point within the subscribed-to metric as an atom.
+Specifies the data point within the subscribed-to metric as an atom, or a list of atoms.
 
 
 
@@ -190,7 +190,8 @@ Specifies the metric that is to be reported.
 
 + `DataPoint`
 <br></br>
-Specifies the data point within the metric that is to be reported.
+Specifies the data point or data points within the metric
+to be reported.
 
 
 
@@ -237,7 +238,8 @@ as a list of atoms.
 
 + `DataPoint`
 <br></br>
-Specifies the data point within the subscribed-to metric as an atom.
+Specifies the data point or data points within the
+subscribed-to metric as an atom or a list of atoms.
 
 
 
@@ -246,7 +248,7 @@ Specifies the data point within the subscribed-to metric as an atom.
 Contains the state returned by the last called plugin function.
 
 
-The `exomoeter_unsubscribe()` function should return `{ok, State}` where
+The `exometer_unsubscribe()` function should return `{ok, State}` where
 State is a tuple that will be provided as a reference argument to
 future calls made into the plugin. Any other return formats will
 generate an error log message by exometer.
@@ -308,8 +310,8 @@ metric() = [atom(), ...]
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#add_reporter-2">add_reporter/2</a></td><td></td></tr><tr><td valign="top"><a href="#list_metrics-0">list_metrics/0</a></td><td></td></tr><tr><td valign="top"><a href="#list_metrics-1">list_metrics/1</a></td><td></td></tr><tr><td valign="top"><a href="#list_reporters-0">list_reporters/0</a></td><td></td></tr><tr><td valign="top"><a href="#list_subscriptions-1">list_subscriptions/1</a></td><td></td></tr><tr><td valign="top"><a href="#new_entry-1">new_entry/1</a></td><td></td></tr><tr><td valign="top"><a href="#remove_reporter-1">remove_reporter/1</a></td><td></td></tr><tr><td valign="top"><a href="#setopts-3">setopts/3</a></td><td></td></tr><tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td>Starts the server
---------------------------------------------------------------------.</td></tr><tr><td valign="top"><a href="#subscribe-4">subscribe/4</a></td><td></td></tr><tr><td valign="top"><a href="#subscribe-5">subscribe/5</a></td><td></td></tr><tr><td valign="top"><a href="#terminate_reporter-1">terminate_reporter/1</a></td><td></td></tr><tr><td valign="top"><a href="#unsubscribe-3">unsubscribe/3</a></td><td></td></tr><tr><td valign="top"><a href="#unsubscribe-4">unsubscribe/4</a></td><td></td></tr><tr><td valign="top"><a href="#unsubscribe_all-2">unsubscribe_all/2</a></td><td></td></tr></table>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#add_reporter-2">add_reporter/2</a></td><td></td></tr><tr><td valign="top"><a href="#call_reporter-2">call_reporter/2</a></td><td></td></tr><tr><td valign="top"><a href="#cast_reporter-2">cast_reporter/2</a></td><td></td></tr><tr><td valign="top"><a href="#list_metrics-0">list_metrics/0</a></td><td></td></tr><tr><td valign="top"><a href="#list_metrics-1">list_metrics/1</a></td><td></td></tr><tr><td valign="top"><a href="#list_reporters-0">list_reporters/0</a></td><td></td></tr><tr><td valign="top"><a href="#list_subscriptions-1">list_subscriptions/1</a></td><td></td></tr><tr><td valign="top"><a href="#new_entry-1">new_entry/1</a></td><td></td></tr><tr><td valign="top"><a href="#remove_reporter-1">remove_reporter/1</a></td><td></td></tr><tr><td valign="top"><a href="#setopts-3">setopts/3</a></td><td></td></tr><tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td>Starts the server
+--------------------------------------------------------------------.</td></tr><tr><td valign="top"><a href="#subscribe-4">subscribe/4</a></td><td>Equivalent to <a href="#subscribe-5"><tt>subscribe(Reporter, Metric, DataPoint, Interval, [])</tt></a>.</td></tr><tr><td valign="top"><a href="#subscribe-5">subscribe/5</a></td><td>Add a subscription to an existing reporter.</td></tr><tr><td valign="top"><a href="#terminate_reporter-1">terminate_reporter/1</a></td><td></td></tr><tr><td valign="top"><a href="#unsubscribe-3">unsubscribe/3</a></td><td>Equivalent to <a href="#unsubscribe-4"><tt>unsubscribe(Reporter, Metric, DataPoint, [])</tt></a>.</td></tr><tr><td valign="top"><a href="#unsubscribe-4">unsubscribe/4</a></td><td>Removes a subscription.</td></tr><tr><td valign="top"><a href="#unsubscribe_all-2">unsubscribe_all/2</a></td><td>Removes all subscriptions related to Metric in Reporter.</td></tr></table>
 
 
 <a name="functions"></a>
@@ -321,6 +323,20 @@ metric() = [atom(), ...]
 ### add_reporter/2 ###
 
 `add_reporter(Reporter, Options) -> any()`
+
+
+<a name="call_reporter-2"></a>
+
+### call_reporter/2 ###
+
+`call_reporter(Reporter, Msg) -> any()`
+
+
+<a name="cast_reporter-2"></a>
+
+### cast_reporter/2 ###
+
+`cast_reporter(Reporter, Msg) -> any()`
 
 
 <a name="list_metrics-0"></a>
@@ -416,13 +432,13 @@ Starts the server
 
 
 <pre><code>
-subscribe(Reporter::module(), Metric::<a href="#type-metric">metric()</a>, DataPoint::<a href="#type-datapoint">datapoint()</a>, Interval::<a href="#type-interval">interval()</a>) -&gt; ok | not_found | unknown_reporter
+subscribe(Reporter::module(), Metric::<a href="#type-metric">metric()</a>, DataPoint::<a href="#type-datapoint">datapoint()</a> | [<a href="#type-datapoint">datapoint()</a>], Interval::<a href="#type-interval">interval()</a>) -&gt; ok | not_found | unknown_reporter
 </code></pre>
 
 <br></br>
 
 
-
+Equivalent to [`subscribe(Reporter, Metric, DataPoint, Interval, [])`](#subscribe-5).
 <a name="subscribe-5"></a>
 
 ### subscribe/5 ###
@@ -436,6 +452,23 @@ subscribe(Reporter::module(), Metric::<a href="#type-metric">metric()</a>, DataP
 
 
 
+Add a subscription to an existing reporter.
+
+
+
+The reporter must first be started using [`add_reporter/2`](#add_reporter-2), or through
+a static configuration. `Metric` is the name of an exometer entry. `DataPoint`
+is either a single data point (an atom) or a list of data points (a list).
+
+
+
+`Interval` is the sampling/reporting interval in milliseconds.
+
+
+`Extra` can be anything that the chosen reporter understands (default: `[]`).
+If the reporter uses [`exometer_util:report_type/3`](exometer_util.md#report_type-3), `Extra` should be
+a proplist, and the option `{report_type, T}` can control which type (e.g.
+for collectd or statsd) that the value corresponds to.
 <a name="terminate_reporter-1"></a>
 
 ### terminate_reporter/1 ###
@@ -455,20 +488,26 @@ unsubscribe(Reporter::module(), Metric::<a href="#type-metric">metric()</a>, Dat
 <br></br>
 
 
-
+Equivalent to [`unsubscribe(Reporter, Metric, DataPoint, [])`](#unsubscribe-4).
 <a name="unsubscribe-4"></a>
 
 ### unsubscribe/4 ###
 
 
 <pre><code>
-unsubscribe(Reporter::module(), Metric::<a href="#type-metric">metric()</a>, DataPoint::<a href="#type-datapoint">datapoint()</a>, Extra::<a href="#type-extra">extra()</a>) -&gt; ok | not_found
+unsubscribe(Reporter::module(), Metric::<a href="#type-metric">metric()</a>, DataPoint::<a href="#type-datapoint">datapoint()</a> | [<a href="#type-datapoint">datapoint()</a>], Extra::<a href="#type-extra">extra()</a>) -&gt; ok | not_found
 </code></pre>
 
 <br></br>
 
 
 
+Removes a subscription.
+
+
+Note that the subscription is identified by the combination
+`{Reporter, Metric, DataPoint, Extra}`. The exact information can be extracted
+using [`list_subscriptions/1`](#list_subscriptions-1).
 <a name="unsubscribe_all-2"></a>
 
 ### unsubscribe_all/2 ###
@@ -481,4 +520,4 @@ unsubscribe_all(Reporter::module(), Metric::<a href="#type-metric">metric()</a>)
 <br></br>
 
 
-
+Removes all subscriptions related to Metric in Reporter.

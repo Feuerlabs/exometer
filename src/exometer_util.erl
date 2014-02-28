@@ -21,12 +21,17 @@
     table/0,
     get_statistics/3,
     get_statistics2/3,
-    drop_duplicates/1
+    drop_duplicates/1,
+    report_type/3
    ]).
 
 -export_type([timestamp/0]).
 
 -include("exometer.hrl").
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+-endif.
 
 -type timestamp() :: non_neg_integer().
 
@@ -223,3 +228,47 @@ perc(P, Len) when P > 1.0 ->
 
 perc(P, Len) ->
     round(P * Len).
+
+
+report_type(Key, Extra, TypeMap) when is_list(Extra) ->
+    case lists:keyfind(report_type, 1, Extra) of
+        {_, Type} -> {ok, Type};
+        false     -> check_type(Key, TypeMap)
+    end;
+report_type(Key, _, TypeMap) ->
+    check_type(Key, TypeMap).
+
+check_type(K, [{K, Type}|_]) ->
+    {ok, Type};
+check_type(K, [{KPat, Type}|T]) ->
+    case key_match(KPat, K) of
+        true  -> {ok, Type};
+        false -> check_type(K, T)
+    end;
+check_type(_, []) ->
+    error.
+
+key_match([H|T], [H|T1]) ->
+    key_match(T, T1);
+key_match(['_'|T], [_|T1]) ->
+    key_match(T, T1);
+key_match([], []) -> true;
+key_match('_', _) -> true;
+key_match(_, _)   -> false.
+
+
+%% EUnit tests
+-ifdef(TEST).
+
+key_match_test() ->
+    {ok,yes} = report_type([a,b,c], [], [{'_',yes}]),
+    {ok,yes} = report_type([a,b,c], [], [{[a,b], no},
+                                         {[a,b,c], yes},
+                                         {[a,b,c], no}]), % match on first
+    {ok,yes} = report_type([a,b,c], [], [{[a,b,'_'], yes}]),
+    {ok,yes} = report_type([a,b,c], [], [{[a,'_',c], yes}]),
+    {ok,yes} = report_type([a,b,c], [], [{[a,b|'_'], yes}]),
+    {ok,yes} = report_type([a,b,c], [{type,yes}], [{[a,b,c], no}]),
+    ok.
+
+-endif.
