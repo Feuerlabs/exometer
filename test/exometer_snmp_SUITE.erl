@@ -14,6 +14,7 @@
    [
     all/0,
     suite/0,
+    groups/0,
     init_per_suite/1, end_per_suite/1,
     init_per_testcase/2, end_per_testcase/2
    ]).
@@ -27,7 +28,8 @@
     test_mib_modification/1,
     test_counter_get/1,
     test_counter_reports/1,
-    test_histogram_support/1
+    test_histogram_support/1,
+    test_reporter_restart/1
    ]).
 
 %% utility exports
@@ -45,13 +47,26 @@
 
 all() ->
     [
-     test_snmp_export_disabled,
-     test_snmp_export_enabled,
-     test_agent_manager_communication_example,
-     test_mib_modification,
-     test_counter_get,
-     test_counter_reports,
-     test_histogram_support
+     {group, test_distributed},
+     {group, test_local}
+    ].
+
+groups() ->
+    [
+     {test_distributed, [shuffle],
+      [
+       test_agent_manager_communication_example,
+       test_counter_get,
+       test_counter_reports,
+       test_histogram_support,
+       test_reporter_restart
+      ]},
+     {test_local, [shuffle],
+      [
+       test_mib_modification,
+       test_snmp_export_disabled,
+       test_snmp_export_enabled
+      ]}
     ].
 
 suite() ->
@@ -69,6 +84,7 @@ init_per_testcase(test_snmp_export_disabled, Config) ->
     exometer:start(),
     Config;
 init_per_testcase(Case, Config) when
+      Case == test_reporter_restart;
       Case == test_agent_manager_communication_example;
       Case == test_counter_get;
       Case == test_counter_reports;
@@ -207,7 +223,7 @@ test_counter_reports(Config) ->
     lists:map(fun
               ({Name, counter, _Opts, _, Exp}) ->
                       [ok = exometer:update(Name, 1) || _ <- lists:seq(1, Exp)];
-              ({Name, fast_counter, Opts, _, Exp}) ->
+              ({_Name, fast_counter, Opts, _, Exp}) ->
                       {function, {Mod, Fun}} = lists:keyfind(function, 1, Opts),
                       [Mod:Fun() || _ <- lists:seq(1, Exp)]
               end, Counters),
@@ -215,7 +231,7 @@ test_counter_reports(Config) ->
     % wait for all correct reports
     FunReceive = fun({_, _, _, Name, Exp}) ->
                          receive
-                             {snmp_msg, handle_inform, [_, {noError, 0, Vars}, _]} = Msg->
+                             {snmp_msg, handle_inform, [_, {noError, 0, Vars}, _]} = _Msg->
                                  {value, Oid0} = snmpa:name_to_oid(Name),
                                  Oid1 = Oid0 ++ [0],
                                  case lists:keyfind(Oid1, 2, Vars) of
@@ -293,6 +309,27 @@ test_histogram_support(Config) ->
     [{ok, V} = rpc:call(Manager, exo_test_user, get_value, [Oid]) || {_, V, Oid} <- ExpectedResults1],
     ok.
 
+test_reporter_restart(Config) ->
+    Manager = ?config(manager, Config),
+    NameCounter = [test, app, one],
+    NameCounterSnmp = datapointTestAppOneValue,
+    ValueCounter = 20,
+    ok = exometer:new(NameCounter, counter, [{snmp, []}]),
+    ok = wait_for_mib_version(2, 10, 10000),
+    {value, NameCounterOid} = snmpa:name_to_oid(NameCounterSnmp),
+    [exometer:update(NameCounter, 1) || _ <- lists:seq(1, ValueCounter)],
+    {ok, ValueCounter} = rpc:call(Manager, exo_test_user, get_value, [NameCounterOid]),
+    exit(whereis(exometer_report_snmp), kill),
+    ok = wait_for_mib_version(2, 10, 100),
+    {ok, ValueCounter} = rpc:call(Manager, exo_test_user, get_value, [NameCounterOid]),
+    exit(whereis(exometer_report_snmp), kill),
+    ok = wait_for_mib_version(2, 10, 100),
+    {ok, ValueCounter} = rpc:call(Manager, exo_test_user, get_value, [NameCounterOid]),
+    exit(whereis(exometer_report_snmp), kill),
+    % 2 restarts is set as max
+    {error, timeout} = wait_for_mib_version(2, 10, 100),
+    ok.
+
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
@@ -307,7 +344,8 @@ snmp_init_testcase(Case) ->
     ReporterSpec = [{reporters, [{exometer_report_snmp, 
                                   [
                                    {mib_template, MibTemplate},
-                                   {mib_dir, TmpPath}
+                                   {mib_dir, TmpPath},
+                                   {restart, [{3, 10}, {exometer_report, remove_reporter}]}
                                   ]
                                  }]}],
     ok = application:set_env(exometer, report, ReporterSpec),
@@ -438,6 +476,9 @@ wait_for_mib_version(Vsn, Step, Count) ->
         {ok, Vsn, _, _} ->
             ok;
         {ok, _, _, _} ->
+            timer:sleep(Step),
+            wait_for_mib_version(Vsn, Step, Count-Step);
+        {error, not_running} ->
             timer:sleep(Step),
             wait_for_mib_version(Vsn, Step, Count-Step);
         E ->
