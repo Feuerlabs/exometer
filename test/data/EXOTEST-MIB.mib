@@ -1,7 +1,7 @@
 EXOTEST-MIB DEFINITIONS ::= BEGIN
 
 IMPORTS
-    MODULE-IDENTITY, OBJECT-TYPE, NOTIFICATION-TYPE, Counter32, Gauge32, Integer32, snmpModules, experimental FROM SNMPv2-SMI
+    MODULE-IDENTITY, OBJECT-TYPE, NOTIFICATION-TYPE, Counter32, Counter64, Gauge32, Integer32, snmpModules, experimental FROM SNMPv2-SMI
     MODULE-COMPLIANCE, OBJECT-GROUP, NOTIFICATION-GROUP FROM SNMPv2-CONF;
 
 exotestMIB MODULE-IDENTITY
@@ -16,7 +16,7 @@ exotestMIB MODULE-IDENTITY
 		"The initial version"
 	::= { snmpModules 1 }
 
-exotest OBJECT IDENTIFIER ::= { experimental 8 }
+exotest OBJECT IDENTIFIER ::= { experimental 9 }
 
 -- CONTENT START
 

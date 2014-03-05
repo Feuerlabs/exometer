@@ -330,10 +330,32 @@ will get the cached value, if found. Default is `0`, which means no
 caching will be performed.
 
 
+
 * `{status, enabled | disabled}` - Default is `enabled`. If the metric
 is `disabled`, calls to [`get_value/1`](#get_value-1) will return `{ok, disabled}`,
 and calls to [`update/2`](#update-2) and [`sample/1`](#sample-1) will return `ok` but
 will do nothing.
+
+
+
+* `{snmp, [{DataPoint, ReportInterval}]}` - defines a link to SNMP reporting,
+where the given data points are sampled at the given intervals, converted
+to SNMP PDUs and transmitted via the `exometer_report_snmp` reporter.
+
+
+
+* `{snmp_syntax, [{DataPoint | {default}, SYNTAX}]}` - specifies a custom
+SNMP type for a given data point. `SYNTAX` needs to be a binary or a string,
+and corresponds to the SYNTAX definition in the generated SNMP MIB.
+
+
+For example, the default value for an exometer counter is `"Counter32"`, which
+expands to `SYNTAX Counter32` in the corresponding MIB object definition. If
+a 64-bit counter (not supported by SNMPv1) is desired instead, the option
+`{snmp_syntax, [{value, "Counter64"}]}` can be added to the counter entry
+(note that `value` in this case is the name of the data point representing
+the counter value).
+
 <a name="re_register-3"></a>
 
 ### re_register/3 ###

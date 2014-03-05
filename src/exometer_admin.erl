@@ -229,6 +229,10 @@ handle_info({'DOWN', Ref, _, Pid, _}, S) ->
     case get(Ref) of
         undefined ->
             {noreply, S};
+        Proc when is_atom(Proc) ->
+            erase(Ref),
+            erase(Pid),
+            {noreply, S};
         Name when is_list(Name) ->
             erase(Ref),
             erase(Pid),

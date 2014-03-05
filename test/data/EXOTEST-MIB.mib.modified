@@ -1,7 +1,7 @@
 EXOTEST-MIB DEFINITIONS ::= BEGIN
 
 IMPORTS
-    MODULE-IDENTITY, OBJECT-TYPE, NOTIFICATION-TYPE, Counter32, Gauge32, Integer32, snmpModules, experimental FROM SNMPv2-SMI
+    MODULE-IDENTITY, OBJECT-TYPE, NOTIFICATION-TYPE, Counter32, Counter64, Gauge32, Integer32, snmpModules, experimental FROM SNMPv2-SMI
     MODULE-COMPLIANCE, OBJECT-GROUP, NOTIFICATION-GROUP FROM SNMPv2-CONF;
 
 exotestMIB MODULE-IDENTITY
@@ -16,7 +16,7 @@ exotestMIB MODULE-IDENTITY
 		"The initial version"
 	::= { snmpModules 1 }
 
-exotest OBJECT IDENTIFIER ::= { experimental 8 }
+exotest OBJECT IDENTIFIER ::= { experimental 9 }
 
 -- CONTENT START
 
@@ -74,9 +74,29 @@ datapointTestAppFourMsSinceReset OBJECT-TYPE
     ::= { exotest 4 }
 -- METRIC datapointTestAppFourMsSinceReset END
 
+-- METRIC datapointTestAppFiveValue START
+datapointTestAppFiveValue OBJECT-TYPE
+    SYNTAX Counter64
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION ""
+    ::= { exotest 8 }
+-- METRIC datapointTestAppFiveValue END
+
+-- METRIC datapointTestAppFiveMsSinceReset START
+datapointTestAppFiveMsSinceReset OBJECT-TYPE
+    SYNTAX Counter32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION ""
+    ::= { exotest 9 }
+-- METRIC datapointTestAppFiveMsSinceReset END
+
 -- OBJECT-GROUP allObjects START
 allObjects OBJECT-GROUP
     OBJECTS {
+        datapointTestAppFiveMsSinceReset,
+        datapointTestAppFiveValue,
         datapointTestAppFourMsSinceReset,
         datapointTestAppFourValue,
         datapointTestAppOneMsSinceReset,
@@ -96,7 +116,7 @@ reportTestAppOneValue NOTIFICATION-TYPE
     }
     STATUS current
     DESCRIPTION ""
-    ::= { exotest 8 }
+    ::= { exotest 10 }
 -- INFORM reportTestAppOneValue END
 
 -- INFORM reportTestAppThreeMsSinceReset START
@@ -106,18 +126,29 @@ reportTestAppThreeMsSinceReset NOTIFICATION-TYPE
     }
     STATUS current
     DESCRIPTION ""
-    ::= { exotest 10 }
+    ::= { exotest 12 }
 -- INFORM reportTestAppThreeMsSinceReset END
+
+-- INFORM reportTestAppFiveValue START
+reportTestAppFiveValue NOTIFICATION-TYPE
+    OBJECTS {
+        datapointTestAppFiveValue
+    }
+    STATUS current
+    DESCRIPTION ""
+    ::= { exotest 13 }
+-- INFORM reportTestAppFiveValue END
 
 -- NOTIFICATION-GROUP allNotifications START
 allNotifications NOTIFICATION-GROUP
     NOTIFICATIONS {
+        reportTestAppFiveValue,
         reportTestAppOneValue,
         reportTestAppThreeMsSinceReset
     }
     STATUS current
     DESCRIPTION ""
-    ::= { exotest 9 }
+    ::= { exotest 11 }
 -- NOTIFICATION-GROUP allNotifications END
 
 -- CONTENT END

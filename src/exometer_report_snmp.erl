@@ -461,24 +461,21 @@ create_inform_bin(Name, Domain, Nr, Object) ->
      <<"-- INFORM ">>, Name, <<" END\n\n">>
     ].
 
-create_bin(Name, _, #exometer_entry{module=exometer, type=Type}) when
-      Type == counter; Type == fast_counter ->
+create_bin(Name, Dp, #exometer_entry{module=exometer, type=Type, options=Opts})
+  when Type == counter; Type == fast_counter ->
+    SNMPType = snmp_syntax(Type, Dp, Opts),
     B = [
          Name, <<" OBJECT-TYPE\n">>,
-         <<"    SYNTAX Counter32\n">>,
+         <<"    SYNTAX ", SNMPType/binary, "\n">>,
          <<"    MAX-ACCESS read-only\n">>,
          <<"    STATUS current\n">>,
          <<"    DESCRIPTION \"\"\n">>
         ],
     {ok, binary:list_to_bin(B)};
 
-create_bin(Name, Dp, #exometer_entry{module=exometer_histogram, type=histogram}) ->
-    Type = case Dp of
-               mean ->
-                   <<"OCTET STRING (SIZE(0..64))">>;
-               _ ->
-                   <<"Gauge32">>
-           end,
+create_bin(Name, Dp, #exometer_entry{module=exometer_histogram, type=histogram,
+                                     options=Opts}) ->
+    Type = snmp_syntax(histogram, Dp, Opts),
     B = [
          Name, <<" OBJECT-TYPE\n">>,
          <<"    SYNTAX ", Type/binary, "\n">>,
@@ -659,3 +656,34 @@ datapoints(#exometer_entry{name=Name}) ->
     datapoints(Name);
 datapoints(Name) when is_list(Name) ->
     exometer:info(Name, datapoints).
+
+
+%% Allow for an option, {snmp_syntax, [{DataPoint, SYNTAX}]}, where
+%% SYNTAX is a valid SNMP SYNTAX expression (string() or binary()).
+%%
+snmp_syntax(Type, Dp, Opts) when Type==counter; Type==fast_counter ->
+    snmp_syntax_opt(Dp, Opts, <<"Counter32">>);
+snmp_syntax(histogram, Dp, Opts) -> 
+    case Dp of
+        mean -> snmp_syntax_opt(mean, Opts, <<"OCTET STRING (SIZE(0..64))">>);
+        _    -> snmp_syntax_opt(Dp, Opts, <<"Gauge32">>)
+    end;
+snmp_syntax(_, Dp, Opts) ->
+    snmp_syntax_opt(Dp, Opts, <<"Gauge32">>).
+
+
+%% Made explicit for speed
+snmp_syntax_opt(Dp, Opts, Default) ->
+    case lists:keyfind(snmp_syntax, 1, Opts) of
+        false -> Default;
+        {_, TypeOpts} ->
+            case lists:keyfind(Dp, 1, TypeOpts) of
+                false ->
+                    case lists:keyfind({default}, 1, TypeOpts) of
+                        false -> Default;
+                        {_, T} -> T
+                    end;
+                {_, T} -> T
+            end
+    end.
+
