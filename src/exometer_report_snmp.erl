@@ -674,16 +674,17 @@ snmp_syntax(_, Dp, Opts) ->
 
 %% Made explicit for speed
 snmp_syntax_opt(Dp, Opts, Default) ->
-    case lists:keyfind(snmp_syntax, 1, Opts) of
-        false -> Default;
-        {_, TypeOpts} ->
-            case lists:keyfind(Dp, 1, TypeOpts) of
-                false ->
-                    case lists:keyfind({default}, 1, TypeOpts) of
-                        false -> Default;
-                        {_, T} -> T
-                    end;
-                {_, T} -> T
-            end
-    end.
+    Res = case lists:keyfind(snmp_syntax, 1, Opts) of
+              false -> Default;
+              {_, TypeOpts} ->
+                  case lists:keyfind(Dp, 1, TypeOpts) of
+                      false ->
+                          case lists:keyfind({default}, 1, TypeOpts) of
+                              false -> Default;
+                              {_, T} -> T
+                          end;
+                      {_, T} -> T
+                  end
+          end,
+    iolist_to_binary(Res).
 
