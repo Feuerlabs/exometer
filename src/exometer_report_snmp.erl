@@ -509,8 +509,10 @@ snmp_value(Name, Dp, Value) ->
     case {Mod, Type, Dp} of
         {exometer, T, _} when T == counter; T == fast_counter ->
             {value, Value};
-        {exometer_histogram, histogram, mean} ->
+        {exometer_histogram, histogram, mean} when is_float(Value) ->
             {value, erlang:float_to_list(Value)};
+        {exometer_histogram, histogram, mean} when is_integer(Value) ->
+            {value, erlang:integer_to_list(Value)};
         {exometer_histogram, histogram, _ } ->
             {value, Value};
         _ ->
