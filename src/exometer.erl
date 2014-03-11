@@ -473,7 +473,7 @@ module_setopts(#exometer_entry{behaviour = entry,
 			       type=Type, 
 			       ref=Ref}=E, Options) ->
     case [O || {K, _} = O <- Options,
-               not lists:member(K, [status, cache])] of
+               not lists:member(K, [status, cache, ref])] of
         [] ->
             ok;
         [_|_] = UserOpts ->
@@ -706,7 +706,19 @@ p_subst_(K) when is_atom(K) ->
 %% to be used for updating the #exometer_entry{} instances.
 %% The options attribute is always updated, replacing old matching
 %% options in the record.
-process_setopts(#exometer_entry{options = OldOpts} = Entry, Options) ->
+process_setopts(#exometer_entry{
+                   name = Name, ref = Ref, type = Type,
+                   module = M, options = OldOpts} = Entry, Options) ->
+    case M =/= exometer andalso
+        erlang:function_exported(M, preprocess_setopts, 5) of
+        true ->
+            Options1 = M:preprocess_setopts(Name, Options, Type, Ref, OldOpts),
+            process_setopts_(Entry, Options1);
+        false ->
+            process_setopts_(Entry, Options)
+    end.
+
+process_setopts_(#exometer_entry{options = OldOpts} = Entry, Options) ->
     {E1, Elems} =
         lists:foldr(
           fun
@@ -728,6 +740,8 @@ process_setopts(#exometer_entry{options = OldOpts} = Entry, Options) ->
                      true ->
                          Acc
                   end;
+              ({ref,R}, {E, Elems}) ->
+                  {E#exometer_entry{ref = R}, add_elem(ref, R, Elems)};
               ({_,_}, Acc) ->
                   Acc
           end, {Entry, []}, Options),
