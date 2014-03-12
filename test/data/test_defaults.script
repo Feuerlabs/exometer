@@ -4,5 +4,10 @@
   [
    {module, exometer_function},
    {arg, {erlang, memory, ['$dp'], value, [total, processes, ets, binary, atom]}}
+  ]},
+ {[preset, match], function, 
+  [
+   {module, exometer_function},
+   {arg, {erlang, statistics, [garbage_collection], match, {gcs, '_', '_'}}}
   ]}
 ].

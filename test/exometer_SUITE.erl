@@ -30,7 +30,8 @@
     test_history4_slide/1,
     test_history4_slotslide/1,
     test_history4_folsom/1,
-    test_ext_predef/1
+    test_ext_predef/1,
+    test_function_match/1
    ]).
 
 %% utility exports
@@ -72,7 +73,8 @@ groups() ->
       ]},
      {test_setup, [shuffle],
       [
-       test_ext_predef
+       test_ext_predef,
+       test_function_match
       ]}
     ].
 
@@ -92,7 +94,9 @@ init_per_testcase(Case, Config) when
     folsom:start(),
     exometer:start(),
     Config;
-init_per_testcase(test_ext_predef, Config) ->
+init_per_testcase(Case, Config) when
+      Case == test_ext_predef;
+      Case == test_function_match ->
     ok = application:set_env(stdlib, exometer_predefined, {script, "../../test/data/test_defaults.script"}),
     ok = application:start(setup),
     exometer:start(),
@@ -108,7 +112,9 @@ end_per_testcase(Case, _Config) when
     exometer:stop(),
     folsom:stop(),
     ok;
-end_per_testcase(test_ext_predef, _Config) ->
+end_per_testcase(Case, _Config) when 
+      Case == test_ext_predef;
+      Case == test_function_match ->
     ok = application:unset_env(common_test, exometer_predefined),
     exometer:stop(),
     ok = application:stop(setup),
@@ -193,6 +199,10 @@ test_history4_folsom(_Config) ->
 
 test_ext_predef(_Config) ->
     {ok, [{total, _}]} = exometer:get_value([preset, func], [total]),
+    ok.
+
+test_function_match(_Config) ->
+    {ok, [{gcs, _}]} = exometer:get_value([preset, match], [gcs]),
     ok.
 
 %%%===================================================================
