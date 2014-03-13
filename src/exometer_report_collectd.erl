@@ -214,14 +214,14 @@ report_exometer_(Metric, DataPoint, Extra, Value,
                      plugin_instance = PluginInstance,
                      socket = Sock,
                      type_map = TypeMap} = St) ->
-    case  get_type(TypeMap, Extra, ets_key(Metric, DataPoint)) of
-        undefined ->
+    case get_type(TypeMap, Extra, ets_key(Metric, DataPoint)) of
+        error ->
             ?warning(
                "Could not resolve ~p to a collectd type."
                "Update exometer_report_collectd -> type_map in app.config. "
                "Value lost~n", [ets_key(Metric, DataPoint)]),
             St;
-        Type ->
+        {ok, Type} ->
             Request = ["PUTVAL ", HostName, "/",
                        PluginName, "-", PluginInstance, "/",
                        Type, "-", name(Metric, DataPoint), $\s,
