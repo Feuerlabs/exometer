@@ -20,6 +20,7 @@
          get_datapoints/3,
          sample/3,
          delete/3,
+         preprocess_setopts/5,
          setopts/4]).
 
 -export([empty/0]).
@@ -143,14 +144,36 @@ behaviour() ->
 %% @end
 new(_Name, function, Opts) ->
     case lists:keyfind(arg, 1, Opts) of
-        {_, {M, F}} ->
-            {ok, {M, F}};
-        {_, {M, F, ArgsP, Type, DPs}} ->
-            {ok, {M, F, mode(ArgsP), ArgsP, Type, DPs}};
+        {_, Arg} ->
+            {ok, ref_from_arg(Arg)};
         false ->
             {ok, {?MODULE, empty}}
     end.
 
+ref_from_arg({_M,_F} = Arg) -> Arg;
+ref_from_arg({M, F, ArgsP, Type, DPs}) ->
+    {M, F, mode(ArgsP), ArgsP, Type, DPs};
+ref_from_arg(_Arg) ->
+    error(invalid_arg).
+
+arg_from_ref({_M,_F} = Ref) -> Ref;
+arg_from_ref({M, F, _, ArgsP, Type, DPs}) ->
+    {M, F, ArgsP, Type, DPs};
+arg_from_ref(_Ref) ->
+    error(invalid_ref).
+
+
+get_value(_, function, {M, F, once, ArgsP, match, Pat}, DataPoints0) ->
+    DataPoints = if DataPoints0 == default ->
+                         pattern_datapoints(Pat);
+                    is_list(DataPoints0) ->
+                         DataPoints0
+                 end,
+    try call_once(M, F, ArgsP, match, {Pat, DataPoints})
+    catch
+        error:_ ->
+            {error, unavailable}
+    end;
 get_value(_, _, {M, F, each, ArgsP, Type, DPs}, DataPoints) ->
     [{D,call(M,F,ArgsP,Type,D)} || D <- datapoints(DataPoints, DPs),
                                    lists:member(D, DPs)];
@@ -198,8 +221,24 @@ sample(_, _, _) ->
 reset(_, _, _) ->
     {error, unsupported}.
 
-setopts(_,_, _, _) ->
-    {error, unsupported}.
+preprocess_setopts(_Name, Opts, _Type, _Ref, _OldOpts) ->
+    case {lists:keyfind(arg,1,Opts), lists:keyfind(ref,1,Opts)} of
+        {{_,A}, {_,R}} ->
+            case ref_from_arg(A) of
+                R -> Opts;
+                _ ->
+                    error({conflict, [{arg,A},{ref,R}]})
+            end;
+        {{_,New}, false} ->
+            [{ref, ref_from_arg(New)}|Opts];
+        {false, {ref, New}} ->
+            [{arg, arg_from_ref(New)}|Opts];
+        _ ->
+            Opts
+    end.
+
+setopts(_, _, _, _) ->
+    ok.
 
 delete(_, _, _) ->
     ok.
