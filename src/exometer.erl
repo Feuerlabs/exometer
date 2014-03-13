@@ -106,6 +106,22 @@ new(Name, Type) ->
 %% is `disabled', calls to {@link get_value/1} will return `{ok, disabled}',
 %% and calls to {@link update/2} and {@link sample/1} will return `ok' but
 %% will do nothing.
+%%
+%% * `{snmp, [{DataPoint, ReportInterval}]}' - defines a link to SNMP reporting,
+%% where the given data points are sampled at the given intervals, converted
+%% to SNMP PDUs and transmitted via the `exometer_report_snmp' reporter.
+%% 
+%% * `{snmp_syntax, [{DataPoint | {default}, SYNTAX}]}' - specifies a custom
+%% SNMP type for a given data point. `SYNTAX' needs to be a binary or a string,
+%% and corresponds to the SYNTAX definition in the generated SNMP MIB.
+%%
+%% For example, the default value for an exometer counter is `"Counter32"', which
+%% expands to `SYNTAX Counter32' in the corresponding MIB object definition. If
+%% a 64-bit counter (not supported by SNMPv1) is desired instead, the option
+%% `{snmp_syntax, [{value, "Counter64"}]}' can be added to the counter entry
+%% (note that `value' in this case is the name of the data point representing
+%% the counter value).
+%%
 %% @end
 new(Name, Type, Opts) when is_list(Name), is_list(Opts) ->
     exometer_admin:new_entry(Name, Type, Opts).
@@ -561,6 +577,7 @@ info(Name, Item) ->
                 timestamp -> E#exometer_entry.timestamp;
                 options   -> E#exometer_entry.options;
                 ref       -> E#exometer_entry.ref;
+                entry     -> E;
                 datapoints-> get_datapoints_(E);
                 _ -> undefined
             end;

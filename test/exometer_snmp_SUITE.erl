@@ -147,7 +147,10 @@ test_mib_modification(Config) ->
     ok = exometer:new([test, app, three], counter, [{snmp, [{ms_since_reset, 5000, []}]}]),
     ok = exometer:setopts([test, app, two], [{snmp, disabled}]),
     ok = exometer:new([test, app, four], fast_counter, [{snmp, []}, {function, {erlang, now}}]),
-    ok = wait_for_mib_version(8, 10, 10000),
+    ok = exometer:new([test, app, five], counter, [{snmp, [{value, 1000}]},
+                                                   {snmp_syntax,
+                                                    [{value,<<"Counter64">>}]}]),
+    ok = wait_for_mib_version(10, 10, 10000),
 
     {ok, ModifiedMib} = file:read_file(?config(mib_file, Config) ++ ".mib"),
     ct:log("Modified MIB: ~s", [binary_to_list(ModifiedMib)]),
@@ -161,7 +164,8 @@ test_mib_modification(Config) ->
                                                 datapointTestAppFourValue,
                                                 datapointTestAppFourMsSinceReset,
                                                 reportTestAppOneValue,
-                                                reportTestAppThreeMsSinceReset]],
+                                                reportTestAppThreeMsSinceReset,
+                                                reportTestAppFiveValue]],
     [false = snmpa:name_to_oid(N) || N <- [datapointTestAppTwoValue, 
                                            datapointTestAppTwoMsSinceReset]],
     ok.
@@ -475,7 +479,9 @@ wait_for_mib_version(Vsn, Step, Count) ->
     case exometer_report_snmp:get_mib() of
         {ok, Vsn, _, _} ->
             ok;
-        {ok, _, _, _} ->
+        {ok, _, _, _} = Other ->
+            ct:log("wait_for_mib_version(~p, ~p, ~p) -> ~p~n",
+                   [Vsn, Step, Count, Other]),
             timer:sleep(Step),
             wait_for_mib_version(Vsn, Step, Count-Step);
         {error, not_running} ->

@@ -229,7 +229,7 @@ handle_info({'DOWN', Ref, _, Pid, _}, S) ->
     case get(Ref) of
         undefined ->
             {noreply, S};
-        Name when is_atom(Name) ->
+        Proc when is_atom(Proc) ->
             erase(Ref),
             erase(Pid),
             {noreply, S};
