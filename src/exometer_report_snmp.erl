@@ -110,10 +110,12 @@ exometer_init(Opts) ->
     {ok, State}.
 
 exometer_subscribe(Metric, DataPoint, Extra, _Interval, St) ->
-    enable_inform(Metric, undefined, DataPoint, Extra, St).
+    Entry = exometer:info(Metric, entry),
+    enable_inform(Entry, DataPoint, Extra, St).
 
 exometer_unsubscribe(Metric, DataPoint, Extra, St) ->
-    disable_inform(Metric, undefined, DataPoint, Extra, St).
+    Entry = exometer:info(Metric, entry),
+    disable_inform(Entry, DataPoint, Extra, St).
 
 exometer_report(Metric, DataPoint, _Extra, Value, St)  ->
     ?debug("Report metric ~p_~p = ~p~n", [Metric, DataPoint, Value]),
@@ -143,24 +145,24 @@ exometer_info(Unknown, St) ->
 
 exometer_newentry(#exometer_entry{status=disabled}, St) ->
     {ok, St};
-exometer_newentry(#exometer_entry{name=Name, type=Type, options=Options}, St) ->
-    newentry(Name, Type, Options, St).
+exometer_newentry(#exometer_entry{} = E, St) ->
+    newentry(E, St).
 
-exometer_setopts(#exometer_entry{name=Metric, type=Type}, _Options, disabled, St0) ->
+exometer_setopts(#exometer_entry{name=Metric} = E, _Options, disabled, St0) ->
     update_subscriptions(Metric, []),
-    disable_metric(Metric, Type, St0);
-exometer_setopts(#exometer_entry{name=Metric, type=Type}, Options, _, St0) ->
+    disable_metric(E, St0);
+exometer_setopts(#exometer_entry{name=Metric} = E, Options, _, St0) ->
     case lists:keyfind(snmp, 1, Options) of
         false ->
             ok;
         {_, disabled} ->
             update_subscriptions(Metric, []),
-            disable_metric(Metric, Type, St0);
+            disable_metric(E, St0);
         {_, Subs} when is_list(Subs) ->
             ok = update_subscriptions(Metric, Subs),
             {ok, St0};
-        {_, E} ->
-            ?error("Option ~p has incorrect value ~p", [snmp, E]),
+        {_, Err} ->
+            ?error("Option ~p has incorrect value ~p", [snmp, Err]),
             {error, improper_option}
     end.
 
@@ -204,13 +206,13 @@ snmp_operation(Op, Val, Key) ->
 %%% Internal functions
 %%%===================================================================
 
-enable_metric(E, Type, #st{mib_version=Vsn0,
-                           mib_file_path=MibPath, 
-                           mib_file=Mib0,
-                           mib_domain=Domain,
-                           mib_funcs_file_path=FuncsPath}=S) ->
-    Datapoints = datapoints(E),
-    case modify_mib(enable_metric, E, Type, Mib0, Domain, Datapoints) of
+enable_metric(#exometer_entry{} = E, #st{mib_version=Vsn0,
+                                         mib_file_path=MibPath, 
+                                         mib_file=Mib0,
+                                         mib_domain=Domain,
+                                         mib_funcs_file_path=FuncsPath}=S) ->
+    Datapoints = datapoints(E#exometer_entry.name),
+    case modify_mib(enable_metric, E, Mib0, Domain, Datapoints) of
         {ok, Mib1} ->
             ok = file:write_file(MibPath, Mib1),
             ok = write_funcs_file(FuncsPath),
@@ -220,13 +222,13 @@ enable_metric(E, Type, #st{mib_version=Vsn0,
             Error
     end.
 
-disable_metric(E, Type, #st{mib_version=Vsn0,
-                            mib_file_path=MibPath, 
-                            mib_file=Mib0,
-                            mib_domain=Domain,
-                            mib_funcs_file_path=FuncsPath}=S) ->
-    Datapoints = datapoints(E),
-    case modify_mib(disable_metric, E, Type, Mib0, Domain, Datapoints) of
+disable_metric(#exometer_entry{} = E, #st{mib_version=Vsn0,
+                                          mib_file_path=MibPath, 
+                                          mib_file=Mib0,
+                                          mib_domain=Domain,
+                                          mib_funcs_file_path=FuncsPath}=S) ->
+    Datapoints = datapoints(E#exometer_entry.name),
+    case modify_mib(disable_metric, E, Mib0, Domain, Datapoints) of
         {ok, Mib1} ->
             ok = file:write_file(MibPath, Mib1),
             ok = write_funcs_file(FuncsPath),
@@ -236,18 +238,18 @@ disable_metric(E, Type, #st{mib_version=Vsn0,
             Error
     end.
 
-enable_inform(E, Type, Dp, Extra, #st{mib_version=Vsn0,
-                                      mib_file_path=MibPath, 
-                                      mib_file=Mib0,
-                                      mib_domain=Domain,
-                                      mib_funcs_file_path=FuncsPath}=S) ->
-    % ensure metric is known
-    Metric = metric_name(E, Dp),
+enable_inform(E, Dp, Extra, #st{mib_version=Vsn0,
+                                mib_file_path=MibPath, 
+                                mib_file=Mib0,
+                                mib_domain=Domain,
+                                mib_funcs_file_path=FuncsPath}=S) ->
+    %% ensure metric is known
+    Metric = metric_name(E#exometer_entry.name, Dp),
     case ets:lookup(?MIB_NR_MAP, Metric) of
         [] ->
             {error, unknown_metric};
         [_] ->
-            case modify_mib(enable_inform, E, Type, Mib0, Domain, {Dp, Extra}) of
+            case modify_mib(enable_inform, E, Mib0, Domain, {Dp, Extra}) of
                 {ok, Mib1} ->
                     ok = file:write_file(MibPath, Mib1),
                     ok = write_funcs_file(FuncsPath),
@@ -258,12 +260,12 @@ enable_inform(E, Type, Dp, Extra, #st{mib_version=Vsn0,
             end
     end.
 
-disable_inform(E, Type, Dp, Extra, #st{mib_version=Vsn0,
-                                       mib_file_path=MibPath, 
-                                       mib_file=Mib0,
-                                       mib_domain=Domain,
-                                       mib_funcs_file_path=FuncsPath}=S) ->
-    case modify_mib(disable_inform, E, Type, Mib0, Domain, {Dp, Extra}) of
+disable_inform(E, Dp, Extra, #st{mib_version=Vsn0,
+                                 mib_file_path=MibPath, 
+                                 mib_file=Mib0,
+                                 mib_domain=Domain,
+                                 mib_funcs_file_path=FuncsPath}=S) ->
+    case modify_mib(disable_inform, E, Mib0, Domain, {Dp, Extra}) of
         {ok, Mib1} ->
             ok = file:write_file(MibPath, Mib1),
             ok = write_funcs_file(FuncsPath),
@@ -305,9 +307,9 @@ sync_mib(State0) ->
     Metrics = exometer:find_entries(['_']),
     State1 = lists:foldl(
       fun
-          ({Metric, Type, enabled}, St0) ->
-              Options = exometer:info(Metric, options),
-              {ok, St1} = newentry(Metric, Type, Options, St0),
+          ({Metric, _Type, enabled}, St0) ->
+              Entry = exometer:info(Metric, entry),
+              {ok, St1} = newentry(Entry, St0),
               St1;
           (_, St) ->
               St
@@ -319,9 +321,10 @@ increment_vsn(Vsn) when Vsn < 1000000 ->
 increment_vsn(_Vsn) ->
     1.
 
-modify_mib(enable_metric, _Metric, _Type, Mib0, _Domain, []) ->
+modify_mib(enable_metric, _Entry, Mib0, _Domain, []) ->
     {ok, Mib0};
-modify_mib(enable_metric, Metric, Type, Mib0, Domain, [Dp | Datapoints]) ->
+modify_mib(enable_metric, #exometer_entry{name = Metric} = E,
+           Mib0, Domain, [Dp | Datapoints]) ->
     Name = metric_name(Metric, Dp),
     Nr0 = get_nr(metric, Name, {Metric, Dp}),
     case Nr0 of
@@ -330,7 +333,7 @@ modify_mib(enable_metric, Metric, Type, Mib0, Domain, [Dp | Datapoints]) ->
         _ ->
             Nr1 = erlang:list_to_binary(erlang:integer_to_list(Nr0)),
             {A, B, C} = re_split(content, foo, Mib0),
-            case create_bin(Name, Dp, Metric, Type) of
+            case create_bin(Name, Dp, E) of
                 {ok, Bin} ->
                     L = [
                          A, B, 
@@ -341,14 +344,15 @@ modify_mib(enable_metric, Metric, Type, Mib0, Domain, [Dp | Datapoints]) ->
                          C
                         ],
                     {ok, Mib1} = update_group(object_group, metric, binary:list_to_bin(L), Domain),
-                    modify_mib(enable_metric, Metric, Type, Mib1, Domain, Datapoints);
+                    modify_mib(enable_metric, E, Mib1, Domain, Datapoints);
                 Error ->
                     Error
             end
     end;
-modify_mib(disable_metric, _Metric, _Type, Mib0, _Domain, []) ->
+modify_mib(disable_metric, _E, Mib0, _Domain, []) ->
     {ok, Mib0};
-modify_mib(disable_metric, Metric, Type, Mib0, Domain, [Dp | Datapoints]) ->
+modify_mib(disable_metric, E, Mib0, Domain, [Dp | Datapoints]) ->
+    Metric = E#exometer_entry.name,
     Name = metric_name(Metric, Dp),
     Nr = release_nr(Name),
     case Nr of
@@ -358,16 +362,17 @@ modify_mib(disable_metric, Metric, Type, Mib0, Domain, [Dp | Datapoints]) ->
             {[A0], _, C} = re_split(metric, Name, Mib0),
             A1 = binary:part(A0, 0, byte_size(A0)-2),
             {ok, Mib1} = update_group(object_group, metric, binary:list_to_bin([A1, C]), Domain),
-            Mib2 = case modify_mib(disable_inform, Metric, Type, Mib1, Domain, {Dp, undefined}) of
+            Mib2 = case modify_mib(disable_inform, E, Mib1, Domain, {Dp, undefined}) of
                        {ok, NewMib} ->
                            NewMib;
                        _Error ->
                            Mib1
                    end,
 
-            modify_mib(disable_metric, Metric, Type, Mib2, Domain, Datapoints)
+            modify_mib(disable_metric, E, Mib2, Domain, Datapoints)
     end;
-modify_mib(enable_inform, Metric, Type, Mib0, Domain, {Dp, _Extra}) ->
+modify_mib(enable_inform, E, Mib0, Domain, {Dp, _Extra}) ->
+    Metric = E#exometer_entry.name,
     Name = inform_name(Metric, Dp),
     Nr0 = get_nr(inform, Name, Metric),
     case Nr0 of
@@ -376,11 +381,13 @@ modify_mib(enable_inform, Metric, Type, Mib0, Domain, {Dp, _Extra}) ->
         _ ->
             Nr1 = erlang:list_to_binary(erlang:integer_to_list(Nr0)),
             {A, B, C} = re_split(content, foo, Mib0),
+            Type = E#exometer_entry.type,
             Bin0 = create_inform_bin(Name, Domain, Nr1, metric_name(Metric, Dp), Type),
             Bin1 = binary:list_to_bin([A, B, Bin0, C]),
             update_group(inform_group, inform, Bin1, Domain)
     end;
-modify_mib(disable_inform, Metric, _Type, Mib0, Domain, {Dp, _}) ->
+modify_mib(disable_inform, E, Mib0, Domain, {Dp, _}) ->
+    Metric = E#exometer_entry.name,
     Name = inform_name(Metric, Dp),
     Nr = release_nr(Name),
     case Nr of
@@ -407,7 +414,7 @@ update_group(Name, Type, Mib0, Domain) ->
             Bin = create_group_bin(Name, Objects1, Domain, Nr),
             {ok, binary:list_to_bin([A2, B2, Bin, <<"\n\n">>, C1])}
     end.
- 
+
 re_split(object_group, _, Bin) ->
     List = re:split(Bin, <<"(?m)(^-- OBJECT-GROUP.*$)">>),
     re_split_result(List, 1, 1);
@@ -493,20 +500,19 @@ create_bin(Name, Dp, #exometer_entry{module=exometer_histogram, type=histogram,
         ],
     {ok, binary:list_to_bin(B)};
 
-create_bin(Name, Dp, Metric, Type) ->
-    Mod = exometer:info(Metric, module),
+create_bin(Name, Dp, #exometer_entry{module=Mod}=E) ->
     Exports = Mod:module_info(exports),
     F = snmp_bin,
     case proplists:get_value(F, Exports) of
         3 ->
-            case Mod:snmp_bin(Name, Dp, Type) of
+            case Mod:snmp_bin(Name, Dp, E) of
                 undefined ->
                     {error, binary_representation_undefined};
                 Bin ->
                     {ok, Bin}
             end;
         _ ->
-            {error, {function_not_exported, {F, 1}}} 
+            {error, {function_not_exported, {F, 1}}}
     end.
 
 snmp_value(Name, Dp, Value) ->
@@ -692,14 +698,14 @@ snmp_syntax_opt(Dp, Opts, Default) ->
           end,
     iolist_to_binary(Res).
 
-newentry(Name, Type, Options, St0) ->
+newentry(#exometer_entry{name = Name, options = Options} = E, St0) ->
     case lists:keyfind(snmp, 1, Options) of
         false ->
             {ok, St0};
         {_, disabled} ->
             {ok, St0};
         {_, Subs} when is_list(Subs) ->
-            {ok, St1} = enable_metric(Name, Type, St0),
+            {ok, St1} = enable_metric(E, St0),
             ok = update_subscriptions(Name, Subs),
             {ok, St1};
         {_, E} ->

@@ -577,6 +577,7 @@ info(Name, Item) ->
                 timestamp -> E#exometer_entry.timestamp;
                 options   -> E#exometer_entry.options;
                 ref       -> E#exometer_entry.ref;
+                entry     -> E;
                 datapoints-> get_datapoints_(E);
                 _ -> undefined
             end;
