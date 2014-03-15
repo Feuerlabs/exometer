@@ -75,7 +75,6 @@ exometer_report(Probe, DataPoint, _Extra, Value, #st{socket = Sock,
                                                     prefix = Prefix} = St) ->
     Line = [prefix(Prefix, APIKey), ".", name(Probe, DataPoint), " ",
             value(Value), " ", timestamp(), $\n],
-    io:fwrite("L = ~s~n", [Line]),
     case gen_tcp:send(Sock, Line) of
         ok ->
             {ok, St};
@@ -117,7 +116,9 @@ prefix([]     , APIKey) -> APIKey;
 prefix(Prefix , APIKey) -> [APIKey, ".", Prefix].
 
 %% Add probe and datapoint within probe
-name(Probe, DataPoint) -> [Probe, ".", atom_to_list(DataPoint)].
+name(Probe, DataPoint) ->
+    [[[atom_to_list(I), $.] || I <- Probe], atom_to_list(DataPoint)].
+
 
 %% Add value, int or float, converted to list
 value(V) when is_integer(V) -> integer_to_list(V);
