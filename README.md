@@ -4,7 +4,7 @@
 
 Copyright (c) 2014 Basho Technologies, Inc.  All Rights Reserved.
 
-__Version:__ Mar 5 2014 11:56:38
+__Version:__ Mar 19 2014 23:14:26
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -659,8 +659,8 @@ Below is an example, from `exometer/priv/app.config`:
 ```erlang
 
 {exometer, [
-    {report, [ 
-        {subscribers, [ 
+    {report, [
+        {subscribers, [
             {exometer_report_collectd, [db, cache, hits], mean, 2000, true},
             {exometer_report_collectd, [db, cache, hits], max, 5000, false}
         ]}
@@ -674,36 +674,53 @@ how to configure individual plugins.
 
 The `subscribers` sub-section contains all static subscriptions to be
 setup att exometer applications start. Each tuple in the prop list
-contains five elements:
+should be of one of the following formats:
 
-+ `receiver` (module name atom)
+`{Reporter, Metric, DataPoint, Interval}`
+`{Reporter, Metric, DataPoint, Interval, RetryFailedMetrics}`
+`{Reporter, Metric, DataPoint, Interval, RetryFailedMetrics, Extra}`
+`{apply, {M, F, A}}`
+
+In the case of `{apply, M, F, A}`, the result of `apply(M, F, A)` must
+be a list of `subscribers` tuples.
+
+The meaning of the above tuple elements is:
+
++ `Reporter :: module()`
 <br></br>
 Specifies the reporter plugin module, such as`exometer_report_collectd` that is to receive updated metric's data
 points.
 
-+ `name` (list of atoms)
++ `Metric :: [atoms()]`
 <br></br>
 Specifies the path to a metric previously created with an`exometer:new()` call.
 
-+ `datapoint` (atom)
++ `DataPoint` ::  atom() | [atom()]'
 <br></br>
 Specifies the data point within the given metric to send to the
     receiver. The data point must match one of the data points returned by`exometer:info(Name, datapoints)` for the given metrics name.
 
-+ `interval` (milliseconds)
++ `Interval` :: integer()' (milliseconds)
 <br></br>
 Specifies the interval, in milliseconds, between each update of the
 given metric's data point. At the given interval, the data point will
 be samples, and the result will be sent to the receiver.
 
-+ `retry_failed_metrics (true | false)`
++ `RetryFailedMetrics :: boolean()`
 <br></br>
 Specifies if the metric should be continued to be reported
-even if it is not found during a reporting cycle. This would be
-the case if a metric is not created by the time it is reported for
-the first time. If the metric will be created at a later time,
-this value should be set to true. Set this value to false if all
-attempts to report the metric should stop if when is not found.
+    even if it is not found during a reporting cycle. This would be
+    the case if a metric is not created by the time it is reported for
+    the first time. If the metric will be created at a later time,
+    this value should be set to true. Set this value to false if all
+    attempts to report the metric should stop if when is not found.
+    The default value is `true`.
+
++ `Extra :: any()`
+<br></br>
+Provides a means to pass along extra information for a given
+   subscription. An example is the `syntax` option for the SNMP reporter,
+   in which case `Extra` needs to be a property list.
 
 
 #### <a name="Configuring_reporter_plugins">Configuring reporter plugins</a> ####

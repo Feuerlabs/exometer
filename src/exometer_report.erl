@@ -918,6 +918,10 @@ init_subscriber({Reporter, Metric, DataPoint, Interval, RetryFailedMetrics, Extr
 
 init_subscriber({Reporter, Metric, DataPoint, Interval}, Acc) ->
     [subscribe_(Reporter, Metric, DataPoint, Interval, true, undefined) | Acc];
+
+init_subscriber({apply, {M, F, A}}, Acc) ->
+    lists:foldr(fun init_subscriber/2, Acc, apply(M, F, A));
+
 init_subscriber(Other, Acc) ->
     ?warning("Incorrect static subscriber spec ~p. "
              "Use { Reporter, Metric, DataPoint, Interval [, Extra ]}~n", [ Other ]),
