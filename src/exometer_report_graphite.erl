@@ -73,7 +73,7 @@ exometer_init(Opts) ->
 exometer_report(Probe, DataPoint, _Extra, Value, #st{socket = Sock,
                                                     api_key = APIKey,
                                                     prefix = Prefix} = St) ->
-    Line = [prefix(Prefix, APIKey), ".", name(Probe, DataPoint), " ",
+    Line = [key(APIKey, Prefix, Probe, DataPoint), " ",
             value(Value), " ", timestamp(), $\n],
     case gen_tcp:send(Sock, Line) of
         ok ->
@@ -109,11 +109,15 @@ exometer_setopts(_Metric, _Options, _Status, St) ->
 exometer_terminate(_, _) ->
     ignore.
 
-%% Add prefix and API key, if non-empty.
-prefix([], []) -> [];
-prefix(Prefix , []) -> Prefix;
-prefix([]     , APIKey) -> APIKey;
-prefix(Prefix , APIKey) -> [APIKey, ".", Prefix].
+%% Format a graphite key from API key, prefix, prob and datapoint
+key([], [], Prob, DataPoint) ->
+    name(Prob, DataPoint);
+key([], Prefix, Prob, DataPoint) ->
+    [Prefix, $., name(Prob, DataPoint)];
+key(APIKey, [], Prob, DataPoint) ->
+    [APIKey, $., name(Prob, DataPoint)];
+key(APIKey, Prefix, Prob, DataPoint) ->
+    [APIKey, $., Prefix, $., name(Prob, DataPoint)].
 
 %% Add probe and datapoint within probe
 name(Probe, DataPoint) ->
