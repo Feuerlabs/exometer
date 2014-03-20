@@ -163,6 +163,9 @@
     new_entry/1
    ]).
 
+%% Start phase function
+-export([start_reporters/0]).
+
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
@@ -251,8 +254,8 @@
          }).
 
 -record(st, {
-          subscribers   :: [#subscriber{}],
-          reporters     :: [#reporter{}]
+          subscribers = [] :: [#subscriber{}],
+          reporters = []   :: [#reporter{}]
          }).
 
 %%%===================================================================
@@ -265,8 +268,7 @@
 -spec start_link() -> {ok, pid()} | ignore | {error, any()}.
 start_link() ->
     %% Launch the main server.
-    Opts = exometer_util:get_env(report, []),
-    gen_server:start_link({local, ?MODULE}, ?MODULE,  Opts, []).
+    gen_server:start_link({local, ?MODULE}, ?MODULE,  [], []).
 
 -spec subscribe(module(), metric(), datapoint() | [datapoint()], interval()) ->
     ok | not_found | unknown_reporter.
@@ -384,9 +386,16 @@ new_entry(Entry) ->
 %%                     {stop, Reason}
 %% @end
 %%--------------------------------------------------------------------
-init(Opts) ->
+init([]) ->
     process_flag(trap_exit, true),
-    ?info("Starting reporter with ~p~n", [ Opts ]),
+    {ok, #st{}}.
+
+start_reporters() ->
+    call(start_reporters).
+
+do_start_reporters(S) ->
+    Opts = exometer_util:get_env(report, []),
+    ?info("Starting reporters with ~p~n", [ Opts ]),
     %% Dig out the mod opts.
     %% { reporters, [ {reporter1, [{opt1, val}, ...]}, {reporter2, [...]}]}
     %% Traverse list of reporter and launch reporter gen servers as dynamic
@@ -415,10 +424,10 @@ init(Opts) ->
             false -> []
         end,
 
-    {ok, #st {
-            reporters = Reporters0,
-            subscribers = SubsList
-           }}.
+    S#st{
+      reporters = Reporters0,
+      subscribers = SubsList
+     }.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -434,6 +443,8 @@ init(Opts) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_call(start_reporters, _From, S) ->
+    {reply, ok, do_start_reporters(S)};
 handle_call({subscribe,
              #key{ reporter = Reporter,
                    metric = Metric,
@@ -921,6 +932,22 @@ init_subscriber({Reporter, Metric, DataPoint, Interval}, Acc) ->
 
 init_subscriber({apply, {M, F, A}}, Acc) ->
     lists:foldr(fun init_subscriber/2, Acc, apply(M, F, A));
+
+init_subscriber({select, Expr}, Acc) when tuple_size(Expr)==3;
+                                          tuple_size(Expr)==4;
+                                          tuple_size(Expr)==5 ->
+    {Pattern, Reporter, DataPoint, Interval, Retry, Extra} =
+        case Expr of
+            {P, R, D, I} -> {P, R, D, I, true, undefined};
+            {P, R, D, I, Rf} -> {P, R, D, I, Rf, undefined};
+            {P, R, D, I, Rf, X} -> {P, R, D, I, Rf, X}
+        end,
+    Entries = exometer:select(Pattern),
+    lists:foldr(
+      fun({Entry, _, _}, Acc1) ->
+              [subscribe_(Reporter, Entry, DataPoint, Interval, Retry, Extra)
+               | Acc1]
+      end, Acc, Entries);
 
 init_subscriber(Other, Acc) ->
     ?warning("Incorrect static subscriber spec ~p. "

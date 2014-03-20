@@ -26,7 +26,10 @@ start(_StartType, _StartArgs) ->
     exometer_sup:start_link().
 
 start_phase(preset_defaults, _Type, []) ->
-    exometer_admin:preset_defaults().
+    exometer_admin:preset_defaults();
+start_phase(start_reporters, _Type, []) ->
+    exometer_report:start_reporters().
+
 
 stop(_State) ->
     ok.

@@ -4,7 +4,7 @@
 
 Copyright (c) 2014 Basho Technologies, Inc.  All Rights Reserved.
 
-__Version:__ Mar 19 2014 23:14:26
+__Version:__ Mar 20 2014 20:42:23
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -676,13 +676,23 @@ The `subscribers` sub-section contains all static subscriptions to be
 setup att exometer applications start. Each tuple in the prop list
 should be of one of the following formats:
 
-`{Reporter, Metric, DataPoint, Interval}`
-`{Reporter, Metric, DataPoint, Interval, RetryFailedMetrics}`
-`{Reporter, Metric, DataPoint, Interval, RetryFailedMetrics, Extra}`
-`{apply, {M, F, A}}`
+* `{Reporter, Metric, DataPoint, Interval}`
+
+* `{Reporter, Metric, DataPoint, Interval, RetryFailedMetrics}`
+
+* `{Reporter, Metric, DataPoint, Interval, RetryFailedMetrics, Extra}`
+
+* `{apply, {M, F, A}}`
+
+* `{select, {MatchPattern, DataPoint, Interval [, Retry [, Extra] ]}}`
 
 In the case of `{apply, M, F, A}`, the result of `apply(M, F, A)` must
 be a list of `subscribers` tuples.
+
+In the case of `{select, Expr}`, a list of metrics is fetched using
+`exometer:select(MatchPattern)`, where the result must be on the form
+`{Key, Type, Status}` (i.e. what corresponds to `'$_'`).
+The rest of the items will be applied to each of the matching entries.
 
 The meaning of the above tuple elements is:
 
@@ -721,6 +731,33 @@ Specifies if the metric should be continued to be reported
 Provides a means to pass along extra information for a given
    subscription. An example is the `syntax` option for the SNMP reporter,
    in which case `Extra` needs to be a property list.
+
+Example configuration in sys.config, using the `{select, Expr}` pattern:
+
+```erlang
+
+[
+ {exometer, [
+             {predefined,
+              [{[a,1], counter, []},
+               {[a,2], counter, []},
+               {[b,1], counter, []},
+               {[c,1], counter, []}]},
+             {report,
+              [
+               {reporters,
+                [{exometer_report_tty, []}]},
+               {subscribers,
+                [{select, {[{ {[a,'_'],'_','_'}, [], ['$_']}],
+                           exometer_report_tty, value, 1000}}]}
+              ]}
+            ]}
+].
+
+```
+
+This will activate a subscription on `[a,1]` and `[a,2]` in the
+`exometer_report_tty` reporter, firing once per second.
 
 
 #### <a name="Configuring_reporter_plugins">Configuring reporter plugins</a> ####
