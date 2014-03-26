@@ -74,7 +74,7 @@ exometer_init(Opts) ->
         true ->
             ok;
         false ->
-            ?warning("~p(~p): Application SNMP not started. Ensure that a usable SNMP agent is configured.")
+            ?warning("Application SNMP not started. Ensure that a usable SNMP agent is configured.")
     end,
 
     % prepare nr mapping used to track enabled metrics
