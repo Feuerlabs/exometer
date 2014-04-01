@@ -121,8 +121,10 @@ key(APIKey, Prefix, Prob, DataPoint) ->
 
 %% Add probe and datapoint within probe
 name(Probe, DataPoint) ->
-    [[[atom_to_list(I), $.] || I <- Probe], atom_to_list(DataPoint)].
+    [[[atom_to_list(I), $.] || I <- Probe], datapoint(DataPoint)].
 
+datapoint(V) when is_integer(V) -> integer_to_list(V);
+datapoint(V) when is_atom(V) -> atom_to_list(V).
 
 %% Add value, int or float, converted to list
 value(V) when is_integer(V) -> integer_to_list(V);
