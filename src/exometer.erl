@@ -392,7 +392,7 @@ reset(Name)  when is_list(Name) ->
             ok;
 
         [#exometer_entry{behaviour = probe,
-                         module = ?MODULE, type = Type,
+                         type = Type,
                          ref = Ref} = E] ->
 	    
 	    [ exometer_cache:delete(Name, DataPoint) ||
