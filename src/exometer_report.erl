@@ -708,7 +708,7 @@ code_change(_OldVsn, State, _Extra) ->
 
 first_datapoint([DP|_]) ->
     DP;
-first_datapoint(DP) when is_atom(DP) ->
+first_datapoint(DP) when is_atom(DP); is_integer(DP) ->
     DP.
 
 
