@@ -561,11 +561,11 @@ handle_msg(Msg, St) ->
             sample(St);
 
         {exometer_proc, delete} ->
-            Module:probe_terminate(St),
+            Module:probe_terminate(St#st.mod_state),
             exometer_proc:stop();
 
         {exometer_proc, code_change} ->
-            Module:probe_terminate(St),
+            Module:probe_terminate(St#st.mod_state),
             exometer_proc:stop();
 
         Other ->
