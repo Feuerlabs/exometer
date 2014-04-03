@@ -72,7 +72,11 @@ probe_get_value(DataPoints, St) ->
 			     {0, 0.0, []}, St#st.ets_ref),
 
     Sorted = lists:sort(Lst),
-    Results = exometer_util:get_statistics2(Length, Sorted, Total/Length),
+    Mean = case Length of
+               0 -> 0.0;
+               N -> Total/N
+           end,
+    Results = exometer_util:get_statistics2(Length, Sorted, Mean),
     {ok, [get_dp(Results, DataPoint) || DataPoint <- DataPoints]}.
 
 get_dp(L, D) ->
