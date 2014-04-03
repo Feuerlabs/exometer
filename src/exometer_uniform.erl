@@ -72,8 +72,16 @@ probe_get_value(DataPoints, St) ->
 			     {0, 0.0, []}, St#st.ets_ref),
 
     Sorted = lists:sort(Lst),
+    Results = exometer_util:get_statistics2(Length, Sorted, Total/Length),
+    {ok, [get_dp(Results, DataPoint) || DataPoint <- DataPoints]}.
 
-    {ok, [ get_datapoint_value(Length, Total, Sorted, DataPoint) || DataPoint <- DataPoints ]}.
+get_dp(L, D) ->
+    case lists:keyfind(D, 1, L) of
+        false ->
+            {D, 0};
+        DP ->
+            DP
+    end.
 
 probe_get_datapoints(_St) ->
     { ok, ?DATAPOINTS }.
@@ -119,54 +127,3 @@ process_opts(St, Options) ->
 
 probe_handle_msg(_, S) ->
     {ok, S}.
-
-perc(P, Len) when P > 1.0 ->
-    round((P / 10) * Len);
-
-perc(P, Len) ->
-    round(P * Len).
-
-
-get_datapoint_value(_Length, _Total, [], min) ->
-    { min, 0 };
-
-get_datapoint_value(_Length, _Total, [], max) ->
-    { max, 0 };
-
-get_datapoint_value(_Length, _Total, Sorted, min) ->
-    [ Min | _ ] = Sorted,
-    { min, Min };
-
-get_datapoint_value(_Length, _Total, Sorted, max) ->
-    { max, lists:last(Sorted) };
-
-get_datapoint_value(Length, _Total, Sorted, median) ->
-    %% Calc median. FIXME: Can probably be made faster.
-    Median = case {Length, Length rem 2} of
-        {0, _} -> %% No elements
-            0.0;
-
-        {_, 0} -> %% Even number with at least two elements. Return average of two center elements
-            lists:sum(lists:sublist(Sorted, trunc(Length / 2), 2)) / 2.0;
-
-        {_, 1}-> %% Odd number with at least one element. Return center element
-            lists:nth(trunc(Length / 2) + 1, Sorted)
-    end,
-    { median, Median };
-
-get_datapoint_value(Length, Total, Sorted, arithmetic_mean) ->
-    { mean, Mean } = get_datapoint_value(Length, Total, Sorted, mean),
-    { arithmetic_mean, Mean };
-
-get_datapoint_value(Length, Total, _Sorted, mean) ->
-    Mean = case Length of
-               0 -> 0;
-               _ -> Total / Length
-           end,
-    { mean, Mean };
-
-get_datapoint_value(Length, _Total, _Sorted, Perc) when is_number(Perc) ->
-    {Perc , perc(Perc / 100, Length) };
-
-get_datapoint_value(_Length, _Total, _Sorted, Unknown)  ->
-    { Unknown, { error, undefined} }.
