@@ -569,7 +569,7 @@ handle_msg(Msg, St) ->
             exometer_proc:stop();
 
         Other ->
-            process_probe_noreply(St, Module:probe_handle_msg(Other, St))
+            process_probe_noreply(St, Module:probe_handle_msg(Other, St#st.mod_state))
     end.
 
 
