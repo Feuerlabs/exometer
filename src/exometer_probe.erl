@@ -561,15 +561,15 @@ handle_msg(Msg, St) ->
             sample(St);
 
         {exometer_proc, delete} ->
-            Module:probe_terminate(St),
+            Module:probe_terminate(St#st.mod_state),
             exometer_proc:stop();
 
         {exometer_proc, code_change} ->
-            Module:probe_terminate(St),
+            Module:probe_terminate(St#st.mod_state),
             exometer_proc:stop();
 
         Other ->
-            process_probe_noreply(St, Module:probe_handle_msg(Other, St))
+            process_probe_noreply(St, Module:probe_handle_msg(Other, St#st.mod_state))
     end.
 
 
