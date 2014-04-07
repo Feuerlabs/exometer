@@ -121,7 +121,12 @@ key(APIKey, Prefix, Prob, DataPoint) ->
 
 %% Add probe and datapoint within probe
 name(Probe, DataPoint) ->
-    [[[atom_to_list(I), $.] || I <- Probe], datapoint(DataPoint)].
+    [[[metric_elem_to_list(I), $.] || I <- Probe], datapoint(DataPoint)].
+
+metric_elem_to_list(V) when is_atom(V) -> atom_to_list(V);
+metric_elem_to_list(V) when is_binary(V) -> binary_to_list(V);
+metric_elem_to_list(V) when is_integer(V) -> integer_to_list(V);
+metric_elem_to_list(V) when is_list(V) -> V.
 
 datapoint(V) when is_integer(V) -> integer_to_list(V);
 datapoint(V) when is_atom(V) -> atom_to_list(V).
