@@ -282,6 +282,8 @@ extra() = any()
 
 
 
+  Restart specification
+
 
 
 ### <a name="type-interval">interval()</a> ###
@@ -310,8 +312,8 @@ metric() = [atom(), ...]
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#add_reporter-2">add_reporter/2</a></td><td></td></tr><tr><td valign="top"><a href="#call_reporter-2">call_reporter/2</a></td><td></td></tr><tr><td valign="top"><a href="#cast_reporter-2">cast_reporter/2</a></td><td></td></tr><tr><td valign="top"><a href="#list_metrics-0">list_metrics/0</a></td><td></td></tr><tr><td valign="top"><a href="#list_metrics-1">list_metrics/1</a></td><td></td></tr><tr><td valign="top"><a href="#list_reporters-0">list_reporters/0</a></td><td></td></tr><tr><td valign="top"><a href="#list_subscriptions-1">list_subscriptions/1</a></td><td></td></tr><tr><td valign="top"><a href="#new_entry-1">new_entry/1</a></td><td></td></tr><tr><td valign="top"><a href="#remove_reporter-1">remove_reporter/1</a></td><td></td></tr><tr><td valign="top"><a href="#setopts-3">setopts/3</a></td><td></td></tr><tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td>Starts the server
---------------------------------------------------------------------.</td></tr><tr><td valign="top"><a href="#subscribe-4">subscribe/4</a></td><td>Equivalent to <a href="#subscribe-5"><tt>subscribe(Reporter, Metric, DataPoint, Interval, [])</tt></a>.</td></tr><tr><td valign="top"><a href="#subscribe-5">subscribe/5</a></td><td>Add a subscription to an existing reporter.</td></tr><tr><td valign="top"><a href="#terminate_reporter-1">terminate_reporter/1</a></td><td></td></tr><tr><td valign="top"><a href="#unsubscribe-3">unsubscribe/3</a></td><td>Equivalent to <a href="#unsubscribe-4"><tt>unsubscribe(Reporter, Metric, DataPoint, [])</tt></a>.</td></tr><tr><td valign="top"><a href="#unsubscribe-4">unsubscribe/4</a></td><td>Removes a subscription.</td></tr><tr><td valign="top"><a href="#unsubscribe_all-2">unsubscribe_all/2</a></td><td>Removes all subscriptions related to Metric in Reporter.</td></tr></table>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#add_reporter-2">add_reporter/2</a></td><td></td></tr><tr><td valign="top"><a href="#call_reporter-2">call_reporter/2</a></td><td></td></tr><tr><td valign="top"><a href="#cast_reporter-2">cast_reporter/2</a></td><td></td></tr><tr><td valign="top"><a href="#list_metrics-0">list_metrics/0</a></td><td></td></tr><tr><td valign="top"><a href="#list_metrics-1">list_metrics/1</a></td><td></td></tr><tr><td valign="top"><a href="#list_reporters-0">list_reporters/0</a></td><td></td></tr><tr><td valign="top"><a href="#list_subscriptions-1">list_subscriptions/1</a></td><td></td></tr><tr><td valign="top"><a href="#new_entry-1">new_entry/1</a></td><td></td></tr><tr><td valign="top"><a href="#remove_reporter-1">remove_reporter/1</a></td><td></td></tr><tr><td valign="top"><a href="#remove_reporter-2">remove_reporter/2</a></td><td></td></tr><tr><td valign="top"><a href="#setopts-3">setopts/3</a></td><td></td></tr><tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td>Starts the server
+--------------------------------------------------------------------.</td></tr><tr><td valign="top"><a href="#start_reporters-0">start_reporters/0</a></td><td></td></tr><tr><td valign="top"><a href="#subscribe-4">subscribe/4</a></td><td>Equivalent to <a href="#subscribe-5"><tt>subscribe(Reporter, Metric, DataPoint, Interval, [])</tt></a>.</td></tr><tr><td valign="top"><a href="#subscribe-5">subscribe/5</a></td><td>Add a subscription to an existing reporter.</td></tr><tr><td valign="top"><a href="#terminate_reporter-1">terminate_reporter/1</a></td><td></td></tr><tr><td valign="top"><a href="#unsubscribe-3">unsubscribe/3</a></td><td>Equivalent to <a href="#unsubscribe-4"><tt>unsubscribe(Reporter, Metric, DataPoint, [])</tt></a>.</td></tr><tr><td valign="top"><a href="#unsubscribe-4">unsubscribe/4</a></td><td>Removes a subscription.</td></tr><tr><td valign="top"><a href="#unsubscribe_all-2">unsubscribe_all/2</a></td><td>Removes all subscriptions related to Metric in Reporter.</td></tr></table>
 
 
 <a name="functions"></a>
@@ -405,6 +407,13 @@ list_subscriptions(Reporter::module()) -&gt; [{<a href="#type-metric">metric()</
 `remove_reporter(Reporter) -> any()`
 
 
+<a name="remove_reporter-2"></a>
+
+### remove_reporter/2 ###
+
+`remove_reporter(Reporter, Reason) -> any()`
+
+
 <a name="setopts-3"></a>
 
 ### setopts/3 ###
@@ -426,6 +435,13 @@ start_link() -&gt; {ok, pid()} | ignore | {error, any()}
 
 Starts the server
 --------------------------------------------------------------------
+<a name="start_reporters-0"></a>
+
+### start_reporters/0 ###
+
+`start_reporters() -> any()`
+
+
 <a name="subscribe-4"></a>
 
 ### subscribe/4 ###

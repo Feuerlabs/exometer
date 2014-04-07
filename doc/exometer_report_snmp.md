@@ -100,7 +100,7 @@ Callback function used by the SNMP master agent upon operations performed by a m
 
 ### exometer_setopts/4 ###
 
-`exometer_setopts(Metric, Options, X3, St0) -> any()`
+`exometer_setopts(Exometer_entry, Options, X3, St0) -> any()`
 
 
 <a name="exometer_subscribe-5"></a>

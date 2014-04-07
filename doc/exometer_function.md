@@ -148,7 +148,7 @@ simple_fun() = {function, <a href="#type-mod_name">mod_name()</a>, <a href="#typ
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#behaviour-0">behaviour/0</a></td><td></td></tr><tr><td valign="top"><a href="#delete-3">delete/3</a></td><td></td></tr><tr><td valign="top"><a href="#empty-0">empty/0</a></td><td></td></tr><tr><td valign="top"><a href="#get_datapoints-3">get_datapoints/3</a></td><td></td></tr><tr><td valign="top"><a href="#get_value-4">get_value/4</a></td><td></td></tr><tr><td valign="top"><a href="#new-3">new/3</a></td><td>Callback for creating an exometer <code>function</code> entry.</td></tr><tr><td valign="top"><a href="#reset-3">reset/3</a></td><td></td></tr><tr><td valign="top"><a href="#sample-3">sample/3</a></td><td></td></tr><tr><td valign="top"><a href="#setopts-4">setopts/4</a></td><td></td></tr><tr><td valign="top"><a href="#test_mem_info-1">test_mem_info/1</a></td><td></td></tr><tr><td valign="top"><a href="#update-4">update/4</a></td><td></td></tr></table>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#behaviour-0">behaviour/0</a></td><td></td></tr><tr><td valign="top"><a href="#delete-3">delete/3</a></td><td></td></tr><tr><td valign="top"><a href="#empty-0">empty/0</a></td><td></td></tr><tr><td valign="top"><a href="#get_datapoints-3">get_datapoints/3</a></td><td></td></tr><tr><td valign="top"><a href="#get_value-4">get_value/4</a></td><td></td></tr><tr><td valign="top"><a href="#new-3">new/3</a></td><td>Callback for creating an exometer <code>function</code> entry.</td></tr><tr><td valign="top"><a href="#preprocess_setopts-5">preprocess_setopts/5</a></td><td></td></tr><tr><td valign="top"><a href="#reset-3">reset/3</a></td><td></td></tr><tr><td valign="top"><a href="#sample-3">sample/3</a></td><td></td></tr><tr><td valign="top"><a href="#setopts-4">setopts/4</a></td><td></td></tr><tr><td valign="top"><a href="#test_mem_info-1">test_mem_info/1</a></td><td></td></tr><tr><td valign="top"><a href="#update-4">update/4</a></td><td></td></tr></table>
 
 
 <a name="functions"></a>
@@ -193,7 +193,7 @@ behaviour() -&gt; atom()
 
 ### get_value/4 ###
 
-`get_value(X1, X2, X3, DataPoints) -> any()`
+`get_value(X1, X2, X3, DataPoints0) -> any()`
 
 
 <a name="new-3"></a>
@@ -337,6 +337,13 @@ An entry that does pattern-matching on the return value
      { function,erlang,statistics,[garbage_collection],
        match, {gcs,reclaimed,'_'} }, []).
 ```
+
+<a name="preprocess_setopts-5"></a>
+
+### preprocess_setopts/5 ###
+
+`preprocess_setopts(Name, Opts, Type, Ref, OldOpts) -> any()`
+
 
 <a name="reset-3"></a>
 
