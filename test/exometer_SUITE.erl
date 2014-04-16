@@ -375,8 +375,18 @@ compile_app1(Config) ->
     DataDir = filename:absname(?config(data_dir, Config)),
     Dir = filename:join(filename:dirname(DataDir), "app1"),
     ct:log("Dir = ~p~n", [Dir]),
-    Res = os:cmd(["(cd ", Dir, " && rebar compile)"]),
-    ct:log("Rebar res = ~p~n", [Res]),
+    Src = filename:join(Dir, "src"),
+    Ebin = filename:join(Dir, "ebin"),
+    filelib:fold_files(
+      Src, ".*\\.erl\$", false,
+      fun(F,A) ->
+	      CompRes = compile:file(filename:join(Src,F),
+				     [{outdir, Ebin}]),
+	      ct:log("Compile (~p) -> ~p~n", [F, CompRes]),
+	      A
+      end, ok),
+    %% Res = os:cmd(["(cd ", Dir, " && rebar compile)"]),
+    %% ct:log("Rebar res = ~p~n", [Res]),
     Path = filename:join(Dir, "ebin"),
     PRes = code:add_pathz(Path),
     ct:log("add_pathz(~p) -> ~p~n", [Path, PRes]).
