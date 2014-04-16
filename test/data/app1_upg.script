@@ -1,0 +1,3 @@
+%% -*- erlang-mode -*-
+[{select_delete, [{ {[app1,c,'_'],'_','_'},[],['$_'] }]},
+ {[app1,d,1],counter,[]}].

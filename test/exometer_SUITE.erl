@@ -31,6 +31,7 @@
     test_history4_slotslide/1,
     test_history4_folsom/1,
     test_ext_predef/1,
+    test_app_predef/1,
     test_function_match/1
    ]).
 
@@ -55,12 +56,12 @@ all() ->
 
 groups() ->
     [
-     {test_counter, [shuffle], 
+     {test_counter, [shuffle],
       [
         test_std_counter,
         test_fast_counter
       ]},
-     {test_histogram, [shuffle], 
+     {test_histogram, [shuffle],
       [
        test_std_histogram,
        test_folsom_histogram,
@@ -74,6 +75,7 @@ groups() ->
      {test_setup, [shuffle],
       [
        test_ext_predef,
+       test_app_predef,
        test_function_match
       ]}
     ].
@@ -101,6 +103,14 @@ init_per_testcase(Case, Config) when
     ok = application:start(setup),
     exometer:start(),
     Config;
+init_per_testcase(test_app_predef, Config) ->
+    compile_app1(Config),
+    exometer:start(),
+    Scr = filename:join(filename:dirname(
+			  filename:absname(?config(data_dir, Config))),
+			"data/app1.script"),
+    ok = application:set_env(app1, exometer_predefined, {script, Scr}),
+    Config;
 init_per_testcase(_Case, Config) ->
     exometer:start(),
     Config.
@@ -112,12 +122,16 @@ end_per_testcase(Case, _Config) when
     exometer:stop(),
     folsom:stop(),
     ok;
-end_per_testcase(Case, _Config) when 
+end_per_testcase(Case, _Config) when
       Case == test_ext_predef;
       Case == test_function_match ->
     ok = application:unset_env(common_test, exometer_predefined),
     exometer:stop(),
     ok = application:stop(setup),
+    ok;
+end_per_testcase(test_app_predef, _Config) ->
+    ok = application:stop(app1),
+    exometer:stop(),
     ok;
 end_per_testcase(_Case, _Config) ->
     exometer:stop(),
@@ -199,6 +213,19 @@ test_history4_folsom(_Config) ->
 
 test_ext_predef(_Config) ->
     {ok, [{total, _}]} = exometer:get_value([preset, func], [total]),
+    ok.
+
+test_app_predef(Config) ->
+    ok = application:start(app1),
+    [{[app1,c,1],_,_},{[app1,c,2],_,_}] =
+	exometer:find_entries([app1,'_','_']),
+    File = filename:join(
+	     filename:dirname(filename:absname(?config(data_dir,Config))),
+	     "data/app1_upg.script"),
+    application:set_env(app1, exometer_predefined, {script,File}),
+    ok = exometer:register_application(app1),
+    [{[app1,d,1],_,_}] =
+	exometer:find_entries([app1,'_','_']),
     ok.
 
 test_function_match(_Config) ->
@@ -342,3 +369,14 @@ calc_error(Val, Ref) ->
       fun({{K,V}, {K,R}}) ->
               {K, abs(V-R)/R}
       end, lists:zip(Val, Ref)).
+
+
+compile_app1(Config) ->
+    DataDir = filename:absname(?config(data_dir, Config)),
+    Dir = filename:join(filename:dirname(DataDir), "app1"),
+    ct:log("Dir = ~p~n", [Dir]),
+    Res = os:cmd(["(cd ", Dir, " && rebar compile)"]),
+    ct:log("Rebar res = ~p~n", [Res]),
+    Path = filename:join(Dir, "ebin"),
+    PRes = code:add_pathz(Path),
+    ct:log("add_pathz(~p) -> ~p~n", [Path, PRes]).
