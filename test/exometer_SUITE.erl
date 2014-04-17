@@ -21,6 +21,7 @@
 -export(
    [
     test_std_counter/1,
+    test_gauge/1,
     test_fast_counter/1,
     test_std_histogram/1,
     test_folsom_histogram/1,
@@ -55,12 +56,13 @@ all() ->
 
 groups() ->
     [
-     {test_counter, [shuffle], 
+     {test_counter, [shuffle],
       [
         test_std_counter,
+        test_gauge,
         test_fast_counter
       ]},
-     {test_histogram, [shuffle], 
+     {test_histogram, [shuffle],
       [
        test_std_histogram,
        test_folsom_histogram,
@@ -112,7 +114,7 @@ end_per_testcase(Case, _Config) when
     exometer:stop(),
     folsom:stop(),
     ok;
-end_per_testcase(Case, _Config) when 
+end_per_testcase(Case, _Config) when
       Case == test_ext_predef;
       Case == test_function_match ->
     ok = application:unset_env(common_test, exometer_predefined),
@@ -132,6 +134,21 @@ test_std_counter(_Config) ->
     ok = exometer:update(C, 1),
     {ok, [{value, 1}]} = exometer:get_value(C, [value]),
     {ok, [{value, 1}, {ms_since_reset,_}]} = exometer:get_value(C),
+    ok.
+
+test_gauge(_Config) ->
+    C = [?MODULE, gauge, ?LINE],
+    ok = exometer:new(C, gauge, []),
+    ok = exometer:update(C, 1),
+    timer:sleep(10),
+    {ok, [{value, 1}]} = exometer:get_value(C, [value]),
+    {ok, [{value, 1}, {ms_since_reset,TS1}]} = exometer:get_value(C),
+    ok = exometer:update(C, 5),
+    {ok, [{value, 5}]} = exometer:get_value(C, [value]),
+    ok = exometer:reset(C),
+    {ok, [{value, 0}, {ms_since_reset,0}]} = exometer:get_value(C),
+    ok = exometer:delete(C),
+    {error, not_found} = exometer:get_value(C, [value]),
     ok.
 
 test_fast_counter(_Config) ->

@@ -17,9 +17,9 @@
     init/1,
     start_link/0,
     handle_call/3,
-    handle_cast/2, 
+    handle_cast/2,
     handle_info/2,
-    terminate/2, 
+    terminate/2,
     code_change/3
    ]).
 
@@ -112,7 +112,7 @@ do_load_defaults(L) when is_list(L) ->
       fun({NamePattern, Type, Spec}) ->
               set_default(NamePattern, Type, Spec)
       end, L).
-    
+
 
 do_load_predef(L) when is_list(L) ->
     lists:foreach(
@@ -192,7 +192,7 @@ handle_call({new_entry, Name, Type, Opts, AllowExisting}, _From, S) ->
             lookup_definition(Name, Type, Opts),
 
         case {ets:member(exometer_util:table(), Name), AllowExisting} of
-            {true, false} -> 
+            {true, false} ->
                 {reply, {error, exists}, S};
             _ ->
                 E1 = process_opts(E0, OptsTemplate ++ Opts),
@@ -319,6 +319,7 @@ exometer_default(Name, Type) ->
     #exometer_entry{name = Name, type = Type, module = module(Type)}.
 
 module(counter )      -> exometer;
+module(gauge)         -> exometer;
 module(fast_counter)  -> exometer;
 module(uniform)       -> exometer_uniform;
 module(duration)      -> exometer_duration;
@@ -380,4 +381,3 @@ process_opts(Entry, Options) ->
           ({_Opt, _Val}, #exometer_entry{} = Entry1) ->
               Entry1
       end, Entry#exometer_entry{options = Options}, Options).
-
