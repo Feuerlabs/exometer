@@ -834,6 +834,9 @@ set_call_count({M, F}, Bool) ->
 set_call_count(M, F, Bool) when is_atom(M), is_atom(F), is_boolean(Bool) ->
     erlang:trace_pattern({M, F, 0}, Bool, [call_count]).
 
+-spec register_application() -> ok | error().
+%% @equiv register_application(current_application())
+%%
 register_application() ->
     case application:get_application() of
 	{ok, App} ->
@@ -842,5 +845,17 @@ register_application() ->
 	    {error, Other}
     end.
 
+-spec register_application(_Application::atom()) -> ok | error().
+%% @doc Registers statically defined entries with exometer.
+%%
+%% This function can be used e.g. as a start phase hook or during upgrade.
+%% It will check for the environment variables `exometer_defaults' and
+%% `exometer_predefined' in `Application', and apply them as if it had
+%% when exometer was first started. If the function is called again,
+%% the settings are re-applied. This can be used e.g. during upgrade,
+%% in order to change statically defined settings.
+%%
+%% If exometer is not running, the function does nothing.
+%% @end
 register_application(App) ->
     exometer_admin:register_application(App).

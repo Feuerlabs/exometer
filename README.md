@@ -4,7 +4,7 @@
 
 Copyright (c) 2014 Basho Technologies, Inc.  All Rights Reserved.
 
-__Version:__ Mar 20 2014 20:42:23
+__Version:__ Apr 17 2014 08:50:46
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -129,7 +129,7 @@ An exometer entry callback will receive values reported to a metric through the
 `exometer:update()` call and compile it into one or more data points.
 The entry callback can either be a counter (implemented natively
 in `exometer`), or a more complex statistical analysis such
-as a uniform distribution or a regular histogram. 
+as a uniform distribution or a regular histogram.
 
 The various outputs from these entries are reported as data points
 under the given metric.
@@ -393,10 +393,10 @@ application environment parameters listed above.
 #### <a name="exometer_report_snmp">exometer_report_snmp</a> ####
 
 The SNMP reporter enables the export of metrics and their datapoints to SNMP managers.
-The export needs to be enabled for each metric through their options. 
+The export needs to be enabled for each metric through their options.
 Moreover, SNMP notifications can be created using the options to send periodic reports
 on datapoints to SNMP managers. All SNMP protocol handling is done by the snmp application
-shipped with Erlang/OTP. Thus, the snmp application needs to be started and 
+shipped with Erlang/OTP. Thus, the snmp application needs to be started and
 the local SNMP master agent needs to be configured correctly for SNMP export to work
 properly.
 
@@ -558,10 +558,11 @@ exometer:setopts(Name, Options)
 
 The `Name` paramer identifies the metric to set the options for, and
 Options is a proplist (`[{ Key, Value },...]`) with the options to be
-set. 
+set.
 
 Exometer looks up the the backing entry that hosts the metric with the given Name, and will
-invoke the entry\'s `setopts/4` function to set the actual options. Please see the`setopts/4` function for the various entries for details.
+invoke the entry\'s `setopts/4` function to set the actual options. Please see the
+`setopts/4` function for the various entries for details.
 
 
 ### <a name="Configuring_Exometer">Configuring Exometer</a> ###
@@ -644,7 +645,27 @@ at application startup. The variable should have one of the following values:
 
 * `{apply, M, F, A}` - The result of `apply(M, F, A)` should be `{ok, L}` where`L` is a list of `{Name, Type, Options}` tuples.
 
-* `L`, where L is a list of `{Name, Type, Options}` tuples.
+* `L`, where L is a list of `{Name, Type, Options}` tuples or extended
+instructions (see below).
+
+The list of instructions may include:
+
+* `{delete, Name}` - deletes `Name` from the exometer registry.
+
+* `{select_delete, Pattern}` - applies a select pattern and
+deletes all matching entries.
+
+* `{re_register, {Name, Type, Options}}` - redefines an entry if present,
+otherwise creates it.
+
+Exometer will also scan all loaded applications for the environment
+variables `exometer_defaults` and `exometer_predefined`, and process
+as above. If an application is loaded and started after exometer has started,
+it may call the function `exometer:register_application()` or
+`exometer:register_application(App)`. This function will do nothing if
+exometer isn't already running, and otherwise process the `exometer_defaults`
+and `exometer_predefined` variables as above. The function can also be
+called during upgrade, as it will re-apply the settings each time.
 
 
 #### <a name="Configuring_static_subscriptions">Configuring static subscriptions</a> ####
@@ -782,17 +803,17 @@ its correct location in the hierarchy:
 
 {exometer, [
     {report, [
-        {reporters, [ 
-            {exometer_report_collectd, [ 
+        {reporters, [
+            {exometer_report_collectd, [
                 {reconnect_interval, 10},
-                {refresh_interval, 20}, 
-                {read_timeout, 5000}, 
-                {connect_timeout, 8000}, 
-                {hostname, "testhost"}, 
+                {refresh_interval, 20},
+                {read_timeout, 5000},
+                {connect_timeout, 8000},
+                {hostname, "testhost"},
                 {path, "/var/run/collectd-unixsock"},
                 {plugin_name, "testname"},
                 {plugin_instance, "testnode"},
-                {type_map, 
+                {type_map,
                     [{[db, cache, hits, max], "gauge"}]
                 }
             ]}
@@ -892,12 +913,12 @@ its correct location in the hierarchy:
 
 {exometer, [
     {report, [
-        {reporters, [ 
-            {exometer_report_graphite, [ 
+        {reporters, [
+            {exometer_report_graphite, [
                 {connect_timeout, 5000},
-                {prefix, "web_stats"}, 
-                {host, "carbon.hostedgraphite.com"}, 
-                {port, 2003}, 
+                {prefix, "web_stats"},
+                {host, "carbon.hostedgraphite.com"},
+                {port, 2003},
                 {api_key, "267d121c-8387-459a-9326-000000000000"}
             ]}
         ]}
@@ -947,8 +968,8 @@ its correct location in the hierarchy:
 
 {exometer, [
     {report, [
-        {reporters, [ 
-            {exometer_report_snmp, [ 
+        {reporters, [
+            {exometer_report_snmp, [
                 {mib_template, "priv/MYORG-EXOMETER-METRICS.mib"},
                 {mib_dir, "/tmp/exometer"}
             ]}
