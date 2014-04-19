@@ -21,9 +21,6 @@
          sample/3,
          setopts/4]).
 
--define(DATAPOINTS,
-        [ counter, histogram, duration, meter, spiral ]).
-
 behaviour() -> entry.
 
 new(Name, counter, _Opts) ->
@@ -41,6 +38,8 @@ new(Name, histogram, Opts) ->
     end;
 new(Name, meter, Opts) ->
     {folsom_metrics:new_meter(Name), opt_ref(Opts)};
+new(Name, gauge, Opts) ->
+    {folsom_metrics:new_gauge(Name), opt_ref(Opts)};
 new(Name, duration, Opts) ->
     {folsom_metrics:new_duration(Name), opt_ref(Opts)}.
 
