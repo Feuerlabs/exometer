@@ -44,7 +44,7 @@
    [
     new/2, new/3,
     re_register/3,
-    update/2,
+    update/2, update_or_create/2, update_or_create/4,
     get_value/1, get_value/2, get_values/1,
     sample/1,
     delete/1,
@@ -137,6 +137,9 @@ new(Name, Type, Opts) when is_list(Name), is_list(Opts) ->
 re_register(Name, Type, Opts) when is_list(Name), is_list(Opts) ->
     exometer_admin:re_register_entry(Name, Type, Opts).
 
+ensure(Name, Type, Opts) when is_list(Name), is_list(Opts) ->
+    exometer_admin:ensure(Name, Type, Opts).
+
 
 -spec update(name(), value()) -> ok | error().
 %% @doc Update the given metric with `Value'.
@@ -191,6 +194,37 @@ update(Name, Value) when is_list(Name) ->
 
         [] ->
             {error, not_found}
+    end.
+
+-spec update_or_create(Name::name(), Value::value()) -> ok | error().
+%% @doc Update existing metric, or create+update according to template.
+%%
+%% If the metric exists, it is updated (see {@link update/2}). If it doesn't,
+%% exometer searches for a template matching `Name', picks the best
+%% match and creates a new entry based on the template
+%% (see {@link exometer_admin:set_default/3}). Note that fully wild-carded
+%% templates (i.e. <code>['_']</code>) are ignored.
+%% @end
+update_or_create(Name, Value) ->
+    case update(Name, Value) of
+	{error, not_found} ->
+	    case exometer_admin:auto_create_entry(Name) of
+		ok ->
+		    update(Name, Value);
+		Error ->
+		    Error
+	    end;
+	ok ->
+	    ok
+    end.
+
+update_or_create(Name, Value, Type, Opts) ->
+    case update(Name, Value) of
+	{error, not_found} ->
+	    ensure(Name, Type, Opts),
+	    update(Name, Value);
+	ok ->
+	    ok
     end.
 
 fast_incr(N, M, F) when N > 0 ->
@@ -586,26 +620,32 @@ update_entry_elems(Name, Elems) ->
 %% * `options' - Options passed to the metric at creation (or via setopts())
 %% * `ref' - Instance-specific reference; usually a pid (probe) or undefined
 %% @end
+info(#exometer_entry{} = E, Item) ->
+    info_(E, Item);
 info(Name, Item) ->
     case ets:lookup(exometer_util:table(), Name) of
         [#exometer_entry{} = E] ->
-            case Item of
-                name      -> E#exometer_entry.name;
-                type      -> E#exometer_entry.type;
-                module    -> E#exometer_entry.module;
-                value     -> get_value_(E,[]);
-                cache     -> E#exometer_entry.cache;
-                status    -> E#exometer_entry.status;
-                timestamp -> E#exometer_entry.timestamp;
-                options   -> E#exometer_entry.options;
-                ref       -> E#exometer_entry.ref;
-                entry     -> E;
-                datapoints-> get_datapoints_(E);
-                _ -> undefined
-            end;
+	    info_(E, Item);
         _ ->
             undefined
     end.
+
+info_(E, Item) ->
+    case Item of
+	name      -> E#exometer_entry.name;
+	type      -> E#exometer_entry.type;
+	module    -> E#exometer_entry.module;
+	value     -> get_value_(E,[]);
+	cache     -> E#exometer_entry.cache;
+	status    -> E#exometer_entry.status;
+	timestamp -> E#exometer_entry.timestamp;
+	options   -> E#exometer_entry.options;
+	ref       -> E#exometer_entry.ref;
+	entry     -> E;
+	datapoints-> get_datapoints_(E);
+	_ -> undefined
+    end.
+
 
 datapoints(default, _E) ->
     default;
