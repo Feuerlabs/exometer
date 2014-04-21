@@ -303,7 +303,7 @@ interval() = pos_integer()
 
 
 <pre><code>
-metric() = [atom(), ...]
+metric() = <a href="exometer.md#type-name">exometer:name()</a> | {find, <a href="exometer.md#type-name">exometer:name()</a>} | {select, <a href="ets.md#type-match_spec">ets:match_spec()</a>}
 </code></pre>
 
 
