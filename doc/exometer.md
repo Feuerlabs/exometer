@@ -29,13 +29,14 @@ Example: Putting the following in a sys.config file,
 
   {exometer, [
            {defaults,
-            [{['_'], function , [{module, exometer_function}]},
-             {['_'], counter  , [{module, exometer}]},
-             {['_'], histogram, [{module, exometer_histogram}]},
-             {['_'], spiral   , [{module, exometer_spiral}]},
-             {['_'], duration , [{module, exometer_folsom}]},
-             {['_'], meter    , [{module, exometer_folsom}]},
-             {['_'], gauge    , [{module, exometer_folsom}]}
+            [{['_'], function    , [{module, exometer_function}]},
+             {['_'], counter     , [{module, exometer}]},
+             {['_'], fast_counter, [{module, exometer}]},
+             {['_'], gauge       , [{module, exometer}]},
+             {['_'], histogram   , [{module, exometer_histogram}]},
+             {['_'], spiral      , [{module, exometer_spiral}]},
+             {['_'], duration    , [{module, exometer_folsom}]},
+             {['_'], meter       , [{module, exometer_folsom}]},
             ]}
           ]}
 ```

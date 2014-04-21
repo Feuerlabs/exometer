@@ -19,13 +19,14 @@
 %% <pre lang="erlang">
 %% {exometer, [
 %%          {defaults,
-%%           [{['_'], function , [{module, exometer_function}]},
-%%            {['_'], counter  , [{module, exometer}]},
-%%            {['_'], histogram, [{module, exometer_histogram}]},
-%%            {['_'], spiral   , [{module, exometer_spiral}]},
-%%            {['_'], duration , [{module, exometer_folsom}]},
-%%            {['_'], meter    , [{module, exometer_folsom}]},
-%%            {['_'], gauge    , [{module, exometer_folsom}]}
+%%           [{['_'], function    , [{module, exometer_function}]},
+%%            {['_'], counter     , [{module, exometer}]},
+%%            {['_'], fast_counter, [{module, exometer}]},
+%%            {['_'], gauge       , [{module, exometer}]},
+%%            {['_'], histogram   , [{module, exometer_histogram}]},
+%%            {['_'], spiral      , [{module, exometer_spiral}]},
+%%            {['_'], duration    , [{module, exometer_folsom}]},
+%%            {['_'], meter       , [{module, exometer_folsom}]},
 %%           ]}
 %%         ]}
 %% </pre>
@@ -43,7 +44,7 @@
    [
     new/2, new/3,
     re_register/3,
-    update/2,
+    update/2, update_or_create/2, update_or_create/4,
     get_value/1, get_value/2, get_values/1,
     sample/1,
     delete/1,
@@ -110,7 +111,7 @@ new(Name, Type) ->
 %% * `{snmp, [{DataPoint, ReportInterval}]}' - defines a link to SNMP reporting,
 %% where the given data points are sampled at the given intervals, converted
 %% to SNMP PDUs and transmitted via the `exometer_report_snmp' reporter.
-%% 
+%%
 %% * `{snmp_syntax, [{DataPoint | {default}, SYNTAX}]}' - specifies a custom
 %% SNMP type for a given data point. `SYNTAX' needs to be a binary or a string,
 %% and corresponds to the SYNTAX definition in the generated SNMP MIB.
@@ -135,6 +136,9 @@ new(Name, Type, Opts) when is_list(Name), is_list(Opts) ->
 %% @end
 re_register(Name, Type, Opts) when is_list(Name), is_list(Opts) ->
     exometer_admin:re_register_entry(Name, Type, Opts).
+
+ensure(Name, Type, Opts) when is_list(Name), is_list(Opts) ->
+    exometer_admin:ensure(Name, Type, Opts).
 
 
 -spec update(name(), value()) -> ok | error().
@@ -163,6 +167,15 @@ update(Name, Value) when is_list(Name) ->
                     fast_incr(Value, M, F);
                true -> ok
             end;
+	[#exometer_entry{module = ?MODULE, type = gauge,
+			 status = Status}] ->
+	    if Status == enabled ->
+		    ets:update_element(
+		      ?EXOMETER_ENTRIES,
+		      Name, [{#exometer_entry.value, Value}]);
+	       true -> ok
+	    end,
+	    ok;
         [#exometer_entry{behaviour = probe,
 			 type = T,
                          status = Status, ref = Pid}]->
@@ -173,14 +186,45 @@ update(Name, Value) when is_list(Name) ->
                true -> ok
             end;
 
-        [#exometer_entry{module = M, 
+        [#exometer_entry{module = M,
 			 behaviour = entry,
-			 type = Type, 
+			 type = Type,
 			 ref = Ref}] ->
             M:update(Name, Value, Type, Ref);
 
         [] ->
             {error, not_found}
+    end.
+
+-spec update_or_create(Name::name(), Value::value()) -> ok | error().
+%% @doc Update existing metric, or create+update according to template.
+%%
+%% If the metric exists, it is updated (see {@link update/2}). If it doesn't,
+%% exometer searches for a template matching `Name', picks the best
+%% match and creates a new entry based on the template
+%% (see {@link exometer_admin:set_default/3}). Note that fully wild-carded
+%% templates (i.e. <code>['_']</code>) are ignored.
+%% @end
+update_or_create(Name, Value) ->
+    case update(Name, Value) of
+	{error, not_found} ->
+	    case exometer_admin:auto_create_entry(Name) of
+		ok ->
+		    update(Name, Value);
+		Error ->
+		    Error
+	    end;
+	ok ->
+	    ok
+    end.
+
+update_or_create(Name, Value, Type, Opts) ->
+    case update(Name, Value) of
+	{error, not_found} ->
+	    ensure(Name, Type, Opts),
+	    update(Name, Value);
+	ok ->
+	    ok
     end.
 
 fast_incr(N, M, F) when N > 0 ->
@@ -210,7 +254,7 @@ get_value(Name, DataPoint) when is_list(Name), is_atom(DataPoint),
     get_value(Name, [DataPoint]);
 
 %% Also covers DataPoints = default
-get_value(Name, DataPoints) when is_list(Name) -> 
+get_value(Name, DataPoints) when is_list(Name) ->
     case ets:lookup(exometer_util:table(), Name) of
         [#exometer_entry{} = E] ->
             {ok, get_value_(E, DataPoints)};
@@ -220,42 +264,45 @@ get_value(Name, DataPoints) when is_list(Name) ->
 
 %% If the entry is disabled, just err out.
 get_value_(#exometer_entry{ status = disabled }, _DataPoints) ->
-    disabled; 
+    disabled;
 
 %% If the value is cached, see if we can find it.
 %% In the default case, call again with resolved data points.
-get_value_(#exometer_entry{cache = Cache } = E, 
+get_value_(#exometer_entry{cache = Cache } = E,
 	   DataPoints) when Cache =/= 0 ->
     get_cached_value_(E, DataPoints);
 
-get_value_(#exometer_entry{ module = ?MODULE, 
-			    type = counter} = E, default) ->
+get_value_(#exometer_entry{ module = ?MODULE,
+			    type = Type} = E, default)
+  when Type == counter; Type == fast_counter; Type == gauge ->
     get_value_(E, get_datapoints_(E));
 
-get_value_(#exometer_entry{ module = ?MODULE, 
-			    type = fast_counter} = E, default) ->
-    get_value_(E, get_datapoints_(E));
-
-get_value_(#exometer_entry{ module = ?MODULE, 
+get_value_(#exometer_entry{ module = ?MODULE,
 			    type = counter} = E, DataPoints0) ->
     DataPoints = datapoints(DataPoints0, E),
     [ get_ctr_datapoint(E, D) || D <- DataPoints];
+
+get_value_(#exometer_entry{ module = ?MODULE,
+			    type = gauge, name = Name}, DataPoints0) ->
+    [E] = ets:lookup(?EXOMETER_ENTRIES, Name),
+    DataPoints = datapoints(DataPoints0, E),
+    [ get_gauge_datapoint(E, D) || D <- DataPoints];
 
 get_value_(#exometer_entry{module = ?MODULE,
                            type = fast_counter} = E, DataPoints0) ->
     DataPoints = datapoints(DataPoints0, E),
     [ get_fctr_datapoint(E, D) || D <- DataPoints ];
 
-get_value_(#exometer_entry{behaviour = entry, 
+get_value_(#exometer_entry{behaviour = entry,
 			   module = Mod,
-			   name = Name, 
-			   type = Type, 
+			   name = Name,
+			   type = Type,
 			   ref = Ref} = E, DataPoints0) ->
     Mod:get_value(Name, Type, Ref, datapoints(DataPoints0, E));
 
-get_value_(#exometer_entry{behaviour = probe, 
-			   name = Name, 
-			   type = Type, 
+get_value_(#exometer_entry{behaviour = probe,
+			   name = Name,
+			   type = Type,
 			   ref = Ref} = E, DataPoints0) ->
 
     exometer_probe:get_value(Name, Type, Ref, datapoints(DataPoints0, E)).
@@ -265,13 +312,13 @@ get_cached_value_(E, default) ->
     get_cached_value_(E, get_datapoints_(E));
 
 get_cached_value_(#exometer_entry{name = Name,
-				 cache = CacheTTL } = E, 
+				 cache = CacheTTL } = E,
 		 DataPoints) ->
 
     %% Dig through all the data points and check for cache hit.
-    %% Store all cached KV pairs, and all keys that must be 
+    %% Store all cached KV pairs, and all keys that must be
     %% read and cached.
-    { Cached, Uncached } = 
+    { Cached, Uncached } =
 	lists:foldr(fun(DataPoint, {Cached1, Uncached1}) ->
 			    case exometer_cache:read(Name, DataPoint) of
 				not_found ->
@@ -281,22 +328,23 @@ get_cached_value_(#exometer_entry{name = Name,
 			    end
 		    end, {[],[]}, DataPoints),
 
-    %% Go through all cache misses and retreive their actual values. 
+    %% Go through all cache misses and retreive their actual values.
     Result = get_value_(E#exometer_entry { cache = 0 }, Uncached),
 
     %% Update the cache with all the shiny new values retrieved.
-    [ exometer_cache:write(Name, DataPoint1, Value1, CacheTTL) 
+    [ exometer_cache:write(Name, DataPoint1, Value1, CacheTTL)
       || { DataPoint1, Value1 } <- Result],
     All = Result ++ Cached,
     [{_,_} = lists:keyfind(DP, 1, All) || DP <- DataPoints].
-	
-    
+
+
 
 -spec delete(name()) -> ok | error().
 %% @doc Delete the metric
 delete(Name) when is_list(Name) ->
     case ets:lookup(exometer_util:table(), Name) of
-        [#exometer_entry{module = ?MODULE, type = counter}] ->
+        [#exometer_entry{module = ?MODULE, type = Type}]
+	  when Type == counter; Type == gauge ->
             [ets:delete(T, Name) ||
                 T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
             ok;
@@ -390,11 +438,16 @@ reset(Name)  when is_list(Name) ->
             [ets:update_element(T, Name, [{#exometer_entry.timestamp, TS}])
              || T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
             ok;
-
+	[#exometer_entry{status = enabled,
+			 module = ?MODULE, type = gauge}] ->
+	    TS = exometer_util:timestamp(),
+	    [ets:update_element(T, Name, [{#exometer_entry.value, 0},
+					  {#exometer_entry.timestamp, TS}])
+	     || T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
+	    ok;
         [#exometer_entry{behaviour = probe,
                          type = Type,
                          ref = Ref} = E] ->
-	    
 	    [ exometer_cache:delete(Name, DataPoint) ||
 		DataPoint <- get_datapoints_(E)],
             exometer_probe:reset(Name, Type, Ref),
@@ -432,10 +485,10 @@ setopts(Name, Options) when is_list(Name), is_list(Options) ->
             if Status == disabled ->
                     case lists:keyfind(status, 1, Options) of
                         {_, enabled} ->
-                            if Type == fast_counter ->
-                                    setopts_fctr(E, Options);
-                               Type == counter ->
-                                    setopts_ctr(E, Options)
+			    case Type of
+				fast_counter -> setopts_fctr(E, Options);
+				counter      -> setopts_ctr(E, Options);
+				gauge        -> setopts_gauge(E, Options)
                             end,
                             reporter_setopts(E, Options, enabled);
                         _ ->
@@ -448,10 +501,10 @@ setopts(Name, Options) when is_list(Name), is_list(Options) ->
                             update_entry_elems(Name, Elems),
                             reporter_setopts(E, Options, disabled);
                         false ->
-                            if Type == fast_counter ->
-                                    setopts_fctr(E, Options);
-                               Type == counter ->
-                                    setopts_ctr(E, Options)
+			    case Type of
+				fast_counter -> setopts_fctr(E, Options);
+				counter      -> setopts_ctr(E, Options);
+				gauge        -> setopts_gauge(E, Options)
                             end,
                             reporter_setopts(E, Options, enabled)
                     end
@@ -475,18 +528,18 @@ setopts(Name, Options) when is_list(Name), is_list(Options) ->
             {error, not_found}
     end.
 
-module_setopts(#exometer_entry{behaviour = probe, 
-			       module=exometer, 
+module_setopts(#exometer_entry{behaviour = probe,
+			       module=exometer,
 			       name=N,
 			       type=T,
 			       ref = Pid}=E, Options) ->
     reporter_setopts(E, Options, enabled),
     exometer_probe:setopts(N, Options, T, Pid);
 
-module_setopts(#exometer_entry{behaviour = entry, 
-			       name=Name, 
-			       module=M, 
-			       type=Type, 
+module_setopts(#exometer_entry{behaviour = entry,
+			       name=Name,
+			       module=M,
+			       type=Type,
 			       ref=Ref}=E, Options) ->
     case [O || {K, _} = O <- Options,
                not lists:member(K, [status, cache, ref])] of
@@ -536,6 +589,9 @@ setopts_ctr(#exometer_entry{name = Name} = E, Options) ->
     update_entry_elems(Name, Elems),
     ok.
 
+setopts_gauge(E, Options) ->
+    setopts_ctr(E, Options).  % same logic as for counter
+
 %% cache(0, _, Value) ->
 %%     Value;
 %% cache(TTL, Name, Value) when TTL > 0 ->
@@ -564,26 +620,32 @@ update_entry_elems(Name, Elems) ->
 %% * `options' - Options passed to the metric at creation (or via setopts())
 %% * `ref' - Instance-specific reference; usually a pid (probe) or undefined
 %% @end
+info(#exometer_entry{} = E, Item) ->
+    info_(E, Item);
 info(Name, Item) ->
     case ets:lookup(exometer_util:table(), Name) of
         [#exometer_entry{} = E] ->
-            case Item of
-                name      -> E#exometer_entry.name;
-                type      -> E#exometer_entry.type;
-                module    -> E#exometer_entry.module;
-                value     -> get_value_(E,[]);
-                cache     -> E#exometer_entry.cache;
-                status    -> E#exometer_entry.status;
-                timestamp -> E#exometer_entry.timestamp;
-                options   -> E#exometer_entry.options;
-                ref       -> E#exometer_entry.ref;
-                entry     -> E;
-                datapoints-> get_datapoints_(E);
-                _ -> undefined
-            end;
+	    info_(E, Item);
         _ ->
             undefined
     end.
+
+info_(E, Item) ->
+    case Item of
+	name      -> E#exometer_entry.name;
+	type      -> E#exometer_entry.type;
+	module    -> E#exometer_entry.module;
+	value     -> get_value_(E,[]);
+	cache     -> E#exometer_entry.cache;
+	status    -> E#exometer_entry.status;
+	timestamp -> E#exometer_entry.timestamp;
+	options   -> E#exometer_entry.options;
+	ref       -> E#exometer_entry.ref;
+	entry     -> E;
+	datapoints-> get_datapoints_(E);
+	_ -> undefined
+    end.
+
 
 datapoints(default, _E) ->
     default;
@@ -594,15 +656,17 @@ datapoints(D, _) when is_integer(D) ->
 datapoints(D, _) when is_list(D) ->
     D.
 
-get_datapoints_(#exometer_entry{type = T}) when T==counter; T==fast_counter ->
+get_datapoints_(#exometer_entry{type = T}) when T==counter;
+						T==fast_counter;
+						T==gauge ->
     ?DATAPOINTS;
 
-get_datapoints_(#exometer_entry{behaviour = entry, 
+get_datapoints_(#exometer_entry{behaviour = entry,
 				name = Name, module = M,
                                 type = Type, ref = Ref}) ->
     M:get_datapoints(Name, Type, Ref);
 
-get_datapoints_(#exometer_entry{behaviour = probe, 
+get_datapoints_(#exometer_entry{behaviour = probe,
 				name = Name, type = Type, ref = Ref}) ->
 
     exometer_probe:get_datapoints(Name, Type, Ref).
@@ -801,6 +865,13 @@ get_ctr_datapoint(#exometer_entry{timestamp = TS}, ms_since_reset) ->
 get_ctr_datapoint(#exometer_entry{}, Undefined) ->
     {Undefined, undefined}.
 
+get_gauge_datapoint(#exometer_entry{value = Value}, value) ->
+    {value, Value};
+get_gauge_datapoint(#exometer_entry{timestamp = TS}, ms_since_reset) ->
+    {ms_since_reset, exometer_util:timestamp() - TS};
+get_gauge_datapoint(#exometer_entry{}, Undefined) ->
+    {Undefined, undefined}.
+
 get_fctr_datapoint(#exometer_entry{ref = Ref}, value) ->
     case Ref of
         {M, F} ->
@@ -820,7 +891,8 @@ get_fctr_datapoint(#exometer_entry{ }, Undefined) ->
 
 
 create_entry(#exometer_entry{module = exometer,
-                             type = counter} = E) ->
+                             type = Type} = E) when Type == counter;
+						    Type == gauge ->
     E1 = E#exometer_entry{value = 0, timestamp = exometer_util:timestamp()},
     [ets:insert(T, E1) || T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
     ok;
@@ -829,7 +901,7 @@ create_entry(#exometer_entry{module = exometer,
                              status = Status,
                              type = fast_counter, options = Opts} = E) ->
     case lists:keyfind(function, 1, Opts) of
-        false -> 
+        false ->
             error({required, function});
         {_, {M,F}} when is_atom(M), M =/= '_',
                         is_atom(F), M =/= '_' ->
@@ -847,10 +919,10 @@ create_entry(#exometer_entry{module = exometer,
 
 create_entry(#exometer_entry{module = Module,
                              type = Type,
-                             name = Name, 
+                             name = Name,
 			     options = Opts} = E) ->
-    case 
-	case Module:behaviour() of 
+    case
+	case Module:behaviour() of
 	    probe ->
 		{probe, exometer_probe:new(Name, Type, [{ arg, Module} | Opts ]) };
 

@@ -1,10 +1,8 @@
-
-
 # Exometer - Erlang instrumentation package #
 
 Copyright (c) 2014 Basho Technologies, Inc.  All Rights Reserved.
 
-__Version:__ Mar 20 2014 20:42:23
+__Version:__ Apr 20 2014 18:50:46
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -38,11 +36,12 @@ with `exometer`.
 2. [Built-in entries and probes](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Built-in_entries_and_probes)
     1. [counter (exometer native)](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#counter_(exometer_native))
     2. [fast_counter (exometer native)](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#fast_counter_(exometer_native))
-    3. [exometer_histogram (probe)](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_histogram_(probe))
-    4. [exometer_uniform (probe)](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_uniform_(probe))
-    5. [exometer_spiral (probe)](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_spiral_(probe))
-    6. [exometer_folsom [entry]](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_folsom_[entry])
-    7. [exometer_function [entry]](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_function_[entry])
+    3. [gauge (exometer native)](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#gauge_(exometer_native))
+    4. [exometer_histogram (probe)](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_histogram_(probe))
+    5. [exometer_uniform (probe)](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_uniform_(probe))
+    6. [exometer_spiral (probe)](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_spiral_(probe))
+    7. [exometer_folsom [entry]](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_folsom_[entry])
+    8. [exometer_function [entry]](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_function_[entry])
 3. [Built in Reporters](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Built_in_Reporters)
     1. [exometer_report_graphite](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_report_graphite)
     2. [exometer_report_collectd](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_report_collectd)
@@ -129,7 +128,7 @@ An exometer entry callback will receive values reported to a metric through the
 `exometer:update()` call and compile it into one or more data points.
 The entry callback can either be a counter (implemented natively
 in `exometer`), or a more complex statistical analysis such
-as a uniform distribution or a regular histogram. 
+as a uniform distribution or a regular histogram.
 
 The various outputs from these entries are reported as data points
 under the given metric.
@@ -236,6 +235,19 @@ The counter can be reset to zero through `exometer:reset()`.
 
 The available data points under a metric using the fast_counter
 entry are `value` and `ms_since_reset`.
+
+
+#### <a name="gauge_(exometer_native)">gauge (exometer native)</a> ####
+
+The gauge is implemented directly in `exometer` to provide simple
+gauges.  A call to `exometer:update()` will set the gauge's value
+to the provided value. That is, the value of the gauge entry is
+always the most recently provided value.
+
+The gauge can be reset to zero through `exometer:reset()`.
+
+The available data points under a metric using the gauge entry
+are `value` and `ms_since_reset`.
 
 
 #### <a name="exometer_histogram_(probe)">exometer_histogram (probe)</a> ####
@@ -393,10 +405,10 @@ application environment parameters listed above.
 #### <a name="exometer_report_snmp">exometer_report_snmp</a> ####
 
 The SNMP reporter enables the export of metrics and their datapoints to SNMP managers.
-The export needs to be enabled for each metric through their options. 
+The export needs to be enabled for each metric through their options.
 Moreover, SNMP notifications can be created using the options to send periodic reports
 on datapoints to SNMP managers. All SNMP protocol handling is done by the snmp application
-shipped with Erlang/OTP. Thus, the snmp application needs to be started and 
+shipped with Erlang/OTP. Thus, the snmp application needs to be started and
 the local SNMP master agent needs to be configured correctly for SNMP export to work
 properly.
 
@@ -558,10 +570,11 @@ exometer:setopts(Name, Options)
 
 The `Name` paramer identifies the metric to set the options for, and
 Options is a proplist (`[{ Key, Value },...]`) with the options to be
-set. 
+set.
 
 Exometer looks up the the backing entry that hosts the metric with the given Name, and will
-invoke the entry\'s `setopts/4` function to set the actual options. Please see the`setopts/4` function for the various entries for details.
+invoke the entry\'s `setopts/4` function to set the actual options. Please see the
+`setopts/4` function for the various entries for details.
 
 
 ### <a name="Configuring_Exometer">Configuring Exometer</a> ###
@@ -782,17 +795,17 @@ its correct location in the hierarchy:
 
 {exometer, [
     {report, [
-        {reporters, [ 
-            {exometer_report_collectd, [ 
+        {reporters, [
+            {exometer_report_collectd, [
                 {reconnect_interval, 10},
-                {refresh_interval, 20}, 
-                {read_timeout, 5000}, 
-                {connect_timeout, 8000}, 
-                {hostname, "testhost"}, 
+                {refresh_interval, 20},
+                {read_timeout, 5000},
+                {connect_timeout, 8000},
+                {hostname, "testhost"},
                 {path, "/var/run/collectd-unixsock"},
                 {plugin_name, "testname"},
                 {plugin_instance, "testnode"},
-                {type_map, 
+                {type_map,
                     [{[db, cache, hits, max], "gauge"}]
                 }
             ]}
@@ -892,12 +905,12 @@ its correct location in the hierarchy:
 
 {exometer, [
     {report, [
-        {reporters, [ 
-            {exometer_report_graphite, [ 
+        {reporters, [
+            {exometer_report_graphite, [
                 {connect_timeout, 5000},
-                {prefix, "web_stats"}, 
-                {host, "carbon.hostedgraphite.com"}, 
-                {port, 2003}, 
+                {prefix, "web_stats"},
+                {host, "carbon.hostedgraphite.com"},
+                {port, 2003},
                 {api_key, "267d121c-8387-459a-9326-000000000000"}
             ]}
         ]}
@@ -947,8 +960,8 @@ its correct location in the hierarchy:
 
 {exometer, [
     {report, [
-        {reporters, [ 
-            {exometer_report_snmp, [ 
+        {reporters, [
+            {exometer_report_snmp, [
                 {mib_template, "priv/MYORG-EXOMETER-METRICS.mib"},
                 {mib_dir, "/tmp/exometer"}
             ]}
@@ -1005,6 +1018,7 @@ Please see @see exometer_report documentation for details.
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report.md" class="module">exometer_report</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_collectd.md" class="module">exometer_report_collectd</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_graphite.md" class="module">exometer_report_graphite</a></td></tr>
+<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_lager.md" class="module">exometer_report_lager</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_riak.md" class="module">exometer_report_riak</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_snmp.md" class="module">exometer_report_snmp</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_statsd.md" class="module">exometer_report_statsd</a></td></tr>
@@ -1014,4 +1028,3 @@ Please see @see exometer_report documentation for details.
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_spiral.md" class="module">exometer_spiral</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_uniform.md" class="module">exometer_uniform</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_util.md" class="module">exometer_util</a></td></tr></table>
-

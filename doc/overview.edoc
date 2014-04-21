@@ -1,10 +1,10 @@
-@author Ulf Wiger <ulf.wiger@feuerlabs.com> 
-@author Magnus Feuer <magnus.feuer@feuerlabs.com> 
+@author Ulf Wiger <ulf.wiger@feuerlabs.com>
+@author Magnus Feuer <magnus.feuer@feuerlabs.com>
 @copyright 2014 Basho Technologies, Inc.  All Rights Reserved.
 @version {@version}
 @title Exometer - Erlang instrumentation package
 
-@doc 
+@doc
 
 [![Build Status](https://travis-ci.org/Feuerlabs/exometer.png?branch=master)](https://travis-ci.org/Feuerlabs/exometer)
 
@@ -33,11 +33,12 @@ with ``exometer''.
 2. {@section Built-in entries and probes}
     1. {@section counter (exometer native)}
     2. {@section fast_counter (exometer native)}
-    3. {@section exometer_histogram (probe)}
-    4. {@section exometer_uniform (probe)}
-    5. {@section exometer_spiral (probe)}
-    6. {@section exometer_folsom [entry]}
-    7. {@section exometer_function [entry]}
+    3. {@section gauge (exometer native)}
+    4. {@section exometer_histogram (probe)}
+    5. {@section exometer_uniform (probe)}
+    6. {@section exometer_spiral (probe)}
+    7. {@section exometer_folsom [entry]}
+    8. {@section exometer_function [entry]}
 3. {@section Built in Reporters}
     1. {@section exometer_report_graphite}
     2. {@section exometer_report_collectd}
@@ -69,7 +70,7 @@ throughout the documentation and the code.
 
 <img src="{@docRoot}/doc/exometer_overview.png?raw=true" alt="Overview" ></img>
 
-=== Metric === 
+=== Metric ===
 
 A metric is a specific measurement sampled inside an Erlang system and
 then reported to the Exometer system. An example metric would be
@@ -120,7 +121,7 @@ An exometer entry callback will receive values reported to a metric through the
 `exometer:update()' call and compile it into one or more data points.
 The entry callback can either be a counter (implemented natively
 in `exometer'), or a more complex statistical analysis such
-as a uniform distribution or a regular histogram. 
+as a uniform distribution or a regular histogram.
 
 The various outputs from these entries are reported as data points
 under the given metric.
@@ -219,6 +220,18 @@ The counter can be reset to zero through `exometer:reset()'.
 The available data points under a metric using the fast_counter
 entry are `value' and `ms_since_reset'.
 
+=== gauge (exometer native) ===
+
+The gauge is implemented directly in `exometer' to provide simple
+gauges.  A call to `exometer:update()' will set the gauge's value
+to the provided value. That is, the value of the gauge entry is
+always the most recently provided value.
+
+The gauge can be reset to zero through `exometer:reset()'.
+
+The available data points under a metric using the gauge entry
+are `value' and `ms_since_reset'.
+
 === exometer_histogram (probe) ===
 
 The histogram probe stores a given number of updates, provided through
@@ -309,13 +322,13 @@ All metrics reported to collectd will be have identifiers formatted as follows:
 <pre>HostName/PluginName-PluginInstance/Type-Metric_DataPoint</pre>
 
 + `HostName'
-    <br/>Host name of the entry. 
-    <br/>Configurable through the `hostname' application environment parameter. 
+    <br/>Host name of the entry.
+    <br/>Configurable through the `hostname' application environment parameter.
     <br/>Default is the value returned by `netadm:localhost()'.
 
 + `PluginName'
     <br/>The collectd plugin name.
-    <br/>Configurable through the `plugin_name' application environment parameter. 
+    <br/>Configurable through the `plugin_name' application environment parameter.
     <br/>Default is `exometer'.
 
 + `PluginInstance'
@@ -340,7 +353,7 @@ All metrics reported to collectd will be have identifiers formatted as follows:
     to `db_cache_hits'.
 
 + `DataPoint'
-    <br/>The data point of the given metric. 
+    <br/>The data point of the given metric.
     Will be added to the end of the metrics string.
 
 Please see {@section Configuring collectd reporter} for details on the
@@ -349,10 +362,10 @@ application environment parameters listed above.
 === exometer_report_snmp ===
 
 The SNMP reporter enables the export of metrics and their datapoints to SNMP managers.
-The export needs to be enabled for each metric through their options. 
+The export needs to be enabled for each metric through their options.
 Moreover, SNMP notifications can be created using the options to send periodic reports
 on datapoints to SNMP managers. All SNMP protocol handling is done by the snmp application
-shipped with Erlang/OTP. Thus, the snmp application needs to be started and 
+shipped with Erlang/OTP. Thus, the snmp application needs to be started and
 the local SNMP master agent needs to be configured correctly for SNMP export to work
 properly.
 
@@ -481,10 +494,10 @@ exometer:setopts(Name, Options)</pre>
 
 The `Name' paramer identifies the metric to set the options for, and
 Options is a proplist (`[{ Key, Value },...]') with the options to be
-set. 
+set.
 
 Exometer looks up the the backing entry that hosts the metric with the given Name, and will
-invoke the entry\'s `setopts/4' function to set the actual options. Please see the 
+invoke the entry\'s `setopts/4' function to set the actual options. Please see the
 `setopts/4' function for the various entries for details.
 
 == Configuring Exometer ==
@@ -682,17 +695,17 @@ its correct location in the hierarchy:
 <pre lang="erlang">
 {exometer, [
     {report, [
-        {reporters, [ 
-            {exometer_report_collectd, [ 
+        {reporters, [
+            {exometer_report_collectd, [
                 {reconnect_interval, 10},
-                {refresh_interval, 20}, 
-                {read_timeout, 5000}, 
-                {connect_timeout, 8000}, 
-                {hostname, "testhost"}, 
+                {refresh_interval, 20},
+                {read_timeout, 5000},
+                {connect_timeout, 8000},
+                {hostname, "testhost"},
                 {path, "/var/run/collectd-unixsock"},
                 {plugin_name, "testname"},
                 {plugin_instance, "testnode"},
-                {type_map, 
+                {type_map,
                     [{[db, cache, hits, max], "gauge"}]
                 }
             ]}
@@ -777,12 +790,12 @@ its correct location in the hierarchy:
 <pre lang="erlang">
 {exometer, [
     {report, [
-        {reporters, [ 
-            {exometer_report_graphite, [ 
+        {reporters, [
+            {exometer_report_graphite, [
                 {connect_timeout, 5000},
-                {prefix, "web_stats"}, 
-                {host, "carbon.hostedgraphite.com"}, 
-                {port, 2003}, 
+                {prefix, "web_stats"},
+                {host, "carbon.hostedgraphite.com"},
+                {port, 2003},
                 {api_key, "267d121c-8387-459a-9326-000000000000"}
             ]}
         ]}
@@ -822,8 +835,8 @@ its correct location in the hierarchy:
 <pre lang="erlang">
 {exometer, [
     {report, [
-        {reporters, [ 
-            {exometer_report_snmp, [ 
+        {reporters, [
+            {exometer_report_snmp, [
                 {mib_template, "priv/MYORG-EXOMETER-METRICS.mib"},
                 {mib_dir, "/tmp/exometer"}
             ]}
