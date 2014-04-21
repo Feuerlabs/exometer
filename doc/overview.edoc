@@ -33,11 +33,12 @@ with ``exometer''.
 2. {@section Built-in entries and probes}
     1. {@section counter (exometer native)}
     2. {@section fast_counter (exometer native)}
-    3. {@section exometer_histogram (probe)}
-    4. {@section exometer_uniform (probe)}
-    5. {@section exometer_spiral (probe)}
-    6. {@section exometer_folsom [entry]}
-    7. {@section exometer_function [entry]}
+    3. {@section gauge (exometer native)}
+    4. {@section exometer_histogram (probe)}
+    5. {@section exometer_uniform (probe)}
+    6. {@section exometer_spiral (probe)}
+    7. {@section exometer_folsom [entry]}
+    8. {@section exometer_function [entry]}
 3. {@section Built in Reporters}
     1. {@section exometer_report_graphite}
     2. {@section exometer_report_collectd}
@@ -218,6 +219,18 @@ The counter can be reset to zero through `exometer:reset()'.
 
 The available data points under a metric using the fast_counter
 entry are `value' and `ms_since_reset'.
+
+=== gauge (exometer native) ===
+
+The gauge is implemented directly in `exometer' to provide simple
+gauges.  A call to `exometer:update()' will set the gauge's value
+to the provided value. That is, the value of the gauge entry is
+always the most recently provided value.
+
+The gauge can be reset to zero through `exometer:reset()'.
+
+The available data points under a metric using the gauge entry
+are `value' and `ms_since_reset'.
 
 === exometer_histogram (probe) ===
 

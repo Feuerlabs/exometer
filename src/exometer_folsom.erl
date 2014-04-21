@@ -21,9 +21,6 @@
          sample/3,
          setopts/4]).
 
--define(DATAPOINTS,
-        [ counter, histogram, duration, meter, spiral ]).
-
 behaviour() -> entry.
 
 new(Name, counter, _Opts) ->
@@ -41,6 +38,8 @@ new(Name, histogram, Opts) ->
     end;
 new(Name, meter, Opts) ->
     {folsom_metrics:new_meter(Name), opt_ref(Opts)};
+new(Name, gauge, Opts) ->
+    {folsom_metrics:new_gauge(Name), opt_ref(Opts)};
 new(Name, duration, Opts) ->
     {folsom_metrics:new_duration(Name), opt_ref(Opts)}.
 
@@ -62,6 +61,8 @@ update(Name, Value, Type, _Ref) ->
 
 reset(Name, counter, _Ref) ->
     folsom_metrics_counter:clear(Name);
+reset(Name, gauge, _Ref) ->
+    folsom_metrics_gauge:clear(Name);
 reset(_, _, _) ->
     {error, unsupported}.
 
@@ -143,6 +144,8 @@ sample(_Name, _Type, _Ref) ->
 
 get_value_(Name, counter, _Ref) ->
     [{value, folsom_metrics_counter:get_value(Name)}];
+get_value_(Name, gauge, _Ref) ->
+    [{value, folsom_metrics_gauge:get_value(Name)}];
 get_value_(Name, histogram, _Ref) ->
     calc_stats(folsom_metrics_histogram:get_values(Name));
 get_value_(Name, duration, _Ref) ->

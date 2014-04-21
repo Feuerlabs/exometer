@@ -177,7 +177,9 @@
 
 -define(SERVER, ?MODULE).
 
--type metric()          :: nonempty_list(atom()).
+-type metric()          :: exometer:name()
+			 | {find, exometer:name()}
+			 | {select, ets:match_spec()}.
 -type datapoint()       :: atom().
 -type options()         :: [{atom(), any()}].
 -type mod_state()       :: any().
@@ -276,7 +278,7 @@ start_link() ->
 subscribe(Reporter, Metric, DataPoint, Interval) ->
     subscribe(Reporter, Metric, DataPoint, Interval, []).
 
--spec subscribe(module(), metric(), datapoint(), interval(), extra()) -> 
+-spec subscribe(module(), metric(), datapoint(), interval(), extra()) ->
     ok | not_found | unknown_reporter.
 %% @doc Add a subscription to an existing reporter.
 %%
@@ -298,13 +300,13 @@ subscribe(Reporter, Metric, DataPoint, Interval, Extra) ->
                           retry_failed_metrics = false,
                           extra = Extra}, Interval}).
 
--spec unsubscribe(module(), metric(), datapoint()) -> 
+-spec unsubscribe(module(), metric(), datapoint()) ->
     ok | not_found.
 %% @equiv unsubscribe(Reporter, Metric, DataPoint, [])
 unsubscribe(Reporter, Metric, DataPoint) ->
     unsubscribe(Reporter, Metric, DataPoint, []).
 
--spec unsubscribe(module(), metric(), datapoint() | [datapoint()], extra()) -> 
+-spec unsubscribe(module(), metric(), datapoint() | [datapoint()], extra()) ->
     ok | not_found.
 %% @doc Removes a subscription.
 %%
@@ -413,7 +415,7 @@ do_start_reporters(S) ->
                                                  opts = Opt,
                                                  restart = Restart} | Acc]
                            end, [], ReporterList);
-                     false -> 
+                     false ->
                          []
                  end,
     %% Dig out configured 'static' subscribers
@@ -456,15 +458,15 @@ handle_call({subscribe,
     %% Verify that the given metric/data point actually exist.
     case lists:keyfind(Reporter, #reporter.module, Rs) of
         #reporter{} ->
-            case exometer:get_value(Metric, first_datapoint(DataPoint)) of
-                {ok, _} ->
+	    case is_valid_metric(Metric, DataPoint) of
+		true ->
                     Reporter ! {exometer_subscribe, Metric,
                                 DataPoint, Interval, Extra},
                     Sub = subscribe_(Reporter, Metric, DataPoint,
                                      Interval, RetryFailedMetrics, Extra),
                     {reply, ok, St#st{ subscribers = [Sub | Subs] }};
                 %% Nope - Not found.
-                _ -> {reply, not_found, St }
+                false -> {reply, not_found, St }
             end;
         false ->
             {reply, unknown_reporter, St}
@@ -484,7 +486,7 @@ handle_call({unsubscribe_all, Reporter, Metric}, _,
             #st{subscribers=Subs0}=St) ->
     Subs1 = lists:foldl(
               fun
-                  (#subscriber{key=#key{metric=Metric1}=Key, t_ref=TRef}, Acc) 
+                  (#subscriber{key=#key{metric=Metric1}=Key, t_ref=TRef}, Acc)
                     when Metric == Metric1 ->
                       #key{datapoint=Dp, extra=Extra} = Key,
                       Reporter ! {exometer_unsubscribe, Metric, Dp, Extra},
@@ -507,9 +509,9 @@ handle_call({list_subscriptions, Reporter}, _, #st{subscribers = Subs0} = St) ->
                   (#subscriber{key=#key{reporter=Rep}}=Sub, Acc) when Reporter == Rep ->
                       #subscriber{
                          key=#key{
-                                metric=Metric, 
-                                datapoint=Dp, 
-                                extra=Extra}, 
+                                metric=Metric,
+                                datapoint=Dp,
+                                extra=Extra},
                          interval=Interval} = Sub,
                       [{Metric, Dp, Interval, Extra} | Acc];
                   (_, Acc) ->
@@ -594,12 +596,12 @@ handle_info({ report, #key{ reporter = Reporter,
             #st{subscribers = Subs} = St) ->
     case lists:keyfind(Key, #subscriber.key, Subs) of
         #subscriber{} = Sub ->
-            case {RetryFailedMetrics,  exometer:get_value(Metric, DataPoint)} of
-                %% We found a value.
-                {_, {ok, Values}} ->
+            case {RetryFailedMetrics,  get_values(Metric, DataPoint)} of
+                %% We found a value, or values.
+                {_, [_|_] = Found} ->
                     %% Distribute metric value to the correct process
-                    [report_value(Reporter, Metric, DP, Extra, Val)
-                     || {DP, Val} <- Values],
+                    [[report_value(Reporter, Name, DP, Extra, Val)
+		      || {DP, Val} <- Values] || {Name, Values} <- Found],
 
                     %% Re-arm the timer for next round
                     TRef = erlang:send_after(Interval, self(),
@@ -614,8 +616,12 @@ handle_info({ report, #key{ reporter = Reporter,
 
                 %% We did not find a value, but we should try again.
                 {true, _ } ->
-                    ?info("Metric(~p) Datapoint(~p) not found. Will try again in ~p msec~n",
-                           [Metric, DataPoint, Interval]),
+		    if is_list(Metric) ->
+			    ?debug("Metric(~p) Datapoint(~p) not found."
+				   " Will try again in ~p msec~n",
+				   [Metric, DataPoint, Interval]);
+		       true -> ok
+		    end,
                     %% Re-arm the timer for next round
                     TRef = erlang:send_after(Interval, self(),
                                              {report, Key, Interval}),
@@ -717,10 +723,63 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-first_datapoint([DP|_]) ->
-    DP;
-first_datapoint(DP) when is_atom(DP); is_integer(DP) ->
-    DP.
+is_valid_metric({find, Name}, _DataPoint) when is_list(Name) ->
+    true;
+is_valid_metric({select, Name}, _DataPoint) when is_list(Name) ->
+    try ets:match_spec_compile(Name), true
+    catch
+	error:_ -> false
+    end;
+is_valid_metric(Name, default) when is_list(Name) ->
+    case exometer:info(Name, type) of
+	undefined -> false;
+	_ -> true
+    end;
+is_valid_metric(Name, DataPoint) when is_list(Name) ->
+    case dp_list(DataPoint) of
+	[] -> false;
+	[_|_] = DataPoints ->
+	    case exometer:info(Name, datapoints) of
+		undefined -> false;
+		DPs ->
+		    case DataPoints -- DPs of
+			[] -> true;
+			_  -> false
+		    end
+	    end
+    end;
+is_valid_metric(_, _) ->
+    false.
+
+dp_list(DP) when is_list(DP) -> DP;
+dp_list(DP) when is_atom(DP) -> [DP].
+
+get_values(Name, DataPoint) when is_list(Name) ->
+    case exometer:get_value(Name, DataPoint) of
+	{ok, Values} -> [{Name, Values}];
+	_ -> []
+    end;
+get_values({How, Path}, DataPoint) ->
+    Entries = case How of
+		  find   -> exometer:find_entries(Path);
+		  select -> exometer:select(Path)
+	      end,
+    lists:foldr(
+      fun({Name, _, enabled}, Acc) ->
+	      case exometer:get_value(Name, DataPoint) of
+		  {ok, Values} ->
+		      [{Name, Values}|Acc];
+		  _ ->
+		      Acc
+	      end;
+	 (_, Acc) -> Acc
+      end, [], Entries).
+
+
+%% first_datapoint([DP|_]) ->
+%%     DP;
+%% first_datapoint(DP) when is_atom(DP); is_integer(DP) ->
+%%     DP.
 
 
 assert_no_duplicates([{R,_}|T]) ->
@@ -796,34 +855,58 @@ report_value(Reporter, Metric, DataPoint, Extra, Val) ->
         exit:_ -> false
     end.
 
-retrieve_metric({Metric, _, Enabled}, Subscribers, Acc) ->
+retrieve_metric({Metric, Type, Enabled}, Subscribers, Acc) ->
     [ { Metric, exometer:info(Metric, datapoints),
-        get_subscribers(Metric, Subscribers), Enabled } | Acc ].
+        get_subscribers(Metric, Type, Enabled, Subscribers), Enabled } | Acc ].
 
+find_entries_in_list(find, Path, List) ->
+    Pat = Path ++ '_',
+    Spec = ets:match_spec_compile([{ {Pat, '_', '_'}, [], ['$_'] }]),
+    ets:match_spec_run(List, Spec);
+find_entries_in_list(select, Pat, List) ->
+    Spec = ets:match_spec_compile(Pat),
+    ets:match_spec_run(List, Spec).
 
-get_subscribers(_Metric, []) ->
+get_subscribers(_Metric, _Type, _Status, []) ->
     [];
 
 %% This subscription matches Metric
-get_subscribers(Metric, [ #subscriber {
-                             key = #key {
-                               reporter = SReporter,
-                               metric = Metric,
-                               datapoint = SDataPoint
-                              }} | T ]) ->
+get_subscribers(Metric, Type, Status,
+		[ #subscriber {
+		     key = #key {
+			      reporter = SReporter,
+			      metric = Metric,
+			      datapoint = SDataPoint
+			     }} | T ]) ->
     ?debug("get_subscribers(~p, ~p, ~p): match~n", [ Metric, SDataPoint, SReporter]),
-    [ { SReporter, SDataPoint } | get_subscribers(Metric, T) ];
+    [ { SReporter, SDataPoint } | get_subscribers(Metric, Type, Status, T) ];
+
+get_subscribers(Metric, Type, Status,
+		[ #subscriber {
+		     key = #key {
+			      metric = {How, Path},
+			      reporter = SReporter,
+			      datapoint = SDataPoint
+			     }} | T ]) ->
+    case find_entries_in_list(How, Path, [{Metric, Type, Status}]) of
+	[] ->
+	    get_subscribers(Metric, Type, Status, T);
+	[_] ->
+	    [ { SReporter, SDataPoint }
+	      | get_subscribers(Metric, Type, Status, T) ]
+    end;
 
 %% This subscription does not match Metric.
-get_subscribers(Metric, [ #subscriber {
-                             key = #key {
-                               reporter = SReporter,
-                               metric = SMetric,
-                               datapoint = SDataPoint
-                              }} | T]) ->
+get_subscribers(Metric, Type, Status,
+		[ #subscriber {
+		     key = #key {
+			      reporter = SReporter,
+			      metric = SMetric,
+			      datapoint = SDataPoint
+			     }} | T]) ->
     ?debug("get_subscribers(~p, ~p, ~p) nomatch(~p) ~n",
               [ SMetric, SDataPoint, SReporter, Metric]),
-    get_subscribers(Metric, T).
+    get_subscribers(Metric, Type, Status, T).
 
 %% Purge all subscriptions associated with a specific reporter
 %% (that just went down).
@@ -1009,9 +1092,9 @@ get_restart(Opts) ->
 restart_rec(L) ->
     Save = lists:foldl(
              fun
-                 ({R,_}, Acc) when is_integer(R) -> 
+                 ({R,_}, Acc) when is_integer(R) ->
                      erlang:max(R, Acc);
-                 (_, Acc) -> 
+                 (_, Acc) ->
                      Acc
              end, 0, L),
     #restart{spec = L, save_n = Save}.

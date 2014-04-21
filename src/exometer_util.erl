@@ -260,7 +260,9 @@ key_match(_, _)   -> false.
 
 
 get_datapoints(#exometer_entry{module = exometer,
-			       type = T}) when T==counter; T==fast_counter ->
+			       type = T}) when T==counter;
+                                               T==fast_counter;
+                                               T==gauge ->
     [value, ms_since_reset];
 get_datapoints(#exometer_entry{behaviour = entry,
 			       name = Name, module = M,

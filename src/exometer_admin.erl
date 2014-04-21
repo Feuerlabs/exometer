@@ -27,7 +27,9 @@
    [
     new_entry/3,
     re_register_entry/3,
-    delete_entry/1
+    delete_entry/1,
+    ensure/3,
+    auto_create_entry/1
    ]).
 
 -export(
@@ -39,6 +41,7 @@
     register_application/1,
     normalize_name/1
    ]).
+-export([find_auto_template/1, prefixes/1, make_patterns/2]).
 
 -export([monitor/2, demonitor/1]).
 
@@ -71,7 +74,7 @@ set_default(NamePattern0, Type, #exometer_entry{} = E)
                E#exometer_entry{name = {default,Type,NamePattern},
                                 type = Type});
 set_default(NamePattern, Type, Opts) when is_list(NamePattern) ->
-    set_default(NamePattern, Type, opts_to_rec(Opts)).
+    set_default(NamePattern, Type, opts_to_rec(Type, Opts)).
 
 preset_defaults() ->
     load_defaults(),
@@ -185,6 +188,18 @@ re_register_entry(Name, Type, Opts) ->
 delete_entry(Name) ->
     gen_server:call(?MODULE, {delete_entry, Name}).
 
+ensure(Name, Type, Opts) ->
+    {Type1, Opt1} = check_type_arg(Type, Opts),
+    case gen_server:call(?MODULE, {ensure, Name, Type1, Opt1}) of
+	{error, Reason} ->
+	    error(Reason);
+	ok ->
+	    ok
+    end.
+
+auto_create_entry(Name) ->
+    gen_server:call(?MODULE, {auto_create, Name}).
+
 check_type_arg({function, M, F}, Opts) ->
     {function, [{arg, {M, F}} | Opts]};
 
@@ -203,11 +218,15 @@ monitor(Name, Pid) when is_pid(Pid) ->
 demonitor(Pid) when is_pid(Pid) ->
     gen_server:cast(?MODULE, {demonitor, Pid}).
 
-opts_to_rec(Opts) ->
+opts_to_rec(Type, Opts0) ->
+    Opts = case lists:keymember(module, 1, Opts0) of
+	       true -> Opts0;
+	       false -> [{module, module(Type)}|Opts0]
+	   end,
     Flds = record_info(fields, exometer_entry),
     lists:foldr(fun({K,V}, Acc) ->
                         setelement(pos(K, Flds), Acc, V)
-                end, #exometer_entry{}, Opts).
+                end, #exometer_entry{options = Opts0}, Opts).
 
 pos(K, L) -> pos(K, L, 2).
 
@@ -247,6 +266,30 @@ handle_call({new_entry, Name, Type, Opts, AllowExisting}, _From, S) ->
     end;
 handle_call({delete_entry, Name}, _From, S) ->
     {reply, delete_entry_(Name), S};
+handle_call({ensure, Name, Type, Opts}, _From, S) ->
+    case ets:lookup(exometer_util:table(), Name) of
+	[#exometer_entry{type = Type}] ->
+	    {reply, ok, S};
+	[#exometer_entry{type = _OtherType}] ->
+	    {reply, {error, type_mismatch}, S};
+	[] ->
+	    #exometer_entry{options = OptsTemplate} = E0 =
+		lookup_definition(Name, Type, Opts),
+	    E1 = process_opts(E0, OptsTemplate ++ Opts),
+	    Res = exometer:create_entry(E1),
+	    exometer_report:new_entry(E1),
+	    {reply, Res, S}
+    end;
+handle_call({auto_create, Name}, _From, S) ->
+    case find_auto_template(Name) of
+	false ->
+	    {reply, {error, no_template}, S};
+	#exometer_entry{options = Opts} = E ->
+	    E1 = process_opts(E#exometer_entry{name = Name}, Opts),
+	    Res = exometer:create_entry(E1),
+	    exometer_report:new_entry(E1),
+	    {reply, Res, S}
+    end;
 handle_call(_, _, S) ->
     {reply, error, S}.
 
@@ -362,6 +405,7 @@ exometer_default(Name, Type) ->
     #exometer_entry{name = Name, type = Type, module = module(Type)}.
 
 module(counter )      -> exometer;
+module(gauge)         -> exometer;
 module(fast_counter)  -> exometer;
 module(uniform)       -> exometer_uniform;
 module(duration)      -> exometer_duration;
@@ -385,16 +429,68 @@ search_default(Name, Type) ->
             E
     end.
 
-make_patterns(Type, Name) when is_list(Name) ->
-    make_patterns(Name, Type, []).
+sort_defaults(L) ->
+    lists:sort(fun comp_templates/2,
+	       [E || #exometer_entry{type = T} = E <- L,
+		     T =/= function andalso T =/= cpu]).
 
-make_patterns([H|T], Type, Acc) ->
-    Acc1 = Acc ++ [H],
-    ID = Acc1 ++ [''],
-    [{ #exometer_entry{name = {default, Type, ID}, _ = '_'}, [], ['$_'] }
-     | make_patterns(T, Type, Acc1)];
-make_patterns([], Type, _) ->
-    [{ #exometer_entry{name = {default, Type, ['']}, _ = '_'}, [], ['$_'] }].
+comp_templates(#exometer_entry{name = {default, _, A}, type = Ta},
+	       #exometer_entry{name = {default, _, B}, type = Tb}) ->
+    comp_names(A, B, Ta, Tb).
+
+
+comp_names([H |A], [H |B], Ta, Tb) -> comp_names(A, B, Ta, Tb);
+comp_names([''|_], [_ |_], _, _) -> false;
+comp_names([_ |_], [''|_], _, _) -> true;
+comp_names([],     [_ |_], _, _) -> false;
+comp_names([_ |_], []    , _, _) -> true;
+comp_names([],     []    , A, B) -> comp_types(A, B).
+
+comp_types(histogram, _) -> true;
+comp_types(counter, B) when B=/=histogram -> true;
+comp_types(gauge  , B) when B=/=histogram, B=/=counter -> true;
+comp_types(spiral , B) when B=/=histogram, B=/=counter, B=/=gauge -> true;
+comp_types(A, B) -> A =< B.
+
+-spec find_auto_template(exometer:name()) -> #exometer_entry{} | false.
+%% @doc Convenience function for testing which template will apply to
+%% `Name'. See {@link set_default/2} and {@link exometer:update_or_create/2}.
+%% @end
+find_auto_template(Name) ->
+    case sort_defaults(ets:select(?EXOMETER_SHARED,
+				  make_patterns('_', Name))) of
+	[] -> false;
+	[#exometer_entry{name = {default,_,['']}}|_] -> false;
+	[#exometer_entry{} = E|_] -> E
+    end.
+
+make_patterns(Type, Name) when is_list(Name) ->
+    Prefixes = prefixes(Name),
+    [{ #exometer_entry{name = {default,Type,[V || {_,V} <- Pfx]}, _ = '_'},
+       [{'or',{'=:=',V,X},{'=:=',V,''}} || {X,V} <- Pfx], ['$_'] }
+     || Pfx <- Prefixes].
+
+prefixes(L) ->
+    Vars = vars(),
+    prefixes(L,Vars,[],[]).
+
+vars() ->
+    ['$1','$2','$3','$4','$5','$6','$7','$8','$9',
+     '$10','$11','$12','$13','$14','$15','$16'].
+
+prefixes([H|T],[V|Vs],Acc,Ps) ->
+    P1 = [{H,V}|Acc],
+    prefixes(T,Vs,P1,[lists:reverse(P1)|Ps]);
+prefixes([],_,_,Ps) ->
+    Ps.
+
+%% make_patterns([H|T], Type, Acc) ->
+%%     Acc1 = Acc ++ [H],
+%%     ID = Acc1 ++ [''],
+%%     [{ #exometer_entry{name = {default, Type, ID}, _ = '_'}, [], ['$_'] }
+%%      | make_patterns(T, Type, Acc1)];
+%% make_patterns([], Type, _) ->
+%%     [{ #exometer_entry{name = {default, Type, ['']}, _ = '_'}, [], ['$_'] }].
 
 
 %% This function is called when creating an #exometer_entry{} record.
@@ -426,7 +522,8 @@ process_opts(Entry, Options) ->
 
 delete_entry_(Name) ->
     case ets:lookup(exometer_util:table(), Name) of
-        [#exometer_entry{module = exometer, type = counter}] ->
+        [#exometer_entry{module = exometer, type = Type}] when Type==counter;
+                                                               Type==gauge ->
             [ets:delete(T, Name) ||
                 T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
             ok;

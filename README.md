@@ -1,10 +1,8 @@
-
-
 # Exometer - Erlang instrumentation package #
 
 Copyright (c) 2014 Basho Technologies, Inc.  All Rights Reserved.
 
-__Version:__ Apr 17 2014 08:50:46
+__Version:__ Apr 20 2014 18:50:46
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -38,11 +36,12 @@ with `exometer`.
 2. [Built-in entries and probes](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Built-in_entries_and_probes)
     1. [counter (exometer native)](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#counter_(exometer_native))
     2. [fast_counter (exometer native)](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#fast_counter_(exometer_native))
-    3. [exometer_histogram (probe)](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_histogram_(probe))
-    4. [exometer_uniform (probe)](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_uniform_(probe))
-    5. [exometer_spiral (probe)](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_spiral_(probe))
-    6. [exometer_folsom [entry]](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_folsom_[entry])
-    7. [exometer_function [entry]](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_function_[entry])
+    3. [gauge (exometer native)](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#gauge_(exometer_native))
+    4. [exometer_histogram (probe)](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_histogram_(probe))
+    5. [exometer_uniform (probe)](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_uniform_(probe))
+    6. [exometer_spiral (probe)](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_spiral_(probe))
+    7. [exometer_folsom [entry]](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_folsom_[entry])
+    8. [exometer_function [entry]](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_function_[entry])
 3. [Built in Reporters](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Built_in_Reporters)
     1. [exometer_report_graphite](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_report_graphite)
     2. [exometer_report_collectd](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_report_collectd)
@@ -236,6 +235,19 @@ The counter can be reset to zero through `exometer:reset()`.
 
 The available data points under a metric using the fast_counter
 entry are `value` and `ms_since_reset`.
+
+
+#### <a name="gauge_(exometer_native)">gauge (exometer native)</a> ####
+
+The gauge is implemented directly in `exometer` to provide simple
+gauges.  A call to `exometer:update()` will set the gauge's value
+to the provided value. That is, the value of the gauge entry is
+always the most recently provided value.
+
+The gauge can be reset to zero through `exometer:reset()`.
+
+The available data points under a metric using the gauge entry
+are `value` and `ms_since_reset`.
 
 
 #### <a name="exometer_histogram_(probe)">exometer_histogram (probe)</a> ####
@@ -1026,6 +1038,7 @@ Please see @see exometer_report documentation for details.
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report.md" class="module">exometer_report</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_collectd.md" class="module">exometer_report_collectd</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_graphite.md" class="module">exometer_report_graphite</a></td></tr>
+<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_lager.md" class="module">exometer_report_lager</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_riak.md" class="module">exometer_report_riak</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_snmp.md" class="module">exometer_report_snmp</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_statsd.md" class="module">exometer_report_statsd</a></td></tr>
@@ -1035,4 +1048,3 @@ Please see @see exometer_report documentation for details.
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_spiral.md" class="module">exometer_spiral</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_uniform.md" class="module">exometer_uniform</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_util.md" class="module">exometer_util</a></td></tr></table>
-
