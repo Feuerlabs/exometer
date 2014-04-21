@@ -27,6 +27,7 @@
    [
     new_entry/3,
     re_register_entry/3,
+    delete_entry/1,
     ensure/3,
     auto_create_entry/1
    ]).
@@ -37,6 +38,7 @@
     preset_defaults/0,
     load_defaults/0,
     load_predefined/0,
+    register_application/1,
     normalize_name/1
    ]).
 -export([find_auto_template/1, prefixes/1, make_patterns/2]).
@@ -81,47 +83,83 @@ preset_defaults() ->
 load_defaults() ->
     case application:get_env(exometer, defaults) of
         {ok, E} ->
-            do_load_defaults(get_predef(E));
+            do_load_defaults(env, get_predef(E));
         _ ->
             ok
     end,
-    do_load_defaults(get_ext_predef(exometer_defaults)).
+    [do_load_defaults(Src, get_predef(D))
+     || {Src,D} <- setup:find_env_vars(exometer_defaults)],
+    ok.
 
 load_predefined() ->
     case application:get_env(exometer, predefined) of
         {ok, E} ->
-            do_load_predef(get_predef(E));
+            do_load_predef(env, get_predef(E));
         _ ->
             ok
     end,
-    do_load_predef(get_ext_predef(exometer_predefined)).
+    [do_load_predef(Src, get_predef(P))
+     || {Src, P} <- setup:find_env_vars(exometer_predefined)],
+    ok.
 
+register_application(App) ->
+    %% Ignore if exometer is not running
+    case whereis(exometer_admin) of
+	undefined -> ok;
+	_ ->
+	    case application:get_env(App, exometer_defaults) of
+		{ok, E} ->
+		    do_load_defaults(App, get_predef(E));
+		undefined ->
+		    ok
+	    end,
+	    case application:get_env(App, exometer_predefined) of
+		{ok, P} ->
+		    do_load_predef(App, get_predef(P));
+		undefined ->
+		    ok
+	    end
+    end.
 
 get_predef({script, F} ) -> ok(file:script(F, []));
 get_predef({apply, M, F, A}) -> ok(apply(M, F, A));
 get_predef(L) when is_list(L) -> L.
 
-get_ext_predef(Var) ->
-    try
-        lists:flatten(
-          [get_predef(E) || {_, E} <- setup:find_env_vars(Var)])
-    catch
-        error:undef ->
-            []
-    end.
-
-do_load_defaults(L) when is_list(L) ->
+do_load_defaults(Src, L) when is_list(L) ->
     lists:foreach(
       fun({NamePattern, Type, Spec}) ->
-              set_default(NamePattern, Type, Spec)
+              try set_default(NamePattern, Type, Spec)
+	      catch
+		  error:E ->
+		      lager:error("Defaults(~p): ERROR: ~p~n", [Src, E])
+	      end
       end, L).
 
-
-do_load_predef(L) when is_list(L) ->
+do_load_predef(Src, L) when is_list(L) ->
     lists:foreach(
       fun({Name, Type, Options}) ->
-              new_entry(Name, Type, Options)
+              new_entry(Name, Type, Options);
+	 ({delete, Key}) ->
+	      predef_delete_entry(Key, Src);
+	 ({re_register, {Name, Type, Options}}) ->
+	      re_register_entry(Name, Type, Options);
+	 ({select_delete, Pat}) ->
+	      Found = exometer:select(Pat),
+	      lists:foreach(
+		fun({K,_,_}) ->
+			predef_delete_entry(K, Src);
+		   (Other) ->
+			lager:error("Predef(~p): ~p~n",
+				    [Src, {bad_pattern,Other}])
+		end, Found)
       end, L).
+
+predef_delete_entry(Key, Src) ->
+    case delete_entry(Key) of
+	ok -> ok;
+	Error ->
+	    lager:error("Predef(~p): ~p~n", [Src, Error])
+    end.
 
 ok({ok, Res}) -> Res;
 ok({error, E}) ->
@@ -146,6 +184,9 @@ re_register_entry(Name, Type, Opts) ->
         ok ->
             ok
     end.
+
+delete_entry(Name) ->
+    gen_server:call(?MODULE, {delete_entry, Name}).
 
 ensure(Name, Type, Opts) ->
     {Type1, Opt1} = check_type_arg(Type, Opts),
@@ -223,6 +264,8 @@ handle_call({new_entry, Name, Type, Opts, AllowExisting}, _From, S) ->
         error:Error ->
             {reply, {error, Error}, S}
     end;
+handle_call({delete_entry, Name}, _From, S) ->
+    {reply, delete_entry_(Name), S};
 handle_call({ensure, Name, Type, Opts}, _From, S) ->
     case ets:lookup(exometer_util:table(), Name) of
 	[#exometer_entry{type = Type}] ->
@@ -476,3 +519,38 @@ process_opts(Entry, Options) ->
           ({_Opt, _Val}, #exometer_entry{} = Entry1) ->
               Entry1
       end, Entry#exometer_entry{options = Options}, Options).
+
+delete_entry_(Name) ->
+    case ets:lookup(exometer_util:table(), Name) of
+        [#exometer_entry{module = exometer, type = Type}] when Type==counter;
+                                                               Type==gauge ->
+            [ets:delete(T, Name) ||
+                T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
+            ok;
+        [#exometer_entry{module = exometer, type = fast_counter,
+                         ref = {M, F}}] ->
+            exometer_util:set_call_count(M, F, false),
+            [ets:delete(T, Name) ||
+                T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
+            ok;
+        [#exometer_entry{behaviour = probe,
+			 type = Type, ref = Ref} = E] ->
+	    [ exometer_cache:delete(Name, DataPoint) ||
+		DataPoint <- exometer_util:get_datapoints(E)],
+
+	    exometer_probe:delete(Name, Type, Ref),
+            [ets:delete(T, Name) ||
+                T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
+            ok;
+        [#exometer_entry{module= Mod, behaviour = entry,
+			 type = Type, ref = Ref} = E] ->
+	    [ exometer_cache:delete(Name, DataPoint) ||
+		DataPoint <- exometer_util:get_datapoints(E)],
+            try Mod:delete(Name, Type, Ref)
+            after
+                [ets:delete(T, Name) ||
+                    T <- [?EXOMETER_ENTRIES|exometer_util:tables()]]
+            end;
+        [] ->
+            {error, not_found}
+    end.

@@ -52,7 +52,9 @@
     setopts/2,
     find_entries/1,
     select/1, select/2, select_cont/1,
-    info/1, info/2
+    info/1, info/2,
+    register_application/0,
+    register_application/1
    ]).
 
 -export([create_entry/1]).  % called only from exometer_admin.erl
@@ -73,8 +75,6 @@
 -type options()     :: [{atom(), any()}].
 -type value()       :: any().
 -type error()       :: {error, any()}.
-
--define(DATAPOINTS, [value, ms_since_reset]).
 
 start() ->
     lager:start(),
@@ -275,7 +275,7 @@ get_value_(#exometer_entry{cache = Cache } = E,
 get_value_(#exometer_entry{ module = ?MODULE,
 			    type = Type} = E, default)
   when Type == counter; Type == fast_counter; Type == gauge ->
-    get_value_(E, get_datapoints_(E));
+    get_value_(E, exometer_util:get_datapoints(E));
 
 get_value_(#exometer_entry{ module = ?MODULE,
 			    type = counter} = E, DataPoints0) ->
@@ -309,7 +309,7 @@ get_value_(#exometer_entry{behaviour = probe,
 
 
 get_cached_value_(E, default) ->
-    get_cached_value_(E, get_datapoints_(E));
+    get_cached_value_(E, exometer_util:get_datapoints(E));
 
 get_cached_value_(#exometer_entry{name = Name,
 				 cache = CacheTTL } = E,
@@ -342,40 +342,7 @@ get_cached_value_(#exometer_entry{name = Name,
 -spec delete(name()) -> ok | error().
 %% @doc Delete the metric
 delete(Name) when is_list(Name) ->
-    case ets:lookup(exometer_util:table(), Name) of
-        [#exometer_entry{module = ?MODULE, type = Type}]
-	  when Type == counter; Type == gauge ->
-            [ets:delete(T, Name) ||
-                T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
-            ok;
-        [#exometer_entry{module = ?MODULE, type = fast_counter,
-                         ref = {M, F}}] ->
-            set_call_count(M, F, false),
-            [ets:delete(T, Name) ||
-                T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
-            ok;
-        [#exometer_entry{behaviour = probe,
-			 type = Type, ref = Ref} = E] ->
-	    [ exometer_cache:delete(Name, DataPoint) ||
-		DataPoint <- get_datapoints_(E)],
-
-	    exometer_probe:delete(Name, Type, Ref),
-            [ets:delete(T, Name) ||
-                T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
-            ok;
-        [#exometer_entry{module= Mod, behaviour = entry,
-			 type = Type, ref = Ref} = E] ->
-	    [ exometer_cache:delete(Name, DataPoint) ||
-		DataPoint <- get_datapoints_(E)],
-            try Mod:delete(Name, Type, Ref)
-            after
-                [ets:delete(T, Name) ||
-                    T <- [?EXOMETER_ENTRIES|exometer_util:tables()]]
-            end;
-        [] ->
-            {error, not_found}
-    end.
-
+    exometer_admin:delete_entry(Name).
 
 -spec sample(name()) -> ok | error().
 %% @doc Tells the metric (mainly probes) to take a sample.
@@ -449,13 +416,13 @@ reset(Name)  when is_list(Name) ->
                          type = Type,
                          ref = Ref} = E] ->
 	    [ exometer_cache:delete(Name, DataPoint) ||
-		DataPoint <- get_datapoints_(E)],
+		DataPoint <- exometer_util:get_datapoints(E)],
             exometer_probe:reset(Name, Type, Ref),
             ok;
         [#exometer_entry{behaviour = entry,
                          module = M, type = Type, ref = Ref} = E] ->
 	    [ exometer_cache:delete(Name, DataPoint) ||
-		DataPoint <- get_datapoints_(E)],
+		DataPoint <- exometer_util:get_datapoints(E)],
 
             M:reset(Name, Type, Ref);
         [] ->
@@ -642,7 +609,7 @@ info_(E, Item) ->
 	options   -> E#exometer_entry.options;
 	ref       -> E#exometer_entry.ref;
 	entry     -> E;
-	datapoints-> get_datapoints_(E);
+	datapoints-> exometer_util:get_datapoints(E);
 	_ -> undefined
     end.
 
@@ -656,23 +623,6 @@ datapoints(D, _) when is_integer(D) ->
 datapoints(D, _) when is_list(D) ->
     D.
 
-get_datapoints_(#exometer_entry{type = T}) when T==counter;
-						T==fast_counter;
-						T==gauge ->
-    ?DATAPOINTS;
-
-get_datapoints_(#exometer_entry{behaviour = entry,
-				name = Name, module = M,
-                                type = Type, ref = Ref}) ->
-    M:get_datapoints(Name, Type, Ref);
-
-get_datapoints_(#exometer_entry{behaviour = probe,
-				name = Name, type = Type, ref = Ref}) ->
-
-    exometer_probe:get_datapoints(Name, Type, Ref).
-
-
-
 -spec info(name()) -> [{info(), any()}].
 %% @doc Returns a list of info items for Metric, see {@link info/2}.
 info(Name) ->
@@ -681,7 +631,8 @@ info(Name) ->
             Flds = record_info(fields, exometer_entry),
             lists:keyreplace(value, 1,
                              lists:zip(Flds, tl(tuple_to_list(E))) ++
-                                 [ {datapoints, get_datapoints_(E)}],
+                                 [ {datapoints,
+				    exometer_util:get_datapoints(E)}],
                              {value, get_value_(E, [])});
         _ ->
             undefined
@@ -951,3 +902,29 @@ set_call_count({M, F}, Bool) ->
 
 set_call_count(M, F, Bool) when is_atom(M), is_atom(F), is_boolean(Bool) ->
     erlang:trace_pattern({M, F, 0}, Bool, [call_count]).
+
+-spec register_application() -> ok | error().
+%% @equiv register_application(current_application())
+%%
+register_application() ->
+    case application:get_application() of
+	{ok, App} ->
+	    register_application(App);
+	Other ->
+	    {error, Other}
+    end.
+
+-spec register_application(_Application::atom()) -> ok | error().
+%% @doc Registers statically defined entries with exometer.
+%%
+%% This function can be used e.g. as a start phase hook or during upgrade.
+%% It will check for the environment variables `exometer_defaults' and
+%% `exometer_predefined' in `Application', and apply them as if it had
+%% when exometer was first started. If the function is called again,
+%% the settings are re-applied. This can be used e.g. during upgrade,
+%% in order to change statically defined settings.
+%%
+%% If exometer is not running, the function does nothing.
+%% @end
+register_application(App) ->
+    exometer_admin:register_application(App).

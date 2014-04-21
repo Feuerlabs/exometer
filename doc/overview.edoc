@@ -573,7 +573,27 @@ at application startup. The variable should have one of the following values:
 * `{apply, M, F, A}' - The result of `apply(M, F, A)' should be `{ok, L}' where
   `L' is a list of `{Name, Type, Options}' tuples.
 
-* `L', where L is a list of `{Name, Type, Options}' tuples.
+* `L', where L is a list of `{Name, Type, Options}' tuples or extended
+  instructions (see below).
+
+The list of instructions may include:
+
+* `{delete, Name}' - deletes `Name' from the exometer registry.
+
+* `{select_delete, Pattern}' - applies a select pattern and
+  deletes all matching entries.
+
+* `{re_register, {Name, Type, Options}}' - redefines an entry if present,
+  otherwise creates it.
+
+Exometer will also scan all loaded applications for the environment
+variables `exometer_defaults' and `exometer_predefined', and process
+as above. If an application is loaded and started after exometer has started,
+it may call the function `exometer:register_application()' or
+`exometer:register_application(App)'. This function will do nothing if
+exometer isn't already running, and otherwise process the `exometer_defaults'
+and `exometer_predefined' variables as above. The function can also be
+called during upgrade, as it will re-apply the settings each time.
 
 === Configuring static subscriptions  ===
 Static subscriptions, which are automatically setup at exometer

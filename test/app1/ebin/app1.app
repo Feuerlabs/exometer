@@ -1,0 +1,9 @@
+{application,app1,
+             [{description,[]},
+              {vsn,"1"},
+              {registered,[]},
+              {applications,[kernel,stdlib]},
+              {mod,{app1_app,[]}},
+              {start_phases,[{exometer,[]}]},
+              {env,[]},
+              {modules,[app1_app,app1_sup]}]}.

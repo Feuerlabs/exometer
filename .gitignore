@@ -4,6 +4,8 @@ deps
 *.beam
 *.plt
 *.app
+*~
+!test/app1/ebin/app1.app
 include/EXOMETER-MIB.hrl
 priv/mibs
 log/

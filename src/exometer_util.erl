@@ -22,7 +22,9 @@
     get_statistics/3,
     get_statistics2/3,
     drop_duplicates/1,
-    report_type/3
+    report_type/3,
+    get_datapoints/1,
+    set_call_count/2, set_call_count/3
    ]).
 
 -export_type([timestamp/0]).
@@ -50,7 +52,7 @@ timestamp() ->
 -spec timestamp_to_datetime(timestamp()) -> calendar:datetime().
 %% @doc Convert timestamp to a regular datetime.
 %%
-%% The timestamp is expected 
+%% The timestamp is expected
 timestamp_to_datetime(TS) when TS >= 0 ->
     %% Our internal timestamps are relative to Now = {1258,0,0}
     %% It doesn't really matter much how we construct a now()-like tuple,
@@ -150,9 +152,9 @@ table(64) -> exometer_64;
 table(N) when is_integer(N), N > 20 ->
     list_to_atom("exometer_" ++ integer_to_list(N)).
 
-%% @doc 
-%% `drop_duplicates/1' will drop all duplicate elements from a list of tuples identified by their first element. 
-%% Elements which are not tuples will be dropped as well. 
+%% @doc
+%% `drop_duplicates/1' will drop all duplicate elements from a list of tuples identified by their first element.
+%% Elements which are not tuples will be dropped as well.
 %% If called with a non-list argument, the argument is returned as is.
 %% @end
 -spec drop_duplicates(List0 :: [tuple()]) -> [tuple()].
@@ -256,6 +258,25 @@ key_match([], []) -> true;
 key_match('_', _) -> true;
 key_match(_, _)   -> false.
 
+
+get_datapoints(#exometer_entry{module = exometer,
+			       type = T}) when T==counter;
+                                               T==fast_counter;
+                                               T==gauge ->
+    [value, ms_since_reset];
+get_datapoints(#exometer_entry{behaviour = entry,
+			       name = Name, module = M,
+			       type = Type, ref = Ref}) ->
+    M:get_datapoints(Name, Type, Ref);
+get_datapoints(#exometer_entry{behaviour = probe,
+			       name = Name, type = Type, ref = Ref}) ->
+    exometer_probe:get_datapoints(Name, Type, Ref).
+
+set_call_count({M, F}, Bool) ->
+    set_call_count(M, F, Bool).
+
+set_call_count(M, F, Bool) when is_atom(M), is_atom(F), is_boolean(Bool) ->
+    erlang:trace_pattern({M, F, 0}, Bool, [call_count]).
 
 %% EUnit tests
 -ifdef(TEST).
