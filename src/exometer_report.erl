@@ -248,6 +248,7 @@
        ).
 
 -record(reporter, {
+          name      :: atom(),
           pid       :: pid(),
           mref      :: reference(),
           module    :: module(),
@@ -396,7 +397,8 @@ start_reporters() ->
     call(start_reporters).
 
 do_start_reporters(S) ->
-    Opts = exometer_util:get_env(report, []),
+    %% Opts = exometer_util:get_env(report, []),
+    Opts = get_report_env(),
     ?info("Starting reporters with ~p~n", [ Opts ]),
     %% Dig out the mod opts.
     %% { reporters, [ {reporter1, [{opt1, val}, ...]}, {reporter2, [...]}]}
@@ -404,17 +406,18 @@ do_start_reporters(S) ->
     %% supervisor children.
     Reporters0 = case lists:keyfind(reporters, 1, Opts) of
                      {reporters, ReporterList} ->
-                         assert_no_duplicates(ReporterList),
+                         ReporterRecs = make_reporter_recs(ReporterList),
+                         assert_no_duplicates(ReporterRecs),
                          lists:foldr(
-                           fun({Reporter, Opt}, Acc) ->
-                                   Restart = get_restart(Opt),
-                                   {Pid, MRef} = spawn_reporter(Reporter, Opt),
-                                   [ #reporter { module = Reporter,
-                                                 pid = Pid,
-                                                 mref = MRef,
-                                                 opts = Opt,
-                                                 restart = Restart} | Acc]
-                           end, [], ReporterList);
+                           fun(#reporter{name = Reporter,
+                                         opts = ROpts} = R, Acc) ->
+                                   Restart = get_restart(ROpts),
+                                   {Pid, MRef} =
+                                       spawn_reporter(Reporter, ROpts),
+                                   [ R#reporter{pid = Pid,
+                                                mref = MRef,
+                                                restart = Restart} | Acc]
+                           end, [], ReporterRecs);
                      false ->
                          []
                  end,
@@ -430,6 +433,43 @@ do_start_reporters(S) ->
       reporters = Reporters0,
       subscribers = SubsList
      }.
+
+make_reporter_recs([{R, Opts}|T]) ->
+    [#reporter{name = R,
+               module = get_module(R, Opts),
+               opts = Opts}|make_reporter_recs(T)];
+make_reporter_recs([]) ->
+    [].
+
+get_module(R, Opts) ->
+    proplists:get_value(module, Opts, R).
+
+get_report_env() ->
+    Opts0 = exometer_util:get_env(report, []),
+    {Rs1, Opts1} = split_env(reporters, Opts0),
+    {Ss2, Opts2} = split_env(subscribers, Opts1),
+    get_reporters(Rs1) ++ get_subscribers(Ss2) ++ Opts2.
+
+split_env(Tag, Opts) ->
+    case lists:keytake(Tag, 1, Opts) of
+        {value, {_, L}, Rest} -> {L, Rest};
+        false -> {[], Opts}
+    end.
+
+get_reporters(L0) ->
+    Rs = exometer_util:get_env(reporters, []),
+    Ext = setup:find_env_vars(exometer_reporters),
+    merge_env(reporters, Rs ++ L0, Ext).
+
+get_subscribers(L0) ->
+    Ss = exometer_util:get_env(subscribers, []),
+    Ext = setup:find_env_vars(exometer_subscribers),
+    merge_env(subscribers, Ss ++ L0, Ext).
+
+merge_env(_, [], []) -> [];
+merge_env(Tag, L, E) ->
+    [{Tag, L} || L =/= []] ++ [{Tag, X} || {_, X} <- E].
+
 
 %%--------------------------------------------------------------------
 %% @private
@@ -524,12 +564,13 @@ handle_call(list_reporters, _, #st{reporters = Reporters} = St) ->
     {reply, Info, St};
 
 handle_call({add_reporter, Reporter, Opts}, _, #st{reporters = Rs} = St) ->
-    case lists:keymember(Reporter, #reporter.module, Rs) of
+    case lists:keymember(Reporter, #reporter.name, Rs) of
         true ->
             {reply, {error, already_running}, St};
         false ->
             {Pid, MRef} = spawn_reporter(Reporter, Opts),
-            Rs1 = [#reporter {module = Reporter,
+            Rs1 = [#reporter {name = Reporter,
+                              module = get_module(Reporter, Opts),
                               pid = Pid,
                               mref = MRef} | Rs],
             {reply, ok, St#st{reporters = Rs1}}
@@ -544,11 +585,13 @@ handle_call({remove_reporter, Reporter}, _, St0) ->
     end;
 
 handle_call({setopts, Metric, Options, Status}, _, #st{reporters=Rs}=St) ->
-    [erlang:send(M, {exometer_setopts, Metric, Options, Status}) || #reporter{module=M} <- Rs],
+    [erlang:send(Pid, {exometer_setopts, Metric, Options, Status})
+     || #reporter{pid = Pid} <- Rs],
     {reply, ok, St};
 
 handle_call({new_entry, Entry}, _, #st{reporters=Rs}=St) ->
-    [erlang:send(M, {exometer_newentry, Entry}) || #reporter{module=M} <- Rs],
+    [erlang:send(Pid, {exometer_newentry, Entry})
+     || #reporter{pid = Pid} <- Rs],
     {reply, ok, St};
 
 handle_call(_Request, _From, State) ->
@@ -716,6 +759,24 @@ terminate(_Reason, #st{reporters=Rs}) ->
 %% @spec code_change(OldVsn, State, Extra) -> {ok, NewState}
 %% @end
 %%--------------------------------------------------------------------
+
+%% -record(reporter, {
+%%           name      :: atom(),
+%%           pid       :: pid(),
+%%           mref      :: reference(),
+%%           module    :: module(),
+%%           opts = [] :: [{atom(), any()}],
+%%           restart = #restart{}
+%%          }).
+code_change(_OldVan, #st{reporters = Rs} = S, _Extra) ->
+    Rs1 = lists:map(
+            fun({reporter,Pid,MRef,Module,Opts,Restart}) ->
+                    #reporter{name = Module, pid = Pid, mref = MRef,
+                              module = Module, opts = Opts,
+                              restart = Restart};
+               (#reporter{} = R) -> R
+            end, Rs),
+    {ok, S#st{reporters = Rs1}};
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
@@ -781,9 +842,8 @@ get_values({How, Path}, DataPoint) ->
 %% first_datapoint(DP) when is_atom(DP); is_integer(DP) ->
 %%     DP.
 
-
-assert_no_duplicates([{R,_}|T]) ->
-    case lists:keymember(R, 1, T) of
+assert_no_duplicates([#reporter{name = R}|T]) ->
+    case lists:keymember(R, #reporter.name, T) of
         true -> error({duplicate_reporter, R});
         false -> assert_no_duplicates(T)
     end;
@@ -792,12 +852,20 @@ assert_no_duplicates([]) ->
 
 spawn_reporter(Reporter, Opt) ->
     Fun = fun() ->
-                  true = register(Reporter, self()),
+                  maybe_register(Reporter, Opt),
                   reporter_launch(Reporter, Opt)
           end,
     Pid = exometer_proc:spawn_process(Reporter, Fun),
     MRef = erlang:monitor(process, Pid),
     {Pid, MRef}.
+
+maybe_register(R, Opts) ->
+    case lists:keyfind(registered_name, 1, Opts) of
+        {_, none} -> ok;
+        {_, Name} -> register(Name, self());
+        false     -> register(R, self())
+    end.
+            
 
 terminate_reporter(#reporter{pid = Pid, mref = MRef}) ->
     Pid ! {exometer_terminate, shutdown},
@@ -927,7 +995,8 @@ purge_subscriptions(Module, Subs) ->
 %% Called by the spawn_monitor() call in init
 %% Loop and run reporters.
 %% Module is expected to implement exometer_report behavior
-reporter_launch(Module, Opts) ->
+reporter_launch(Reporter, Opts) ->
+    Module = proplists:get_value(module, Opts, Reporter),
     case Module:exometer_init(Opts) of
         {ok, St} ->
             reporter_loop(Module, St);
