@@ -122,6 +122,7 @@ register_application(App) ->
     end.
 
 get_predef({script, F} ) -> ok(file:script(F, []));
+get_predef({consult,F} ) -> ok(file:consult(F));
 get_predef({apply, M, F, A}) -> ok(apply(M, F, A));
 get_predef(L) when is_list(L) -> L.
 

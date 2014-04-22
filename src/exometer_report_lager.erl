@@ -94,12 +94,8 @@ exometer_report(Metric, DataPoint, Extra, Value, #st{level = Level} = St)  ->
     ?debug("Report metric ~p_~p = ~p~n", [Metric, DataPoint, Value]),
     %% Report the value and setup a new refresh timer.
     Key = Metric ++ [DataPoint],
-    Type = case exometer_util:report_type(Key, Extra, St#st.type_map) of
-               {ok, T} -> T;
-               error   -> unknown
-           end,
-    Str = [?MODULE_STRING, ": ", name(Metric, DataPoint), $\s,
-           timestamp(), ":", value(Value), io_lib:format(" (~w)", [Type]), $\n],
+    Str = [?MODULE_STRING, ": ", name(Metric, DataPoint),
+           ":", value(Value), $\n],
     log(Level, Str),
     {ok, St}.
 
@@ -130,19 +126,18 @@ exometer_terminate(_, _) ->
 
 %% Add metric and datapoint within metric
 name(Metric, DataPoint) ->
-    metric_to_string(Metric) ++ "_" ++ atom_to_list(DataPoint).
+    metric_to_string(Metric) ++ "_" ++ thing_to_list(DataPoint).
 
 metric_to_string([Final]) ->
-    metric_elem_to_list(Final);
+    thing_to_list(Final);
 metric_to_string([H | T]) ->
-    metric_elem_to_list(H) ++ "_" ++ metric_to_string(T).
+    thing_to_list(H) ++ "_" ++ metric_to_string(T).
 
-metric_elem_to_list(E) when is_atom(E) ->
-    atom_to_list(E);
-metric_elem_to_list(E) when is_list(E); is_binary(E) ->
-    E;
-metric_elem_to_list(E) when is_integer(E) ->
-    integer_to_list(E).
+thing_to_list(E) when is_atom(E) -> atom_to_list(E);
+thing_to_list(E) when is_list(E) -> E;
+thing_to_list(E) when is_integer(E) -> integer_to_list(E);
+thing_to_list(E) when is_binary(E)  -> binary_to_list(E).
+
 
 %% Add value, int or float, converted to list
 value(V) when is_integer(V) -> integer_to_list(V);
