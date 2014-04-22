@@ -94,12 +94,8 @@ exometer_report(Metric, DataPoint, Extra, Value, #st{level = Level} = St)  ->
     ?debug("Report metric ~p_~p = ~p~n", [Metric, DataPoint, Value]),
     %% Report the value and setup a new refresh timer.
     Key = Metric ++ [DataPoint],
-    Type = case exometer_util:report_type(Key, Extra, St#st.type_map) of
-               {ok, T} -> T;
-               error   -> unknown
-           end,
-    Str = [?MODULE_STRING, ": ", name(Metric, DataPoint), $\s,
-           timestamp(), ":", value(Value), io_lib:format(" (~w)", [Type]), $\n],
+    Str = [?MODULE_STRING, ": ", name(Metric, DataPoint),
+           ":", value(Value), $\n],
     log(Level, Str),
     {ok, St}.
 
