@@ -404,31 +404,25 @@ do_start_reporters(S) ->
     %% { reporters, [ {reporter1, [{opt1, val}, ...]}, {reporter2, [...]}]}
     %% Traverse list of reporter and launch reporter gen servers as dynamic
     %% supervisor children.
-    Reporters0 = case lists:keyfind(reporters, 1, Opts) of
-                     {reporters, ReporterList} ->
-                         ReporterRecs = make_reporter_recs(ReporterList),
-                         assert_no_duplicates(ReporterRecs),
-                         lists:foldr(
-                           fun(#reporter{name = Reporter,
-                                         opts = ROpts} = R, Acc) ->
-                                   Restart = get_restart(ROpts),
-                                   {Pid, MRef} =
-                                       spawn_reporter(Reporter, ROpts),
-                                   [ R#reporter{pid = Pid,
-                                                mref = MRef,
-                                                restart = Restart} | Acc]
-                           end, [], ReporterRecs);
-                     false ->
-                         []
-                 end,
+    ReporterList = lists:flatten([Rs || {reporters, Rs} <- Opts]),
+    ReporterRecs = make_reporter_recs(ReporterList),
+    assert_no_duplicates(ReporterRecs),
+    Reporters0 =
+        lists:foldr(
+          fun(#reporter{name = Reporter,
+                        opts = ROpts} = R, Acc) ->
+                  Restart = get_restart(ROpts),
+                  {Pid, MRef} =
+                      spawn_reporter(Reporter, ROpts),
+                  [ R#reporter{pid = Pid,
+                               mref = MRef,
+                               restart = Restart} | Acc]
+          end, [], ReporterRecs),
+
     %% Dig out configured 'static' subscribers
     SubsList =
-        case lists:keyfind(subscribers, 1, Opts) of
-            {subscribers, Subscribers} ->
-                lists:foldr(fun init_subscriber/2, [], Subscribers);
-            false -> []
-        end,
-
+        lists:foldr(fun init_subscriber/2, [],
+                    lists:flatten([Ss || {subscribers, Ss} <- Opts])),
     S#st{
       reporters = Reporters0,
       subscribers = SubsList
@@ -468,7 +462,8 @@ get_subscribers(L0) ->
 
 merge_env(_, [], []) -> [];
 merge_env(Tag, L, E) ->
-    [{Tag, L} || L =/= []] ++ [{Tag, X} || {_, X} <- E].
+    [{Tag, exometer_admin:get_predef(L)} || L =/= []]
+        ++ [{Tag, exometer_admin:get_predef(X)} || {_, X} <- E].
 
 
 %%--------------------------------------------------------------------

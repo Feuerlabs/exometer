@@ -90,10 +90,9 @@ exometer_unsubscribe(_Metric, _DataPoint, _Extra, St) ->
 
 %% Invoked through the remote_exometer() function to
 %% send out an update.
-exometer_report(Metric, DataPoint, Extra, Value, #st{level = Level} = St)  ->
+exometer_report(Metric, DataPoint, _Extra, Value, #st{level = Level} = St)  ->
     ?debug("Report metric ~p_~p = ~p~n", [Metric, DataPoint, Value]),
     %% Report the value and setup a new refresh timer.
-    Key = Metric ++ [DataPoint],
     Str = [?MODULE_STRING, ": ", name(Metric, DataPoint),
            ":", value(Value), $\n],
     log(Level, Str),
@@ -143,15 +142,6 @@ thing_to_list(E) when is_binary(E)  -> binary_to_list(E).
 value(V) when is_integer(V) -> integer_to_list(V);
 value(V) when is_float(V)   -> io_lib:format("~f", [V]);
 value(_) -> "0".
-
-timestamp() ->
-    integer_to_list(unix_time()).
-
-unix_time() ->
-    datetime_to_unix_time(erlang:universaltime()).
-
-datetime_to_unix_time({{_,_,_},{_,_,_}} = DateTime) ->
-    calendar:datetime_to_gregorian_seconds(DateTime) - ?UNIX_EPOCH.
 
 log(Level, String) ->
     lager:log(Level, self(), String).

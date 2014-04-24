@@ -38,6 +38,7 @@
     preset_defaults/0,
     load_defaults/0,
     load_predefined/0,
+    get_predef/1,
     register_application/1,
     normalize_name/1
    ]).
@@ -108,17 +109,21 @@ register_application(App) ->
 	undefined -> ok;
 	_ ->
 	    case application:get_env(App, exometer_defaults) of
-		{ok, E} ->
-		    do_load_defaults(App, get_predef(E));
-		undefined ->
-		    ok
+		{ok, E}   -> do_load_defaults(App, get_predef(E));
+		undefined -> ok
 	    end,
 	    case application:get_env(App, exometer_predefined) of
-		{ok, P} ->
-		    do_load_predef(App, get_predef(P));
-		undefined ->
-		    ok
-	    end
+		{ok, P}   -> do_load_predef(App, get_predef(P));
+		undefined -> ok
+	    end,
+            case application:get_env(App, exometer_reporters) of
+                {ok, R}   -> do_load_reporters(App, get_predef(R));
+                undefined -> ok
+            end,
+            case application:get_env(App, exometer_subscribers) of
+                {ok, S}   -> do_load_subscribers(App, get_predef(S));
+                undefined -> ok
+            end
     end.
 
 get_predef({script, F} ) -> ok(file:script(F, []));
@@ -153,6 +158,20 @@ do_load_predef(Src, L) when is_list(L) ->
 			lager:error("Predef(~p): ~p~n",
 				    [Src, {bad_pattern,Other}])
 		end, Found)
+      end, L).
+
+do_load_reporters(_Src, L) when is_list(L) ->
+    lists:foreach(
+      fun({Name, Opts}) ->
+              exometer_report:add_reporter(Name, Opts)
+      end, L).
+
+do_load_subscribers(_Src, L) ->
+    lists:foreach(
+      fun({Reporter, Metric, DP, Interval}) ->
+              exometer_report:subscribe(Reporter, Metric, DP, Interval);
+         ({Reporter, Metric, DP, Interval, Extra}) ->
+              exometer_report:subscribe(Reporter, Metric, DP, Interval, Extra)
       end, L).
 
 predef_delete_entry(Key, Src) ->
