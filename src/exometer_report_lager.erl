@@ -144,14 +144,5 @@ value(V) when is_integer(V) -> integer_to_list(V);
 value(V) when is_float(V)   -> io_lib:format("~f", [V]);
 value(_) -> "0".
 
-timestamp() ->
-    integer_to_list(unix_time()).
-
-unix_time() ->
-    datetime_to_unix_time(erlang:universaltime()).
-
-datetime_to_unix_time({{_,_,_},{_,_,_}} = DateTime) ->
-    calendar:datetime_to_gregorian_seconds(DateTime) - ?UNIX_EPOCH.
-
 log(Level, String) ->
     lager:log(Level, self(), String).
