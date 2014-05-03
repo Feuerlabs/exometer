@@ -107,13 +107,13 @@ register_application(App) ->
     case whereis(exometer_admin) of
 	undefined -> ok;
 	_ ->
-	    case application:get_env(App, exometer_defaults) of
+	    case setup:get_env(App, exometer_defaults) of
 		{ok, E} ->
 		    do_load_defaults(App, get_predef(E));
 		undefined ->
 		    ok
 	    end,
-	    case application:get_env(App, exometer_predefined) of
+	    case setup:get_env(App, exometer_predefined) of
 		{ok, P} ->
 		    do_load_predef(App, get_predef(P));
 		undefined ->
@@ -121,9 +121,9 @@ register_application(App) ->
 	    end
     end.
 
-get_predef({script, F} ) -> ok(file:script(F, []));
-get_predef({consult,F} ) -> ok(file:consult(F));
-get_predef({apply, M, F, A}) -> ok(apply(M, F, A));
+get_predef({script, F} ) -> ok(file:script(F, []), F);
+get_predef({consult,F} ) -> ok(file:consult(F), F);
+get_predef({apply, M, F, A}) -> ok(apply(M, F, A), {M,F,A});
 get_predef(L) when is_list(L) -> L.
 
 do_load_defaults(Src, L) when is_list(L) ->
@@ -162,9 +162,9 @@ predef_delete_entry(Key, Src) ->
 	    lager:error("Predef(~p): ~p~n", [Src, Error])
     end.
 
-ok({ok, Res}) -> Res;
-ok({error, E}) ->
-    erlang:error(E).
+ok({ok, Res}, _) -> Res;
+ok({error, E}, I) ->
+    erlang:error({E, I}).
 
 new_entry(Name, Type, Opts) ->
     %% { arg, { function, M, F }}
