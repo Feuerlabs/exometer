@@ -496,7 +496,7 @@ handle_call({subscribe,
             _From, #st{reporters = Rs, subscribers = Subs} = St) ->
 
     %% Verify that the given metric/data point actually exist.
-    case lists:keyfind(Reporter, #reporter.module, Rs) of
+    case lists:keyfind(Reporter, #reporter.name, Rs) of
         #reporter{} ->
 	    case is_valid_metric(Metric, DataPoint) of
 		true ->
@@ -560,7 +560,7 @@ handle_call({list_subscriptions, Reporter}, _, #st{subscribers = Subs0} = St) ->
     {reply, Subs1, St};
 
 handle_call(list_reporters, _, #st{reporters = Reporters} = St) ->
-    Info = [{M, Pid} || #reporter{module = M, pid = Pid} <- Reporters],
+    Info = [{N, Pid} || #reporter{name = N, pid = Pid} <- Reporters],
     {reply, Info, St};
 
 handle_call({add_reporter, Reporter, Opts}, _, #st{reporters = Rs} = St) ->
