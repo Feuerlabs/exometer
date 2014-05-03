@@ -38,12 +38,266 @@ arg_spec() = [<a href="#type-arg">arg()</a>]
 
 
 
+### <a name="type-binding">binding()</a> ###
+
+
+
+<pre><code>
+binding() = {atom(), any()}
+</code></pre>
+
+
+
+
+
 ### <a name="type-datapoints">datapoints()</a> ###
 
 
 
 <pre><code>
 datapoints() = [atom()]
+</code></pre>
+
+
+
+
+
+### <a name="type-expr">expr()</a> ###
+
+
+
+<pre><code>
+expr() = <a href="#type-expr_descr">expr_descr()</a> | <a href="#type-expr_action">expr_action()</a> | <a href="#type-expr_match">expr_match()</a> | <a href="#type-expr_erl">expr_erl()</a>
+</code></pre>
+
+
+
+
+
+### <a name="type-expr_action">expr_action()</a> ###
+
+
+
+<pre><code>
+expr_action() = <a href="#type-expr_op">expr_op()</a> | <a href="#type-expr_call">expr_call()</a> | <a href="#type-expr_fold">expr_fold()</a> | <a href="#type-expr_case">expr_case()</a>
+</code></pre>
+
+
+
+
+
+### <a name="type-expr_atom">expr_atom()</a> ###
+
+
+
+<pre><code>
+expr_atom() = atom() | {a, atom()} | {atom, atom()}
+</code></pre>
+
+
+
+
+
+### <a name="type-expr_binary_op">expr_binary_op()</a> ###
+
+
+
+<pre><code>
+expr_binary_op() = {op, <a href="#type-expr_operator">expr_operator()</a>, <a href="#type-expr">expr()</a>, <a href="#type-expr">expr()</a>}
+</code></pre>
+
+
+
+
+
+### <a name="type-expr_call">expr_call()</a> ###
+
+
+
+<pre><code>
+expr_call() = {call, atom(), [<a href="#type-expr">expr()</a>]} | {call, {atom(), atom()}, [<a href="#type-expr">expr()</a>]}
+</code></pre>
+
+
+
+
+
+### <a name="type-expr_case">expr_case()</a> ###
+
+
+
+<pre><code>
+expr_case() = {'case', [<a href="#type-expr">expr()</a>], [<a href="#type-expr_clause">expr_clause()</a>]}
+</code></pre>
+
+
+
+
+
+### <a name="type-expr_clause">expr_clause()</a> ###
+
+
+
+<pre><code>
+expr_clause() = {<a href="#type-expr_pattern">expr_pattern()</a>, [<a href="#type-expr_guard">expr_guard()</a>], [<a href="#type-expr">expr()</a>]}
+</code></pre>
+
+
+
+
+
+### <a name="type-expr_descr">expr_descr()</a> ###
+
+
+
+<pre><code>
+expr_descr() = <a href="#type-expr_int">expr_int()</a> | <a href="#type-expr_atom">expr_atom()</a> | <a href="#type-expr_list">expr_list()</a> | <a href="#type-expr_tuple">expr_tuple()</a> | <a href="#type-expr_string">expr_string()</a>
+</code></pre>
+
+
+
+
+
+### <a name="type-expr_erl">expr_erl()</a> ###
+
+
+
+<pre><code>
+expr_erl() = {erl, [<a href="erl_parse.md#type-abstract_expr">erl_parse:abstract_expr()</a>]}
+</code></pre>
+
+
+
+
+
+### <a name="type-expr_fold">expr_fold()</a> ###
+
+
+
+<pre><code>
+expr_fold() = {fold, _IterVal::atom(), _AccVar::atom(), _IterExpr::[<a href="#type-expr">expr()</a>], _Acc0Expr::<a href="#type-expr">expr()</a>, _ListExpr::<a href="#type-expr">expr()</a>}
+</code></pre>
+
+
+
+
+
+### <a name="type-expr_guard">expr_guard()</a> ###
+
+
+
+<pre><code>
+expr_guard() = [<a href="#type-expr">expr()</a>]
+</code></pre>
+
+
+
+ Must all return 'true'.
+
+
+
+### <a name="type-expr_int">expr_int()</a> ###
+
+
+
+<pre><code>
+expr_int() = integer() | {i, integer()} | {integer, integer()}
+</code></pre>
+
+
+
+
+
+### <a name="type-expr_list">expr_list()</a> ###
+
+
+
+<pre><code>
+expr_list() = {cons, <a href="#type-expr">expr()</a>, <a href="#type-expr">expr()</a>} | nil | {l, [<a href="#type-expr">expr()</a>]}
+</code></pre>
+
+
+
+
+
+### <a name="type-expr_match">expr_match()</a> ###
+
+
+
+<pre><code>
+expr_match() = {match, <a href="#type-expr_pattern">expr_pattern()</a>, <a href="#type-expr">expr()</a>} | {m, <a href="#type-expr_pattern">expr_pattern()</a>, <a href="#type-expr">expr()</a>}
+</code></pre>
+
+
+
+
+
+### <a name="type-expr_op">expr_op()</a> ###
+
+
+
+<pre><code>
+expr_op() = <a href="#type-expr_unary_op">expr_unary_op()</a> | <a href="#type-expr_binary_op">expr_binary_op()</a>
+</code></pre>
+
+
+
+
+
+### <a name="type-expr_operator">expr_operator()</a> ###
+
+
+
+<pre><code>
+expr_operator() = '+' | '-' | '*' | '/' | 'div' | 'rem' | 'band' | 'and' | 'bor' | 'bxor' | 'bsl' | 'bsr' | 'or' | 'xor' | '++' | '--' | '==' | '/=' | '&gt;=' | '=&lt;' | '&lt;' | '&gt;' | '=:=' | '=/='
+</code></pre>
+
+
+
+
+
+### <a name="type-expr_pattern">expr_pattern()</a> ###
+
+
+
+<pre><code>
+expr_pattern() = '_' | <a href="#type-expr_descr">expr_descr()</a>
+</code></pre>
+
+
+
+
+
+### <a name="type-expr_string">expr_string()</a> ###
+
+
+
+<pre><code>
+expr_string() = {string, string()} | {s, string()}
+</code></pre>
+
+
+
+
+
+### <a name="type-expr_tuple">expr_tuple()</a> ###
+
+
+
+<pre><code>
+expr_tuple() = {tuple, [<a href="#type-expr">expr()</a>]} | {t, [<a href="#type-expr">expr()</a>]}
+</code></pre>
+
+
+
+
+
+### <a name="type-expr_unary_op">expr_unary_op()</a> ###
+
+
+
+<pre><code>
+expr_unary_op() = {op, '-' | 'not', <a href="#type-expr">expr()</a>}
 </code></pre>
 
 
@@ -148,7 +402,7 @@ simple_fun() = {function, <a href="#type-mod_name">mod_name()</a>, <a href="#typ
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#behaviour-0">behaviour/0</a></td><td></td></tr><tr><td valign="top"><a href="#delete-3">delete/3</a></td><td></td></tr><tr><td valign="top"><a href="#empty-0">empty/0</a></td><td></td></tr><tr><td valign="top"><a href="#get_datapoints-3">get_datapoints/3</a></td><td></td></tr><tr><td valign="top"><a href="#get_value-4">get_value/4</a></td><td></td></tr><tr><td valign="top"><a href="#new-3">new/3</a></td><td>Callback for creating an exometer <code>function</code> entry.</td></tr><tr><td valign="top"><a href="#preprocess_setopts-5">preprocess_setopts/5</a></td><td></td></tr><tr><td valign="top"><a href="#reset-3">reset/3</a></td><td></td></tr><tr><td valign="top"><a href="#sample-3">sample/3</a></td><td></td></tr><tr><td valign="top"><a href="#setopts-4">setopts/4</a></td><td></td></tr><tr><td valign="top"><a href="#test_mem_info-1">test_mem_info/1</a></td><td></td></tr><tr><td valign="top"><a href="#update-4">update/4</a></td><td></td></tr></table>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#behaviour-0">behaviour/0</a></td><td></td></tr><tr><td valign="top"><a href="#delete-3">delete/3</a></td><td></td></tr><tr><td valign="top"><a href="#empty-0">empty/0</a></td><td></td></tr><tr><td valign="top"><a href="#eval_exprs-2">eval_exprs/2</a></td><td>Evaluate a list of abstract expressions.</td></tr><tr><td valign="top"><a href="#get_datapoints-3">get_datapoints/3</a></td><td></td></tr><tr><td valign="top"><a href="#get_value-4">get_value/4</a></td><td></td></tr><tr><td valign="top"><a href="#new-3">new/3</a></td><td>Callback for creating an exometer <code>function</code> entry.</td></tr><tr><td valign="top"><a href="#preprocess_setopts-5">preprocess_setopts/5</a></td><td></td></tr><tr><td valign="top"><a href="#reset-3">reset/3</a></td><td></td></tr><tr><td valign="top"><a href="#sample-3">sample/3</a></td><td></td></tr><tr><td valign="top"><a href="#setopts-4">setopts/4</a></td><td></td></tr><tr><td valign="top"><a href="#test_mem_info-1">test_mem_info/1</a></td><td></td></tr><tr><td valign="top"><a href="#update-4">update/4</a></td><td></td></tr></table>
 
 
 <a name="functions"></a>
@@ -182,6 +436,64 @@ behaviour() -&gt; atom()
 `empty() -> any()`
 
 
+<a name="eval_exprs-2"></a>
+
+### eval_exprs/2 ###
+
+
+<pre><code>
+eval_exprs(Es::[<a href="#type-expr">expr()</a>], Bs::[<a href="#type-binding">binding()</a>]) -&gt; {value, any(), [<a href="#type-binding">binding()</a>]}
+</code></pre>
+
+<br></br>
+
+
+
+Evaluate a list of abstract expressions.
+
+
+
+This function is reminiscent of `erl_eval:exprs/2`, but with a slightly
+different expression grammar. Most prominently, forms have no line numbers,
+and a few aliases for more compact representation. Otherwise, the forms can
+be seen as mostly a subset of the Erlang abstract forms.
+
+
+
+The list of bindings correspods exactly to the bindings in `erl_eval`.
+
+
+
+* Integers: `{integer, I}`, `{i, I}`, or simply just the integer
+* Atoms: `{atom, A}`, `{a, A}`, or simply just the atom (note that some atoms
+are special).
+* Lists: `{cons, H, T}`, `nil`, or `{l, [...]}`
+* Tuples: `{tuple, [Elem]}`, or `{t, [Elem]}`
+* Variables: `{var, V}`, or `{v, V}`
+* Matches: `{match, Pattern, Expr}`, or `{m, Pattern, Expr}`
+* Function calls: `{call, {M, F}, Args}`, or `{call, F, Args}`
+* Folds: `{fold, IterVar, AccVar, [IterExpr], Acc0Expr, ListExpr}`
+* Operators: `{op, Op, ExprA, ExprB}`
+* Unary operators: `{op, '-' | 'not', Expr}`
+* Case exprs: `{'case', [Expr], [{Pat, Gs, Body}]}`
+* Generic Erlang: `{erl, [ErlAbstractExpr]}`
+
+
+
+The currently supported "built-in functions" are `length/1`, `size/1`,
+`byte_size/1` and `bit_size/1`.
+
+
+
+The operators supported are all the Erlang binary operators (as in: '+',
+'-', '==', '=/=', etc.)
+
+
+When evaluating guards in a case clause, any expression is legal. The
+guard must return true to succeed. Note that the abstract form of a guard
+sequence is [ [G11,...], [G21,...], ...], where each sublist represents
+an 'and' sequence, i.e. all guards in the sublist must succeed. The
+relationship between sublists is 'or'. This is the same as in Erlang.
 <a name="get_datapoints-3"></a>
 
 ### get_datapoints/3 ###
@@ -278,6 +590,19 @@ to be, and `'_'` is used for values to ignore. The pattern
 can be any combination of tuples and lists of datapoints or
 `'_'`.
 
+* If `Type==eval`, `DataPoints` is expected to be `{Exprs, DPs}`,
+and [`eval_exprs/2`](#eval_exprs-2) will be used to evaluate `Exprs`. The return
+value from the function call will be bound to `Value`, and the list
+of data points will be bound to `DPs`. The evaluation must return
+a list of `{DataPointName, Value}` tuples.
+
+
+
+
+An alternative version of `arg` is `{arg, {eval, Exprs, Datapoints}}`, which
+doesn't in fact call a function, but simply evaluates `Exprs` using
+[`eval_exprs/2`](#eval_exprs-2), with the pre-bound variables `Value = undefined`
+and `DPs = Datapoints`.
 
 
 
@@ -336,6 +661,33 @@ An entry that does pattern-matching on the return value
      [gc],
      { function,erlang,statistics,[garbage_collection],
        match, {gcs,reclaimed,'_'} }, []).
+```
+
+
+
+An entry that calls `erlang:processes()` and evaluates a list of expressions
+that calculate the length of the returned list.
+
+
+
+```erlang
+
+  exometer:new(
+      [ps],
+      {function,erlang,processes,[],
+       eval, {[{l,[{t,[value,{call,length,[{v,'Value'}]}]}]}],[value]}}, []).
+```
+
+
+
+An entry that simply builds a list of datapoints, using the abstract syntax.
+
+
+
+```erlang
+
+  exometer:new([stub],
+      {function,{eval,[{l,[{t,[{a,1}]},{t,[{b,2}]}]}], [a,b]}}, []).
 ```
 
 <a name="preprocess_setopts-5"></a>
