@@ -26,6 +26,8 @@
 -export([empty/0]).
 -export([test_mem_info/1]).
 
+-export([eval_exprs/2]).
+
 -export_type([fun_spec/0, arg_spec/0, res_type/0]).
 
 -type arg() :: '$dp'
@@ -103,7 +105,17 @@ behaviour() ->
 %%       to be, and <code>'_'</code> is used for values to ignore. The pattern
 %%       can be any combination of tuples and lists of datapoints or
 %%       <code>'_'</code>.</li>
+%%   <li>If `Type==eval', `DataPoints' is expected to be `{Exprs, DPs}',
+%%       and {@link eval_exprs/2} will be used to evaluate `Exprs'. The return
+%%       value from the function call will be bound to `Value', and the list
+%%       of data points will be bound to `DPs'. The evaluation must return
+%%       a list of `{DataPointName, Value}' tuples.</li>
 %% </ul>
+%%
+%% An alternative version of `arg' is `{arg, {eval, Exprs, Datapoints}}', which
+%% doesn't in fact call a function, but simply evaluates `Exprs' using
+%% {@link eval_exprs/2}, with the pre-bound variables `Value = undefined'
+%% and `DPs = Datapoints'.
 %%
 %% Examples:
 %%
@@ -141,6 +153,23 @@ behaviour() ->
 %%    { function,erlang,statistics,[garbage_collection],
 %%      match, {gcs,reclaimed,'_'} }, []).
 %% </pre>
+%%
+%% An entry that calls `erlang:processes()' and evaluates a list of expressions
+%% that calculate the length of the returned list.
+%%
+%% <pre lang="erlang">
+%% exometer:new(
+%%     [ps],
+%%     {function,erlang,processes,[],
+%%      eval, {[{l,[{t,[value,{call,length,[{v,'Value'}]}]}]}],[value]}}, []).
+%% </pre>
+%%
+%% An entry that simply builds a list of datapoints, using the abstract syntax.
+%%
+%% <pre lang="erlang">
+%% exometer:new([stub],
+%%     {function,{eval,[{l,[{t,[{a,1}]},{t,[{b,2}]}]}], [a,b]}}, []).
+%% </pre>
 %% @end
 new(_Name, function, Opts) ->
     case lists:keyfind(arg, 1, Opts) of
@@ -153,6 +182,8 @@ new(_Name, function, Opts) ->
 ref_from_arg({_M,_F} = Arg) -> Arg;
 ref_from_arg({M, F, ArgsP, Type, DPs}) ->
     {M, F, mode(ArgsP), ArgsP, Type, DPs};
+ref_from_arg({eval,_,_} = Arg) ->
+    Arg;
 ref_from_arg(_Arg) ->
     error(invalid_arg).
 
@@ -189,16 +220,15 @@ get_value(_, function, {M, F, once, ArgsP, match, Pat}, DataPoints0) ->
             {error, unavailable}
     end;
 get_value(_, _, {M, F, once, ArgsP, Type, DPs}, DataPoints0) ->
-    DataPoints = if DataPoints0 == default -> DPs;
-                    true ->
-                         [D || D <- datapoints(DataPoints0, DPs),
-                               lists:member(D, DPs)]
-                 end,
+    DataPoints = actual_datapoints(DataPoints0, DPs),
     try call_once(M, F, ArgsP, Type, DataPoints)
     catch
         error:_ ->
             {error, unavailable}
     end;
+get_value(_, _, {eval, Exprs, DataPoints}, DataPoints0) ->
+    DataPoints = actual_datapoints(DataPoints0, DataPoints),
+    return_eval(eval_expr(Exprs, undefined, DataPoints), DataPoints);
 get_value(_, _, {M, F}, DataPoints) ->
     if DataPoints == default ->
             M:F(DataPoints);
@@ -206,6 +236,13 @@ get_value(_, _, {M, F}, DataPoints) ->
             [D || {K,_} = D <- M:F(DataPoints),
                   lists:member(K, DataPoints)]
     end.
+
+actual_datapoints(default, DPs) ->
+    DPs;
+actual_datapoints(DPs0, DPs) ->
+    [D || D <- datapoints(DPs0, DPs),
+          lists:member(D, DPs)].
+
 
 get_datapoints(_Name, _Type, {_,_,_,_, DPs}) ->
     DPs;
@@ -300,6 +337,10 @@ return_dp({T,V}, tagged, D) when T==D; T==ok  ->
     V;
 return_dp(V, value, _) ->
     V;
+return_dp(L, length, _) ->
+    if is_list(L) -> length(L);
+       true -> undefined
+    end;
 return_dp(L, proplist, D) ->
     case lists:keyfind(D, 1, L) of
         false  -> undefined;
@@ -317,8 +358,20 @@ return_dps({DP, V}, tagged, DPs) ->
     [{D, if D==DP -> V; true -> undefined end} || D <- DPs];
 return_dps(L, proplist, DPs) ->
     [get_dp(D, L) || D <- DPs];
+return_dps(Val, eval, {Expr, DPs}) ->
+    try return_eval(eval_expr(Expr, Val, DPs), DPs)
+    catch
+        error:_ -> undefined
+    end;
 return_dps(Val, match, {Pat, DPs}) ->
     match_pat(Pat, Val, DPs).
+
+return_eval({value, L, _}, default) when is_list(L) ->
+    L;
+return_eval({value, L, _}, DPs) when is_list(DPs), is_list(L) ->
+    [get_dp(D, L) || D <- DPs];
+return_eval(_, _) ->
+    undefined.
 
 
 get_dp(D, L) ->
@@ -382,6 +435,210 @@ match_pat(A, B, DPs) when is_atom(A), A =/= '_' ->
 match_pat(_, _, _) ->
     [].
 
+%% Expressions:
+eval_expr([_|_] = Exprs, Value, DPs) ->
+    eval_exprs(Exprs, [{'DPs',DPs},{'Value',Value}]);
+eval_expr(Expr, Value, DPs) ->
+    eval_exprs([Expr], [{'DPs',DPs},{'Value',Value}]).
+
+-type expr() :: expr_descr() | expr_action() | expr_match() | expr_erl().
+-type expr_descr() :: expr_int() | expr_atom() | expr_list() | expr_tuple()
+                    | expr_string().
+-type expr_action() :: expr_op() | expr_call() | expr_fold() | expr_case().
+-type expr_int() :: integer() | {i, integer()} | {integer, integer()}.
+-type expr_atom() :: atom() | {a, atom()} | {atom, atom()}.
+-type expr_string() :: {string, string()} | {s, string()}.
+-type expr_tuple() :: {tuple, [expr()]} | {t, [expr()]}.
+-type expr_list() :: {cons, expr(), expr()} | nil
+                   | {l, [expr()]}.
+-type expr_match() :: {match, expr_pattern(), expr()}
+                    | {m, expr_pattern(), expr()}.
+-type expr_pattern() :: '_' | expr_descr().
+-type expr_op() :: expr_unary_op() | expr_binary_op().
+-type expr_unary_op() :: {op, '-' | 'not', expr()}.
+-type expr_binary_op() :: {op, expr_operator(), expr(), expr()}.
+-type expr_operator() :: '+' | '-' | '*' | '/' | 'div' | 'rem' | 'band'
+                       | 'and' | 'bor' | 'bxor' | 'bsl' | 'bsr' | 'or'
+                       | 'xor' | '++' | '--' | '==' | '/=' | '>=' | '=<'
+                       | '<' | '>' | '=:=' | '=/='.
+-type expr_call() :: {call, atom(), [expr()]}
+                   | {call, {atom(), atom()}, [expr()]}.
+-type expr_fold() :: {fold, _IterVal::atom(), _AccVar::atom(),
+                      _IterExpr::[expr()], _Acc0Expr::expr(),
+                      _ListExpr::expr()}.
+-type expr_case() :: {'case', [expr()], [expr_clause()]}.
+-type expr_clause() :: {expr_pattern(), [expr_guard()], [expr()]}.
+-type expr_guard() :: [expr()].  % Must all return 'true'.
+-type expr_erl() :: {erl, [erl_parse:abstract_expr()]}.
+-type binding() :: {atom(), any()}.
 
 
+
+-spec eval_exprs([expr()], [binding()]) -> {value, any(), [binding()]}.
+%% @doc Evaluate a list of abstract expressions.
+%%
+%% This function is reminiscent of `erl_eval:exprs/2', but with a slightly
+%% different expression grammar. Most prominently, forms have no line numbers,
+%% and a few aliases for more compact representation. Otherwise, the forms can
+%% be seen as mostly a subset of the Erlang abstract forms.
+%%
+%% The list of bindings correspods exactly to the bindings in `erl_eval'.
+%%
+%% * Integers: `{integer, I}', `{i, I}', or simply just the integer
+%% * Atoms: `{atom, A}', `{a, A}', or simply just the atom (note that some atoms
+%%   are special).
+%% * Lists: `{cons, H, T}', `nil', or `{l, [...]}'
+%% * Tuples: `{tuple, [Elem]}', or `{t, [Elem]}'
+%% * Variables: `{var, V}', or `{v, V}'
+%% * Matches: `{match, Pattern, Expr}', or `{m, Pattern, Expr}'
+%% * Function calls: `{call, {M, F}, Args}', or `{call, F, Args}'
+%% * Folds: `{fold, IterVar, AccVar, [IterExpr], Acc0Expr, ListExpr}'
+%% * Operators: `{op, Op, ExprA, ExprB}'
+%% * Unary operators: <code>{op, '-' | 'not', Expr}</code>
+%% * Case exprs: <code>{'case', [Expr], [{Pat, Gs, Body}]}</code>
+%% * Generic Erlang: `{erl, [ErlAbstractExpr]}'
+%%
+%% The currently supported "built-in functions" are `length/1', `size/1',
+%% `byte_size/1' and `bit_size/1'.
+%%
+%% The operators supported are all the Erlang binary operators (as in: '+',
+%% '-', '==', '=/=', etc.)
+%%
+%% When evaluating guards in a case clause, any expression is legal. The
+%% guard must return true to succeed. Note that the abstract form of a guard
+%% sequence is [ [G11,...], [G21,...], ...], where each sublist represents
+%% an 'and' sequence, i.e. all guards in the sublist must succeed. The
+%% relationship between sublists is 'or'. This is the same as in Erlang.
+%% @end
+eval_exprs([E|Es], Bs) ->
+    case eval_(E, Bs) of
+        {value, Val, Bs1} ->
+            eval_exprs(Es, Val, Bs1);
+        O -> error(O)
+    end.
+
+eval_exprs([], Val, Bs) ->
+    {value, Val, Bs};
+eval_exprs([E|Es], _, Bs) ->
+    case eval_(E, Bs) of
+        {value, Val, Bs1} ->
+            eval_exprs(Es, Val, Bs1);
+        O -> error(O)
+    end.
+
+eval_({erl, Exprs}, Bs) ->
+    erl_eval:exprs(Exprs, Bs);
+eval_({T, P, E}, Bs) when T==m; T==match ->
+    Val = e(E, Bs),
+    {value, Val, match(P, Val, Bs)};
+eval_({'case', Es, Cls}, Bs) ->
+    {value, V, _} = eval_exprs(Es, Bs),
+    case_clauses(Cls, V, Bs);
+eval_(Expr, Bs) -> {value, e(Expr, Bs), Bs}.
+
+e({T,V}, Bs) when T==v; T==var ->
+    case erl_eval:binding(V, Bs) of
+        unbound -> error({unbound, V});
+        {value, Val} -> Val
+    end;
+e(nil, _) -> [];
+e(I, _) when is_integer(I) -> I;
+e(A, _) when is_atom(A) -> A;
+e({T,I}, _) when T==i; T==integer -> I;
+e({T,A}, _) when T==a; T==atom -> A;
+e({cons,Eh,Et}, Bs) -> [e(Eh, Bs)|e(Et, Bs)];
+e({l, Es}, Bs) -> [e(E, Bs) || E <- Es];
+e({T,S}, _) when T==s; T==string -> S;
+e({T,Es}, Bs) when T==t; T==tuple -> list_to_tuple([e(E,Bs) || E <- Es]);
+e({call,F,As}, Bs) ->
+    call1(F, [e(A,Bs) || A <- As]);
+e({lc,_E0,_Es}, _Bs) -> error(nyi);
+e({op,Op,E1,E2}, Bs) -> op(Op, e(E1,Bs), e(E2,Bs));
+e({op,Op,E}, Bs) when Op=='-'; Op=='not' ->
+    erlang:Op(e(E, Bs));
+e({element,E,T}, Bs) -> 
+    case e(T, Bs) of
+        Tup when is_tuple(Tup) ->
+            element(e(E,Bs), Tup);
+        _ -> error(badarg)
+    end;
+e({fold,Vx,Va,Es,Ea,El}, Bs) when is_atom(Vx), is_atom(Va) ->
+    case e(El, Bs) of
+        L when is_list(L) ->
+            Bs1 = erl_eval:add_binding(Va, e(Ea, Bs), Bs),
+            fold_(L, Vx, Va, Es, Bs1);
+        _ ->
+            error(badarg)
+    end.
+
+match({T,Es}, V, Bs) when T==t; T==tuple ->
+    Vals = tuple_to_list(V),
+    Z = lists:zip(Es, Vals),
+    lists:foldl(fun({E1,V1}, Bs1) ->
+                        match(E1, V1, Bs1)
+                end, Bs, Z);
+match('_', _, Bs) -> Bs;
+match(nil, [], Bs) -> Bs;
+match({T,X}, V, Bs) when T==a; T==atom; T==i; T==integer ->
+    X = V,
+    Bs;
+match(I, I, Bs) when is_integer(I) -> Bs;
+match(A, V, Bs) when is_atom(A) ->
+    case atom_to_list(A) of
+        "_" ++ _ -> Bs;
+        _ ->
+            A = V,
+            Bs
+    end;
+match({cons,Eh,Et}, [H|T], Bs) ->
+    Bs1 = match(Eh, H, Bs),
+    match(Et, T, Bs1);
+match({T,Var}, V, Bs) when T==v; T==var ->
+    erl_eval:add_binding(Var, V, Bs).
+
+case_clauses([{Pat, Gs, Body}|Cs], Val, Bs) ->
+    try match(Pat, Val, Bs) of
+        Bs1 ->
+            case match_gs(Gs, Bs1) of
+                true ->
+                    eval_exprs(Body, Bs1);
+                _ ->
+                    case_clauses(Cs, Val, Bs)
+            end
+    catch
+        error:_ ->
+            case_clauses(Cs, Val, Bs)
+    end;
+case_clauses([], _, _) ->
+    error(case_clause).
+
+match_gs([], _) ->
+    true;
+match_gs([_|_] = Gs, Bs) ->
+    and_gs(Gs, Bs).
+
+and_gs([], _) -> false;
+and_gs([G|Gs], Bs) ->
+    try [{value, true, _} = eval_(G1, Bs) || G1 <- G], true
+    catch
+        error:_ ->
+            and_gs(Gs, Bs)
+    end.
+
+call1(length   , [L]) -> length(L);
+call1(size     , [T]) -> size(T);
+call1(byte_size, [B]) -> byte_size(B);
+call1(bit_size , [B]) -> bit_size(B);
+call1({M,F}, As) when is_atom(M), is_atom(F) ->
+    apply(M, F, As).
+
+op(Op, A, B) when is_atom(Op) ->
+    erlang:Op(A, B).
     
+fold_([H|T], Vx, Va, Es, Bs) ->
+    Bs1 = erl_eval:add_binding(Vx, e(H,Bs), Bs),
+    {value, NewA, _} = eval_exprs(Es, Bs1),
+    fold_(T, Vx, Va, Es, erl_eval:add_binding(Va, NewA, Bs));
+fold_([], _, Va, _, Bs) ->
+    {value, Acc} = erl_eval:binding(Va, Bs),
+    Acc.
