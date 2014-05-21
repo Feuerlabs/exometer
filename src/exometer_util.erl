@@ -84,73 +84,22 @@ tables() ->
 
 table() ->
     table(erlang:system_info(scheduler_id)).
-
-table(1) -> exometer_1;
-table(2) -> exometer_2;
-table(3) -> exometer_3;
-table(4) -> exometer_4;
-table(5) -> exometer_5;
-table(6) -> exometer_6;
-table(7) -> exometer_7;
-table(8) -> exometer_8;
-table(9) -> exometer_9;
-table(10) -> exometer_10;
-table(11) -> exometer_11;
-table(12) -> exometer_12;
-table(13) -> exometer_13;
-table(14) -> exometer_14;
-table(15) -> exometer_15;
-table(16) -> exometer_16;
-table(17) -> exometer_17;
-table(18) -> exometer_18;
-table(19) -> exometer_19;
-table(20) -> exometer_20;
-table(21) -> exometer_21;
-table(22) -> exometer_22;
-table(23) -> exometer_23;
-table(24) -> exometer_24;
-table(25) -> exometer_25;
-table(26) -> exometer_26;
-table(27) -> exometer_27;
-table(28) -> exometer_28;
-table(29) -> exometer_29;
-table(30) -> exometer_30;
-table(31) -> exometer_31;
-table(32) -> exometer_32;
-table(33) -> exometer_33;
-table(34) -> exometer_34;
-table(35) -> exometer_35;
-table(36) -> exometer_36;
-table(37) -> exometer_37;
-table(38) -> exometer_38;
-table(39) -> exometer_39;
-table(40) -> exometer_40;
-table(41) -> exometer_41;
-table(42) -> exometer_42;
-table(43) -> exometer_43;
-table(44) -> exometer_44;
-table(45) -> exometer_45;
-table(46) -> exometer_46;
-table(47) -> exometer_47;
-table(48) -> exometer_48;
-table(49) -> exometer_49;
-table(50) -> exometer_50;
-table(51) -> exometer_51;
-table(52) -> exometer_52;
-table(53) -> exometer_53;
-table(54) -> exometer_54;
-table(55) -> exometer_55;
-table(56) -> exometer_56;
-table(57) -> exometer_57;
-table(58) -> exometer_58;
-table(59) -> exometer_59;
-table(60) -> exometer_60;
-table(61) -> exometer_61;
-table(62) -> exometer_62;
-table(63) -> exometer_63;
-table(64) -> exometer_64;
-table(N) when is_integer(N), N > 20 ->
-    list_to_atom("exometer_" ++ integer_to_list(N)).
+table(N) ->
+    Tables =
+        {exometer_1 , exometer_2 , exometer_3 , exometer_4 , exometer_5,
+         exometer_6 , exometer_7 , exometer_8 , exometer_9 , exometer_10,
+         exometer_11, exometer_12, exometer_13, exometer_14, exometer_15,
+         exometer_16, exometer_17, exometer_18, exometer_19, exometer_20,
+         exometer_21, exometer_22, exometer_23, exometer_24, exometer_25,
+         exometer_26, exometer_27, exometer_28, exometer_29, exometer_30,
+         exometer_31, exometer_32, exometer_33, exometer_34, exometer_35,
+         exometer_36, exometer_37, exometer_38, exometer_39, exometer_40,
+         exometer_41, exometer_42, exometer_43, exometer_44, exometer_45,
+         exometer_46, exometer_47, exometer_48, exometer_49, exometer_50,
+         exometer_51, exometer_52, exometer_53, exometer_54, exometer_55,
+         exometer_56, exometer_57, exometer_58, exometer_59, exometer_60,
+         exometer_61, exometer_62, exometer_63, exometer_64},
+    element(N div 64, Tables).
 
 %% @doc
 %% `drop_duplicates/1' will drop all duplicate elements from a list of tuples identified by their first element.
