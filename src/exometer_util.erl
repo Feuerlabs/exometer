@@ -84,7 +84,7 @@ tables() ->
 
 table() ->
     table(erlang:system_info(scheduler_id)).
-table(N) ->
+table(N) when N < 65 ->
     Tables =
         {exometer_1 , exometer_2 , exometer_3 , exometer_4 , exometer_5,
          exometer_6 , exometer_7 , exometer_8 , exometer_9 , exometer_10,
@@ -99,7 +99,10 @@ table(N) ->
          exometer_51, exometer_52, exometer_53, exometer_54, exometer_55,
          exometer_56, exometer_57, exometer_58, exometer_59, exometer_60,
          exometer_61, exometer_62, exometer_63, exometer_64},
-    element(N rem 65, Tables).
+    element(N rem 65, Tables);
+
+table(N) ->
+    list_to_atom("exometer_" ++ integer_to_list(N)).
 
 %% @doc
 %% `drop_duplicates/1' will drop all duplicate elements from a list of tuples identified by their first element.
