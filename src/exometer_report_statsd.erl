@@ -124,7 +124,12 @@ type(set) -> "s". %% datadog specific type, see http://docs.datadoghq.com/guides
 ets_key(Metric, DataPoint) -> Metric ++ [ DataPoint ].
 
 name(Metric, DataPoint) ->
-    intersperse(".", lists:map(fun atom_to_list/1, ets_key(Metric, DataPoint))).
+    intersperse(".", lists:map(fun thing_to_list/1, ets_key(Metric, DataPoint))).
+
+thing_to_list(X) when is_atom(X) -> atom_to_list(X);
+thing_to_list(X) when is_integer(X) -> integer_to_list(X);
+thing_to_list(X) when is_binary(X) -> X;
+thing_to_list(X) when is_list(X) -> X.
 
 value(V) when is_integer(V) -> integer_to_list(V);
 value(V) when is_float(V)   -> float_to_list(V);
@@ -133,4 +138,3 @@ value(_)                    -> 0.
 intersperse(_, [])         -> [];
 intersperse(_, [X])        -> [X];
 intersperse(Sep, [X | Xs]) -> [X, Sep | intersperse(Sep, Xs)].
-
