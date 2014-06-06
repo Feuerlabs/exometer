@@ -111,9 +111,6 @@ exometer_terminate(_, _) ->
 %%% Internal Functions
 %%%===================================================================
 
-line(Name, Value, Type)->
-    line(Name, Value, Type, []).
-
 line(Name, Value, Type, [])->
     [Name, ":", value(Value), "|", type(Type)];
 line(Name, Value, Type, Tags)->
@@ -134,20 +131,17 @@ ets_key(Metric, DataPoint) -> Metric ++ [ DataPoint ].
 
 name(Metric, DataPoint) ->
     Metric0 = lists:takewhile(fun(Elem)-> not is_tuple(Elem) end, Metric),
-    intersperse(".", lists:map(fun thing_to_list/1,  ets_key(Metric0, DataPoint))).
+    intersperse(".", lists:map(fun value/1, ets_key(Metric0, DataPoint))).
 
 tags(Metric)->
     Tags = lists:dropwhile(fun(Elem)-> not is_tuple(Elem) end, Metric),
-    intersperse(",", [intersperse(":", [K,V]) ||{K,V}<-Tags]).
+    intersperse(",", [intersperse(":", lists:map(fun value/1, [K,V])) || {K,V} <- Tags]).
 
-thing_to_list(X) when is_atom(X) -> atom_to_list(X);
-thing_to_list(X) when is_integer(X) -> integer_to_list(X);
-thing_to_list(X) when is_binary(X) -> X;
-thing_to_list(X) when is_list(X) -> X.
-
-value(V) when is_integer(V) -> integer_to_list(V);
-value(V) when is_float(V)   -> float_to_list(V);
-value(_)                    -> 0.
+value(X) when is_atom(X)    -> atom_to_list(X);
+value(X) when is_integer(X) -> integer_to_list(X);
+value(X) when is_float(X)   -> io_lib:format("~.6f", [X]);
+value(X) when is_binary(X)  -> X;
+value(X) when is_list(X)    -> X.
 
 intersperse(_, [])         -> [];
 intersperse(_, [X])        -> [X];
