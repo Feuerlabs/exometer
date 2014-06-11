@@ -813,7 +813,13 @@ is_valid_metric(_, _) ->
     false.
 
 dp_list(DP) when is_list(DP) -> DP;
-dp_list(DP) when is_atom(DP) -> [DP].
+dp_list(DP) when is_atom(DP) -> [DP];
+dp_list(50)                  -> [50];
+dp_list(75)                  -> [75];
+dp_list(90)                  -> [90];
+dp_list(95)                  -> [95];
+dp_list(99)                  -> [99];
+dp_list(999)                 -> [999].
 
 get_values(Name, DataPoint) when is_list(Name) ->
     case exometer:get_value(Name, DataPoint) of
@@ -865,7 +871,6 @@ maybe_register(R, Opts) ->
         {_, Name} -> register(Name, self());
         false     -> register(R, self())
     end.
-            
 
 terminate_reporter(#reporter{pid = Pid, mref = MRef}) ->
     Pid ! {exometer_terminate, shutdown},

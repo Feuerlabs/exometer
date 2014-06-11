@@ -105,6 +105,8 @@ exometer_terminate(_, _) ->
 %%%===================================================================
 
 %% Add metric and datapoint within metric
+name(Metric, Datapoint) when is_integer(Datapoint) ->
+    metric_to_string(Metric) ++ "_" ++ integer_to_list(Datapoint);
 name(Metric, DataPoint) ->
     metric_to_string(Metric) ++ "_" ++ atom_to_list(DataPoint).
 
