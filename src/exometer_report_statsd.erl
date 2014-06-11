@@ -114,7 +114,7 @@ exometer_terminate(_, _) ->
 line(Name, Value, Type, [])->
     [Name, ":", value(Value), "|", type(Type)];
 line(Name, Value, Type, Tags)->
-    [Name, ":", value(Value), "|", type(Type), "#", Tags].
+    [Name, ":", value(Value), "|", type(Type), "|", "#", Tags].
 
 
 get_opt(K, Opts, Def) ->
