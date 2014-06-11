@@ -257,6 +257,8 @@ test_history4_folsom(_Config) ->
 
 test_ext_predef(_Config) ->
     {ok, [{total, _}]} = exometer:get_value([preset, func], [total]),
+    [total, processes, ets, binary, atom] =
+	exometer:info([preset, func], datapoints),
     ok.
 
 test_app_predef(Config) ->
@@ -274,6 +276,7 @@ test_app_predef(Config) ->
 
 test_function_match(_Config) ->
     {ok, [{gcs, _}]} = exometer:get_value([preset, match], [gcs]),
+    [gcs] = exometer:info([preset, match], datapoints),
     ok.
 
 %%%===================================================================

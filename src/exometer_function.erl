@@ -67,14 +67,14 @@ behaviour() ->
 %%
 %% `{function,...}' can be `{function, Mod, Fun}', in which case
 %% where `get_value(Name, DataPoints)' will result in a call to
-%% `Mod:Fun(DataPoints)'. 
+%% `Mod:Fun(DataPoints)'.
 %%  Invoking get_value(Name) (with no datapoints), will call
 %%  `Mod:Fun(default), which must return a default list of data point
 %%  values.
 %%
 %% `{function,...}' can also be setup as `{function,
 %% Mod,Fun,ArgSpec,Type,DataPoints}' in order to invoke a limited
-%% interpreter. The `ArgSpec' is evaluated as follows: 
+%% interpreter. The `ArgSpec' is evaluated as follows:
 %%
 %% <ul>
 %%  <li>`[]' means to call with no arguments, i.e. `M:F()'</li>
@@ -244,8 +244,11 @@ actual_datapoints(DPs0, DPs) ->
           lists:member(D, DPs)].
 
 
-get_datapoints(_Name, _Type, {_,_,_,_, DPs}) ->
-    DPs;
+get_datapoints(_Name, _Type, {_, _, once, _, match, Pat}) ->
+    pattern_datapoints(Pat);
+get_datapoints(_Name, _Type, T) when is_tuple(T), is_list(
+						    element(size(T),T)) ->
+    element(size(T), T);
 get_datapoints(_Name, _Type, _Ref) ->
     [value].
 
@@ -556,7 +559,7 @@ e({lc,_E0,_Es}, _Bs) -> error(nyi);
 e({op,Op,E1,E2}, Bs) -> op(Op, e(E1,Bs), e(E2,Bs));
 e({op,Op,E}, Bs) when Op=='-'; Op=='not' ->
     erlang:Op(e(E, Bs));
-e({element,E,T}, Bs) -> 
+e({element,E,T}, Bs) ->
     case e(T, Bs) of
         Tup when is_tuple(Tup) ->
             element(e(E,Bs), Tup);
@@ -634,7 +637,7 @@ call1({M,F}, As) when is_atom(M), is_atom(F) ->
 
 op(Op, A, B) when is_atom(Op) ->
     erlang:Op(A, B).
-    
+
 fold_([H|T], Vx, Va, Es, Bs) ->
     Bs1 = erl_eval:add_binding(Vx, e(H,Bs), Bs),
     {value, NewA, _} = eval_exprs(Es, Bs1),
