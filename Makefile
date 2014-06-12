@@ -18,6 +18,9 @@ compile:
 clean: clean_plt
 	rebar clean
 
+clean-all: clean
+	rm -rf deps
+
 test: compile_examples
 	ERL_LIBS=./examples rebar ct skip_deps=true
 
