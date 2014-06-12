@@ -90,10 +90,9 @@ exometer_unsubscribe(_Metric, _DataPoint, _Extra, St) ->
 
 %% Invoked through the remote_exometer() function to
 %% send out an update.
-exometer_report(Metric, DataPoint, Extra, Value, #st{level = Level} = St)  ->
+exometer_report(Metric, DataPoint, _Extra, Value, #st{level = Level} = St)  ->
     ?debug("Report metric ~p_~p = ~p~n", [Metric, DataPoint, Value]),
     %% Report the value and setup a new refresh timer.
-    Key = Metric ++ [DataPoint],
     Str = [?MODULE_STRING, ": ", name(Metric, DataPoint),
            ":", value(Value), $\n],
     log(Level, Str),
