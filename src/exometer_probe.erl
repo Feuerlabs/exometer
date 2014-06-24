@@ -11,11 +11,11 @@
 %%
 %%  This library contains the main API for accessing all probes
 %%  executing in exometer.
-%%  
+%%
 %%  All exported functions in the `exomter_probe' module are invoked
 %%  by the `exometer' module; a developer will not have to call
 %%  `exometer_probe' functions directly.
-%% 
+%%
 %%  A probe is an implementation of the `exometer_probe' behavior
 %%  which runs in its own process in order to collect data to be
 %%  handled and reported by exometer. The implementation will be
@@ -31,7 +31,7 @@
 %%  If the data can be collected at a high speed, and without
 %%  blocking, an `exometer_entry' implementation can be used instead
 %%  to do the gathering in-process.
-%%  
+%%
 %%  A probe is created throgh the `exomter_probe:new/3' call, which in
 %%  its turn is called by `exometer:new/3'. During probe creation, a
 %%  new process is spawned to handle the probe and call its
@@ -53,64 +53,64 @@
 %%  call, which specifies the data points to be returned. The probe is
 %%  expected to gather the given data points and return them to the
 %%  caller.
-%% 
+%%
 %% == The probe callback interface ==
 %%
 %% The following functions are to be implemented and exported by a probe
 %% implementation.
 %%
 %% === behaviour/0 ===
-%% 
+%%
 %% The `behaviour/0' function for an entry implementation should return
 %% the atom `probe'. This function will be involved by the
 %% exometer system in order to determine if a callback is
 %% an entry or a probe.
-%% 
+%%
 %% === probe_init/3 ===
 %% The `probe_init/3' function is invoked as follows:
-%% 
+%%
 %% <pre lang="erlang">
 %%      probe_init(Name, Type, Options)</pre>
-%% 
+%%
 %% The implementation shall initiate the probe, create the
 %% necessary state, and return it for furure access
 %% through `probe_update/2', `probe_sample/1' and `get_value/2' calls.
-%% 
+%%
 %% The arguments are as follows:
 %%
 %% + `Name'
-%%     Specifies the name of the metric to be created as a list of atoms. 
-%% 
+%%     Specifies the name of the metric to be created as a list of atoms.
+%%
 %% + `Type'
 %%     Specifies the type provided to the `exometer:new/3' call (before it
 %%     was translated by the type - exometer probe map). It can be used if several
 %%     different types are mapped to the same probe module.
-%% 
+%%
 %% + `Options'
 %%     Specifies an option list that contains additional setup directives to
-%%     the probe. The actual options to support are a combination of the 
+%%     the probe. The actual options to support are a combination of the
 %%     standard options, described below, and probe specific options
 %%     processed by `probe_init/3'.
-%% 
+%%
 %% Standard options are processed directly by `new/3', before
 %% `probe_init/3' is calledm and are as follows:
 %%
 %% + `{priority, P}'
-%%     Will be forwarded by the probe's process to `erlang:process_flag/2'. 
-%% 
+%%     Will be forwarded by the probe's process to `erlang:process_flag/2'.
+%%
 %% + `{min_heap_size, S}'
 %%     Will be forwarded by the probe's process to `erlang:process_flag/2'.
-%% 
+%%
 %% + `{min_bin_vheap_size, S}'
 %%     Will be forwarded by the probe's process to `erlang:process_flag/2'.
-%% 
+%%
 %% + `{sensitive, true | false}'
 %%     Will be forwarded by the probe's process to `erlang:process_flag/2'.
-%% 
+%%
 %% + `{sample_interval, t}'
 %%     Specifies the interval, in milliseconds, that `erlang:process_flag/2'.
 %%     should be invoked at.
-%% 
+%%
 %% The `probe_init/3' implementation is invoked by `exometer:new/3',
 %% which calls `exometer_probe:new/3', which invokes the probe
 %% implementation..
@@ -131,13 +131,13 @@
 %%
 %% === probe_terminate/1 ===
 %% The `probe_terminate/1' function is invoked as follows:
-%% 
+%%
 %% <pre lang="erlang">
 %%      probe_terminate(State)</pre>
-%% 
+%%
 %% The custom probe shall release any resources associated with the
-%% given state and return `ok'. 
-%% 
+%% given state and return `ok'.
+%%
 %% The arguments are as follows:
 %%
 %% + `State'
@@ -152,10 +152,10 @@
 %%
 %% === probe_setopts/2 ===
 %% The `probe_setopts/2' function is invoked as follows:
-%% 
+%%
 %% <pre lang="erlang">
 %%      probe_setopts(Opts, State)</pre>
-%% 
+%%
 %% The `probe_setopts/2' implementation is invoked by `exometer:setopts/2', which
 %% calls `exometer_probe:setopts/4', which invokes the probe
 %% implementation.
@@ -169,32 +169,32 @@
 %%
 %% + `Opts'
 %%     The probe-specific options to be processed.
-%% 
+%%
 %% + `State'
 %%     The probe state, originally returned by `probe_init/3' and subsequentially
 %%     modified by other probe implementation calls.
-%% 
+%%
 %% This function shall return `{ok, NewState}' where `NewState' is
 %% the modified probe state that incorporates the new options.
-%% 
+%%
 %%
 %% === probe_update/2 ===
 %% The `probe_update/2' function is invoked as follows:
-%% 
+%%
 %% <pre lang="erlang">
 %%      probe_update(Value, State)</pre>
-%% 
+%%
 %% Incorporate a new value into the metric maintained by the metric.
 %%
 %% The arguments are as follows:
 %%
 %% + `Value'
 %%     The value to integrate.
-%% 
+%%
 %% + `State'
 %%     The probe state, originally returned by `probe_init/3' and subsequentially
 %%     modified by other probe implementation calls.
-%% 
+%%
 %% This function can be called outside the periodic `probe_sample/1/'
 %% call to have the probe process a value given in `Value'.
 %%
@@ -205,14 +205,14 @@
 %% Once processed, `probe_update/2' shall return `{ok, NewState}',
 %% where `NewState' contains the new probe state with the processed
 %% value.
-%% 
+%%
 %%
 %% === probe_get_value/2 ===
 %% The `probe_get_value/2' function is invoked as follows:
-%% 
+%%
 %% <pre lang="erlang">
 %%      probe_get_value(DataPoints, State)</pre>
-%% 
+%%
 %% The `probe_get_value/2' implementation shall retrieve the value of
 %% one or more data points from the probe.
 %%
@@ -220,15 +220,15 @@
 %%
 %% + `DataPoints'
 %%     List of data point atoms to retrieve values for.
-%% 
+%%
 %% + `State'
 %%     The probe state, originally returned by `probe_init/3' and subsequentially
 %%     modified by other probe implementation calls.
-%% 
+%%
 %% The `probe_get_value/2' implementation is invoked by
 %% `exometer:get_value/2', which calls `exometer_probe:get_value/4',
 %% which invokes the probe implementation.
-%% 
+%%
 %% If `exometer:get_value/2' is invoked with `default' as a single
 %% data point, the probe's `probe_get_datapoints/1' function will be
 %% called to retrieve all data points supported by the probe
@@ -237,7 +237,7 @@
 %%
 %% This function shall return the value of all data points provided in
 %% `DataPoints', given that they are supported.
-%% 
+%%
 %% The list in the returned tuple shall have the format:
 %%
 %% <pre lang="erlang">
@@ -260,13 +260,13 @@
 %% where `List' is the list of data points and their values described
 %% above. No new state is returned by this function.
 %%
-%% 
+%%
 %% === probe_get_datapoints/1 ===
 %% The `probe_get_datapoints/1' function is invoked as follows:
-%% 
+%%
 %% <pre lang="erlang">
 %%      probe_get_datapoints(State)</pre>
-%% 
+%%
 %% The `probe_get_datapoints/1' shall return a list with all data points
 %% supported by the probe
 %%
@@ -275,26 +275,26 @@
 %% + `State'
 %%     The probe state, originally returned by `probe_init/3' and subsequentially
 %%     modified by other probe implementation calls.
-%% 
+%%
 %% The `probe_get_datapoints/1' implementation is invoked by
 %% `exometer:info/2', which calls `exometer_probe:get_datapoints/3',
 %% which invokes the probe implementation.
-%% 
+%%
 %% In cases where `exometer:get_value/2' is called with `default' as a
 %% single data point, `probe_get_datapoints/1' is also called to
 %% retrieve a list of all supported data points, which is then
 %% forwarded to `probe_get_value/2'.
-%% 
+%%
 %% The implementation of `probe_get_datapoints/1' shall return `{ok, DpList}',
 %% where `DpList' is a list of data point atoms supported by the probe.
 %%
 %%
 %% === probe_reset/1 ===
 %% The `probe_reset/1' function is invoked as follows:
-%% 
+%%
 %% <pre lang="erlang">
 %%      probe_reset(State)</pre>
-%% 
+%%
 %% The `probe_reset/1' shall reset the state of the probe to its initial state.
 %%
 %% The arguments are as follows:
@@ -302,22 +302,22 @@
 %% + `State'
 %%     The probe state, originally returned by `probe_init/3' and subsequentially
 %%     modified by other probe implementation calls.
-%% 
-%% 
+%%
+%%
 %% The `probe_reset/1' implementation is invoked by
 %% `exometer:reset/1', which calls `exometer_probe:reset/3', which
 %% invokes the probe implementation.
-%% 
+%%
 %% The implementation of `probe_reset/1' shall return `{ok,
 %% NewState}', where `NewState' contains the reset state of the probe.
 %%
 %%
 %% === probe_sample/1 ===
 %% The `probe_sample/1' function is invoked as follows:
-%% 
+%%
 %% <pre lang="erlang">
 %%      probe_sample(State)</pre>
-%% 
+%%
 %% The `probe_sample/1' implementation shall sample data from the
 %% subsystem the probe is integrated with.
 %%
@@ -326,7 +326,7 @@
 %% + `State'
 %%     The probe state, originally returned by `probe_init/3' and subsequentially
 %%     modified by other probe implementation calls.
-%% 
+%%
 %% When invoked, `probe_sample/1' is expected to interface the
 %% sub-system (/proc, /sysfs, etc) monitored by the probe, extract the
 %% relevant data from it, and return an updated probe state that
@@ -344,10 +344,10 @@
 %%
 %% === probe_handle_msg/2 ===
 %% The `probe_handle_msg/2' function is invoked as follows:
-%% 
+%%
 %% <pre lang="erlang">
 %%      probe_handle_msg(Msg, State)</pre>
-%% 
+%%
 %% The `probe_handle_msg/1' is invoked to process messages received
 %% by the probe process.
 %%
@@ -356,11 +356,11 @@
 %% + `State'
 %%     The probe state, originally returned by `probe_init/3' and subsequentially
 %%     modified by other probe implementation calls.
-%% 
+%%
 %% + `Msg'
 %%     The probe state, originally returned by `probe_init/3' and subsequentially
 %%     modified by other probe implementation calls.
-%% 
+%%
 %% The implementation of this function will be called by the probe's
 %% process when it receives a message that is not recognized by the
 %% internal receive loop.
@@ -471,7 +471,7 @@ sample(_Name, _Type, Pid) when is_pid(Pid) ->
     exometer_proc:call(Pid, sample).
 
 init(Name, Type, Mod, Opts) ->
-    process_flag(min_heap_size, 40000), 
+    process_flag(min_heap_size, 40000),
     {St0, Opts1} = process_opts(Opts, #st{name = Name,
                                           type = Type,
                                           module = Mod}),
@@ -488,20 +488,17 @@ init(Name, Type, Mod, Opts) ->
             %% No sample timer to start. Return with the mod state returned by probe_init.
 	    loop(St#st{ mod_state = ModSt });
 
-        { ok, _} ->
-            %% Fire up the timer, with undefined mod 
-            ModSt = sample(St#st{ mod_state = undefined }),
-	    loop( St#st{ mod_state = ModSt });
-	    
+        {ok, _} ->
+            %% Fire up the timer, with undefined mod
+            loop(sample(St#st{ mod_state = undefined }));
 
         {{ok, ModSt}, _ } ->
-            %% Fire up the timer. Return with the mod state returned by probe_init.
-            ModSt = sample(St#st{ mod_state = ModSt }),
-	    loop(St#st{ mod_state = ModSt });
+            %% Fire up the timer.
+            loop(sample(St#st{ mod_state = ModSt }));
 
         {{error, Reason}, _} ->
 	    %% FIXME: Proper shutdown.
-            {error, Reason} 
+            {error, Reason}
     end.
 
 loop(St) ->
@@ -515,15 +512,15 @@ handle_msg(Msg, St) ->
     case Msg of
         {exometer_proc, {From, Ref}, {get_value, default} } ->
             {ok, DataPoints} = Module:probe_get_datapoints(St#st.mod_state),
-            {Reply, NSt} = 
-            process_probe_reply(St, Module:probe_get_value(DataPoints, 
+            {Reply, NSt} =
+            process_probe_reply(St, Module:probe_get_value(DataPoints,
                                                            St#st.mod_state)),
             From ! {Ref, Reply },
             NSt;
 
         {exometer_proc, {From, Ref}, {get_value, DataPoints} } ->
-            {Reply, NSt} = 
-            process_probe_reply(St, Module:probe_get_value(DataPoints, 
+            {Reply, NSt} =
+            process_probe_reply(St, Module:probe_get_value(DataPoints,
                                                            St#st.mod_state)),
             From ! {Ref, Reply },
             NSt;
@@ -552,12 +549,12 @@ handle_msg(Msg, St) ->
 
             From ! {Ref, Reply },
             %% Return state with options and any non-duplicate original opts.
-            NSt1#st {  
-              opts = Opts1 ++ 
+            NSt1#st {
+              opts = Opts1 ++
               [{K,V} || {K,V} <- St#st.opts, not lists:keymember(K,1,Opts1) ]
              };
 
-        {timeout, _TRef, sample} ->
+        {timeout, _TRef, {exometer_proc, sample_timer}} ->
             sample(St);
 
         {exometer_proc, delete} ->
@@ -600,10 +597,9 @@ process_probe_noreply(St, _) ->
 
 %% ===================================================================
 
-sample(St) ->
-    ModSt = restart_timer(sample, St),
-    #st{mod_state=ModSt1} = process_probe_noreply(St, (St#st.module):probe_sample(ModSt)),
-    ModSt1.
+sample(#st{module = Mod, mod_state = ModSt} = St) ->
+    St1 = restart_timer(sample, St),
+    process_probe_noreply(St1, Mod:probe_sample(ModSt)).
 
 restart_timer(sample, #st{sample_interval = Int} = St) ->
     St#st{sample_timer = start_timer(Int, {exometer_proc, sample_timer})}.
@@ -624,4 +620,3 @@ process_opts([Opt|T], St, Acc) ->
     process_opts(T, St, [Opt | Acc]);
 process_opts([], St, Acc) ->
     {St, lists:reverse(Acc)}.
-
