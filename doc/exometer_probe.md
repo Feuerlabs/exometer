@@ -9,16 +9,12 @@
 Interface library for managing probes.
 __Behaviours:__ [`exometer_entry`](exometer_entry.md).
 
-__This module defines the `exometer_probe` behaviour.__
-<br></br>
- Required callback functions: `behaviour/0`, `probe_init/3`, `probe_terminate/1`, `probe_setopts/2`, `probe_update/2`, `probe_get_value/2`, `probe_get_datapoints/1`, `probe_reset/1`, `probe_sample/1`, `probe_handle_msg/2`, `probe_code_change/3`.
+__This module defines the `exometer_probe` behaviour.__<br /> Required callback functions: `behaviour/0`, `probe_init/3`, `probe_terminate/1`, `probe_setopts/2`, `probe_update/2`, `probe_get_value/2`, `probe_get_datapoints/1`, `probe_reset/1`, `probe_sample/1`, `probe_handle_msg/2`, `probe_code_change/3`.
 <a name="description"></a>
 
 ## Description ##
 
-
-<br></br>
-
+<br />
 
 
 

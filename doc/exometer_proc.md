@@ -52,9 +52,7 @@ following messages:
 <pre><code>
 call(Pid::pid(), Req::any()) -&gt; any()
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Make a synchronous call to an `exometer_proc` process.
@@ -82,9 +80,7 @@ Note that the receiving process must explicitly handle the message in a
 <pre><code>
 cast(Pid::pid(), Msg::any()) -&gt; ok
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Send an asynchronous message to an `exometer_proc` process.
@@ -100,9 +96,7 @@ given process.
 <pre><code>
 process_options(Opts::[{atom(), any()}]) -&gt; ok
 </code></pre>
-
-<br></br>
-
+<br />
 
 Apply process_flag-specific options.
 <a name="spawn_process-2"></a>
@@ -113,9 +107,7 @@ Apply process_flag-specific options.
 <pre><code>
 spawn_process(Name::<a href="exometer.md#type-name">exometer:name()</a>, F::fun(() -&gt; no_return())) -&gt; pid()
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Spawn an `exometer_proc` process.
@@ -132,9 +124,7 @@ which needs to initialize the probe and enter an event loop.
 <pre><code>
 stop() -&gt; no_return()
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Terminate probe process in an orderly way.

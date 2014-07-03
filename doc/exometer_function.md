@@ -417,9 +417,7 @@ simple_fun() = {function, <a href="#type-mod_name">mod_name()</a>, <a href="#typ
 <pre><code>
 behaviour() -&gt; atom()
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 <a name="delete-3"></a>
@@ -444,9 +442,7 @@ behaviour() -&gt; atom()
 <pre><code>
 eval_exprs(Es::[<a href="#type-expr">expr()</a>], Bs::[<a href="#type-binding">binding()</a>]) -&gt; {value, any(), [<a href="#type-binding">binding()</a>]}
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Evaluate a list of abstract expressions.
@@ -498,7 +494,7 @@ relationship between sublists is 'or'. This is the same as in Erlang.
 
 ### get_datapoints/3 ###
 
-`get_datapoints(Name, Type, Ref) -> any()`
+`get_datapoints(Name, Type, T) -> any()`
 
 
 <a name="get_value-4"></a>
@@ -516,9 +512,7 @@ relationship between sublists is 'or'. This is the same as in Erlang.
 <pre><code>
 new(Name::<a href="exometer.md#type-name">exometer:name()</a>, X2::function | <a href="#type-fun_spec">fun_spec()</a>, Opts::<a href="exometer.md#type-options">exometer:options()</a>) -&gt; {ok, <a href="#type-fun_rep">fun_rep()</a>}
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Callback for creating an exometer `function` entry.

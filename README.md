@@ -4,7 +4,7 @@
 
 Copyright (c) 2014 Basho Technologies, Inc.  All Rights Reserved.
 
-__Version:__ May 3 2014 23:29:49
+__Version:__ Jul 3 2014 21:14:08
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -350,54 +350,24 @@ All metrics reported to collectd will be have identifiers formatted as follows:
 HostName/PluginName-PluginInstance/Type-Metric_DataPoint
 ```
 
-+ `HostName`
-<br></br>
-Host name of the entry.
-<br></br>
-Configurable through the `hostname` application environment parameter.
-<br></br>
-Default is the value returned by `netadm:localhost()`.
++ `HostName`<br />Host name of the entry.<br />Configurable through the `hostname` application environment parameter.<br />Default is the value returned by `netadm:localhost()`.
 
-+ `PluginName`
-<br></br>
-The collectd plugin name.
-<br></br>
-Configurable through the `plugin_name` application environment parameter.
-<br></br>
-Default is `exometer`.
++ `PluginName`<br />The collectd plugin name.<br />Configurable through the `plugin_name` application environment parameter.<br />Default is `exometer`.
 
-+ `PluginInstance`
-<br></br>
-The instance ID to use for the plugin.
-<br></br>
-Configurable through the `plugin_instance` application environment parameter.
-<br></br>
-Default is the erlang node name in the left hand side of the value
++ `PluginInstance`<br />The instance ID to use for the plugin.<br />Configurable through the `plugin_instance` application environment parameter.<br />Default is the erlang node name in the left hand side of the value
     returned by `node()`.
 
-+ `Type`
-<br></br>
-Type assigned to the reported value.
-<br></br>
-The type is looked up through the `type_map`.
-<br></br>
-The given metric and data points are used as a key in a list format,
++ `Type`<br />Type assigned to the reported value.<br />The type is looked up through the `type_map`.<br />The given metric and data points are used as a key in a list format,
     such as `[ db, cache, hits, median ]`. The type that is resolved from
     the metric/data point will be used as the `Type` component in the
     collectd identifier. Please see types.db(5) for a list of available
-    collectd types.
-<br></br>
-Default for `Type` is 'gauge'.
+    collectd types.<br />Default for `Type` is 'gauge'.
 
-+ `Metric`
-<br></br>
-The name of the metric. The atoms in the metric list will be converted
++ `Metric`<br />The name of the metric. The atoms in the metric list will be converted
     to a string separated by `_`. Thus `[ db, cache, hits ]` will be converted
     to `db_cache_hits`.
 
-+ `DataPoint`
-<br></br>
-The data point of the given metric.
++ `DataPoint`<br />The data point of the given metric.
 Will be added to the end of the metrics string.
 
 Please see [Configuring collectd reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_collectd_reporter) for details on the
@@ -416,27 +386,13 @@ properly.
 
 To configure SNMP export for a single metric use these options:
 
-+ `{snmp, disabled}` (default)
-<br></br>
-Disables SNMP export for the metric. Same as not specifying the option at all.
++ `{snmp, disabled}` (default)<br />Disables SNMP export for the metric. Same as not specifying the option at all.
 
-+ `{snmp, []}`
-<br></br>
-Enables SNMP export for the metric. No subscriptions are setup.
++ `{snmp, []}`<br />Enables SNMP export for the metric. No subscriptions are setup.
 
-+ `{snmp, [{Datapint, Interval}]}`
-<br></br>
-Enables SNMP export for the metric.
-<br></br>
-Subscriptions are setup for the given Datapoint/Interval pairs.
-<br></br>
-Each subscription report will be forwarded to SNMP mangers as notifications.
++ `{snmp, [{Datapint, Interval}]}`<br />Enables SNMP export for the metric.<br />Subscriptions are setup for the given Datapoint/Interval pairs.<br />Each subscription report will be forwarded to SNMP mangers as notifications.
 
-+ `{snmp, [{Datapint, Interval, Extra}]}`
-<br></br>
-Same as above, but using an addition extra identification for the subscriptions.
-<br></br>
-Allow the creation ofmultiple subscriptions for a single datapoint.
++ `{snmp, [{Datapint, Interval, Extra}]}`<br />Same as above, but using an addition extra identification for the subscriptions.<br />Allow the creation ofmultiple subscriptions for a single datapoint.
 
 Please see [Configuring collectd reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_collectd_reporter) for details on how to configure the
 SNMP reporter.
@@ -731,29 +687,19 @@ The rest of the items will be applied to each of the matching entries.
 
 The meaning of the above tuple elements is:
 
-+ `Reporter :: module()`
-<br></br>
-Specifies the reporter plugin module, such as`exometer_report_collectd` that is to receive updated metric's data
++ `Reporter :: module()`<br />Specifies the reporter plugin module, such as`exometer_report_collectd` that is to receive updated metric's data
 points.
 
-+ `Metric :: [atoms()]`
-<br></br>
-Specifies the path to a metric previously created with an`exometer:new()` call.
++ `Metric :: [atoms()]`<br />Specifies the path to a metric previously created with an`exometer:new()` call.
 
-+ `DataPoint` ::  atom() | [atom()]'
-<br></br>
-Specifies the data point within the given metric to send to the
++ `DataPoint` ::  atom() | [atom()]'<br />Specifies the data point within the given metric to send to the
     receiver. The data point must match one of the data points returned by`exometer:info(Name, datapoints)` for the given metrics name.
 
-+ `Interval` :: integer()' (milliseconds)
-<br></br>
-Specifies the interval, in milliseconds, between each update of the
++ `Interval` :: integer()' (milliseconds)<br />Specifies the interval, in milliseconds, between each update of the
 given metric's data point. At the given interval, the data point will
 be samples, and the result will be sent to the receiver.
 
-+ `RetryFailedMetrics :: boolean()`
-<br></br>
-Specifies if the metric should be continued to be reported
++ `RetryFailedMetrics :: boolean()`<br />Specifies if the metric should be continued to be reported
     even if it is not found during a reporting cycle. This would be
     the case if a metric is not created by the time it is reported for
     the first time. If the metric will be created at a later time,
@@ -761,9 +707,7 @@ Specifies if the metric should be continued to be reported
     attempts to report the metric should stop if when is not found.
     The default value is `true`.
 
-+ `Extra :: any()`
-<br></br>
-Provides a means to pass along extra information for a given
++ `Extra :: any()`<br />Provides a means to pass along extra information for a given
    subscription. An example is the `syntax` option for the SNMP reporter,
    in which case `Extra` needs to be a property list.
 
@@ -838,66 +782,46 @@ its correct location in the hierarchy:
 
 The following attributes are available for configuration:
 
-+ `reconnect_interval` (seconds - default: 30)
-<br></br>
-Specifies the duration between each reconnect attempt to a collectd
++ `reconnect_interval` (seconds - default: 30)<br />Specifies the duration between each reconnect attempt to a collectd
 server that is not available. Should the server either be unavailable
 at exometer startup, or become unavailable during exometer's
 operation, exometer will attempt to reconnect at the given number of
 seconds.
 
-+ `refresh_interval` (seconds - default: 10)
-<br></br>
-Specifies how often a value, which has not been updated by exometer,
++ `refresh_interval` (seconds - default: 10)<br />Specifies how often a value, which has not been updated by exometer,
 is to be resent with its current value to collectd. If collectd does
 not see an identifier updated at a given number of seconds (see
 Timeout in collectd.conf(5)), it will be removed from the list of
 maintained identifiers.
 
-+ `read_timeout` (milliseconds - default: 5000)
-<br></br>
-Specifies how long the collectd reporter plugin shall wait for an
++ `read_timeout` (milliseconds - default: 5000)<br />Specifies how long the collectd reporter plugin shall wait for an
 acknowledgement from collectd after sending it an updated value.  If
 an acknowledgment is not received within the given interval, the
 plugin will disconnect from the collectd server and reconnect to it
 after the given reconnect interval (see item one above).
 
-+ `connect_timeout` (milliseconds - default: 5000)
-<br></br>
-Specifies how long the collectd reporter plugin shall wait for a unix
++ `connect_timeout` (milliseconds - default: 5000)<br />Specifies how long the collectd reporter plugin shall wait for a unix
 socket connection to complete before timing out. A timed out
 connection attempt will be retried after the reconnect interval has
 passed see item 1 above).
 
-+ `path` (file path - default: "/var/run/collectd-unixsock")
-<br></br>
-Specifies the path to the named unix socket that collectd is listening
++ `path` (file path - default: "/var/run/collectd-unixsock")<br />Specifies the path to the named unix socket that collectd is listening
 on. When exometer starts and loads the collectd reporter plugin, the
 plugin will connect to the given socket.
 
-+ `plugin_name` (string - default: "exometer")
-<br></br>
-Specifies the plugin name to use when constructing an collectd identifier.
++ `plugin_name` (string - default: "exometer")<br />Specifies the plugin name to use when constructing an collectd identifier.
     Please see [Configuring collectd reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_collectd_reporter) for details.
 
-+ `plugin_instance` (string - default: left hand side of `node()`)
-<br></br>
-Specifies the plugin instance id to use when constructing an collectd identifier.
++ `plugin_instance` (string - default: left hand side of `node()`)<br />Specifies the plugin instance id to use when constructing an collectd identifier.
     Please see [Configuring collectd reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_collectd_reporter) for details.
 
-+ `plugin_instance` (string - default: left hand side of `node()`)
-<br></br>
-Specifies the plugin instance id to use when constructing an collectd identifier.
++ `plugin_instance` (string - default: left hand side of `node()`)<br />Specifies the plugin instance id to use when constructing an collectd identifier.
     Please see [Configuring collectd reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_collectd_reporter) for details.
 
-+ `hostname` (string - default: `net_adm:localhost()`)
-<br></br>
-Specifies the host name to use when constructing an collectd identifier.
++ `hostname` (string - default: `net_adm:localhost()`)<br />Specifies the host name to use when constructing an collectd identifier.
     Please see [Configuring collectd reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_collectd_reporter) for details.
 
-+ `type_map` (prop list - default: n/a)
-<br></br>
-Specifies the mapping between metrics/datapoints and the collectd type
++ `type_map` (prop list - default: n/a)<br />Specifies the mapping between metrics/datapoints and the collectd type
 to use when sending an updated metric value. See below.
 
 Type maps must be provided since there is no natural connection
@@ -942,28 +866,18 @@ its correct location in the hierarchy:
 
 The following attributes are available for configuration:
 
-+ `connect_timeout` (milliseconds - default: 5000)
-<br></br>
-Specifies how long the graphie reporter plugin shall wait for a tcp
++ `connect_timeout` (milliseconds - default: 5000)<br />Specifies how long the graphie reporter plugin shall wait for a tcp
 connection to complete before timing out. A timed out connection will
 not be reconnected to automatically. (To be fixed.)
 
-+ `prefix` (string - default: "")
-<br></br>
-Specifies an optional prefix to prepend all metric names with before
++ `prefix` (string - default: "")<br />Specifies an optional prefix to prepend all metric names with before
 they are sent to the graphite server.
 
-+ `host` (string - default: "carbon.hostedgraphite.com")
-<br></br>
-Specifies the name (or IP address) of the graphite server to report to.
++ `host` (string - default: "carbon.hostedgraphite.com")<br />Specifies the name (or IP address) of the graphite server to report to.
 
-+ `port` (integer - default: 2003)
-<br></br>
-Specifies the TCP port on the given graphite server to connect to.
++ `port` (integer - default: 2003)<br />Specifies the TCP port on the given graphite server to connect to.
 
-+ `api_key` (string - default: n/a)
-<br></br>
-Specifies the api key to use when reporting to a hosted graphite server.
++ `api_key` (string - default: n/a)<br />Specifies the api key to use when reporting to a hosted graphite server.
 
 If `prefix` is not specified, but `api_key` is, each metrics will be reported as `ApiKey.Metric`.
 
@@ -994,13 +908,9 @@ its correct location in the hierarchy:
 
 The following attributes are available for configuration:
 
-+ `mib_template` (string - default: "mibs/EXOMETER-METRICS-MIB.mib")
-<br></br>
-Specifies where to find the MIB template used for dynamically assembline an internal MIB. Take a look at the MIB template shipped with Exometer for reference in case you want to define your own template.
++ `mib_template` (string - default: "mibs/EXOMETER-METRICS-MIB.mib")<br />Specifies where to find the MIB template used for dynamically assembline an internal MIB. Take a look at the MIB template shipped with Exometer for reference in case you want to define your own template.
 
-+ `mib_dir` (string - default: "tmp/exometer_report_snmp")
-<br></br>
-Specifies temporary direction which will be used by Exometer to store dymanically created MIB files.
++ `mib_dir` (string - default: "tmp/exometer_report_snmp")<br />Specifies temporary direction which will be used by Exometer to store dymanically created MIB files.
 
 
 ### <a name="Creating_custom_exometer_entries">Creating custom exometer entries</a> ###

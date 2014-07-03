@@ -10,9 +10,7 @@
 .
 __Behaviours:__ [`gen_server`](gen_server.md).
 
-__This module defines the `exometer_report` behaviour.__
-<br></br>
- Required callback functions: `exometer_init/1`, `exometer_report/5`, `exometer_subscribe/5`, `exometer_unsubscribe/4`, `exometer_info/2`, `exometer_call/3`, `exometer_cast/2`, `exometer_terminate/2`, `exometer_setopts/4`, `exometer_newentry/2`.
+__This module defines the `exometer_report` behaviour.__<br /> Required callback functions: `exometer_init/1`, `exometer_report/5`, `exometer_subscribe/5`, `exometer_unsubscribe/4`, `exometer_info/2`, `exometer_call/3`, `exometer_cast/2`, `exometer_terminate/2`, `exometer_setopts/4`, `exometer_newentry/2`.
 <a name="description"></a>
 
 ## Description ##
@@ -37,34 +35,26 @@ The life cycle of a a custom reporter consists of the following steps.
 
 
 
-+ Reporter creation 
-<br></br>
-`exometer_init/1` is invoked by exometer when
++ Reporter creation <br />`exometer_init/1` is invoked by exometer when
 the reporter is configured in the reporter application
 environment. See [Configuring reporter plugins](#Configuring_reporter_plugins) for
 details.
 
 
 
-+ Setup subscription
-<br></br>
-When `exometer_report:subscribe()` is called, targeting the
++ Setup subscription<br />When `exometer_report:subscribe()` is called, targeting the
 custom report plugin, the gen_server's `exometer_subscribe()` function
 will be invoked to notify the plugin of the new metrics subscription.
 
 
 
-+ Report Metrics
-<br></br>
-Updated metrics are sent by exometer to the
++ Report Metrics<br />Updated metrics are sent by exometer to the
 `exometer_report/4`. All reported metrics will have been notified
 to the recipient through a previous `exometer_report()` function.
 
 
 
-+ Tear down subscription
-<br></br>
-When `exometer_report:unsubscribe()` is called, addressing the
++ Tear down subscription<br />When `exometer_report:unsubscribe()` is called, addressing the
 custom report plugin, the recipient's `exometer_unsubscribe()` function
 will be invoked to notify the plugin of the deleted subscription.
 
@@ -94,9 +84,7 @@ new plugin and return a state to be used in future plugin calls.
 
 
 
-+ `Options`
-<br></br>
-Provides the prop list with attributes from the application environment
++ `Options`<br />Provides the prop list with attributes from the application environment
 for the cusom recipient. See [Configuring reporter plugins](#Configuring_reporter_plugins) for
 
 
@@ -128,29 +116,21 @@ the given meteric and data point.
 
 
 
-+ `Metric`
-<br></br>
-Specifies the metric that is now subscribed to by the plugin
++ `Metric`<br />Specifies the metric that is now subscribed to by the plugin
 as a list of atoms.
 
 
 
-+ `DataPoint`
-<br></br>
-Specifies the data point within the subscribed-to metric as an atom, or a list of atoms.
++ `DataPoint`<br />Specifies the data point within the subscribed-to metric as an atom, or a list of atoms.
 
 
 
-+ `Interval`
-<br></br>
-Specifies the interval, in milliseconds, that the subscribed-to
++ `Interval`<br />Specifies the interval, in milliseconds, that the subscribed-to
 value will be reported at.
 
 
 
-+ `State`
-<br></br>
-Contains the state returned by the last called plugin function.
++ `State`<br />Contains the state returned by the last called plugin function.
 
 
 
@@ -182,22 +162,16 @@ return its possibly modified state.
 
 
 
-+ `Metric`
-<br></br>
-Specifies the metric that is to be reported.
++ `Metric`<br />Specifies the metric that is to be reported.
 
 
 
-+ `DataPoint`
-<br></br>
-Specifies the data point or data points within the metric
++ `DataPoint`<br />Specifies the data point or data points within the metric
 to be reported.
 
 
 
-+ `State`
-<br></br>
-Contains the state returned by the last called plugin function.
++ `State`<br />Contains the state returned by the last called plugin function.
 
 
 
@@ -229,23 +203,17 @@ will not be present in future calls to `exometer_report()`.
 
 
 
-+ `Metric`
-<br></br>
-Specifies the metric that is now subscribed to by the plugin
++ `Metric`<br />Specifies the metric that is now subscribed to by the plugin
 as a list of atoms.
 
 
 
-+ `DataPoint`
-<br></br>
-Specifies the data point or data points within the
++ `DataPoint`<br />Specifies the data point or data points within the
 subscribed-to metric as an atom or a list of atoms.
 
 
 
-+ `State`
-<br></br>
-Contains the state returned by the last called plugin function.
++ `State`<br />Contains the state returned by the last called plugin function.
 
 
 The `exometer_unsubscribe()` function should return `{ok, State}` where
@@ -349,9 +317,7 @@ metric() = <a href="exometer.md#type-name">exometer:name()</a> | {find, <a href=
 <pre><code>
 list_metrics() -&gt; {ok, [<a href="#type-datapoint">datapoint()</a>]} | {error, atom()}
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 <a name="list_metrics-1"></a>
@@ -362,9 +328,7 @@ list_metrics() -&gt; {ok, [<a href="#type-datapoint">datapoint()</a>]} | {error,
 <pre><code>
 list_metrics(Path::<a href="#type-metric">metric()</a>) -&gt; {ok, [<a href="#type-datapoint">datapoint()</a>]} | {error, atom()}
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 <a name="list_reporters-0"></a>
@@ -375,9 +339,7 @@ list_metrics(Path::<a href="#type-metric">metric()</a>) -&gt; {ok, [<a href="#ty
 <pre><code>
 list_reporters() -&gt; [module()]
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 <a name="list_subscriptions-1"></a>
@@ -388,9 +350,7 @@ list_reporters() -&gt; [module()]
 <pre><code>
 list_subscriptions(Reporter::module()) -&gt; [{<a href="#type-metric">metric()</a>, <a href="#type-datapoint">datapoint()</a>, <a href="#type-interval">interval()</a>, <a href="#type-extra">extra()</a>}]
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 <a name="new_entry-1"></a>
@@ -429,9 +389,7 @@ list_subscriptions(Reporter::module()) -&gt; [{<a href="#type-metric">metric()</
 <pre><code>
 start_link() -&gt; {ok, pid()} | ignore | {error, any()}
 </code></pre>
-
-<br></br>
-
+<br />
 
 Starts the server
 --------------------------------------------------------------------
@@ -450,9 +408,7 @@ Starts the server
 <pre><code>
 subscribe(Reporter::module(), Metric::<a href="#type-metric">metric()</a>, DataPoint::<a href="#type-datapoint">datapoint()</a> | [<a href="#type-datapoint">datapoint()</a>], Interval::<a href="#type-interval">interval()</a>) -&gt; ok | not_found | unknown_reporter
 </code></pre>
-
-<br></br>
-
+<br />
 
 Equivalent to [`subscribe(Reporter, Metric, DataPoint, Interval, [])`](#subscribe-5).
 <a name="subscribe-5"></a>
@@ -463,9 +419,7 @@ Equivalent to [`subscribe(Reporter, Metric, DataPoint, Interval, [])`](#subscrib
 <pre><code>
 subscribe(Reporter::module(), Metric::<a href="#type-metric">metric()</a>, DataPoint::<a href="#type-datapoint">datapoint()</a>, Interval::<a href="#type-interval">interval()</a>, Extra::<a href="#type-extra">extra()</a>) -&gt; ok | not_found | unknown_reporter
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Add a subscription to an existing reporter.
@@ -500,9 +454,7 @@ for collectd or statsd) that the value corresponds to.
 <pre><code>
 unsubscribe(Reporter::module(), Metric::<a href="#type-metric">metric()</a>, DataPoint::<a href="#type-datapoint">datapoint()</a>) -&gt; ok | not_found
 </code></pre>
-
-<br></br>
-
+<br />
 
 Equivalent to [`unsubscribe(Reporter, Metric, DataPoint, [])`](#unsubscribe-4).
 <a name="unsubscribe-4"></a>
@@ -513,9 +465,7 @@ Equivalent to [`unsubscribe(Reporter, Metric, DataPoint, [])`](#unsubscribe-4).
 <pre><code>
 unsubscribe(Reporter::module(), Metric::<a href="#type-metric">metric()</a>, DataPoint::<a href="#type-datapoint">datapoint()</a> | [<a href="#type-datapoint">datapoint()</a>], Extra::<a href="#type-extra">extra()</a>) -&gt; ok | not_found
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Removes a subscription.
@@ -532,8 +482,6 @@ using [`list_subscriptions/1`](#list_subscriptions-1).
 <pre><code>
 unsubscribe_all(Reporter::module(), Metric::<a href="#type-metric">metric()</a>) -&gt; ok
 </code></pre>
-
-<br></br>
-
+<br />
 
 Removes all subscriptions related to Metric in Reporter.

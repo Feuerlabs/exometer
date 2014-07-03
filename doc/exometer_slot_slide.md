@@ -334,9 +334,7 @@ value() = any()
 <pre><code>
 add_element(Val::any(), Slide::#slide{}) -&gt; #slide{}
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 <a name="add_element-3"></a>
@@ -382,9 +380,7 @@ add_element(Val::any(), Slide::#slide{}) -&gt; #slide{}
 <pre><code>
 new(HistogramTimeSpan::integer(), SlotPeriod::integer()) -&gt; #slide{}
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 <a name="new-4"></a>
@@ -395,9 +391,7 @@ new(HistogramTimeSpan::integer(), SlotPeriod::integer()) -&gt; #slide{}
 <pre><code>
 new(HistogramTimeSpan::integer(), SlotPeriod::integer(), SampleF::<a href="#type-sample_fun">sample_fun()</a>, TransformF::<a href="#type-transform_fun">transform_fun()</a>) -&gt; #slide{}
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 <a name="new-5"></a>
@@ -408,9 +402,7 @@ new(HistogramTimeSpan::integer(), SlotPeriod::integer(), SampleF::<a href="#type
 <pre><code>
 new(HistogramTimeSpan::integer(), SlotPeriod::integer(), SampleF::<a href="#type-sample_fun">sample_fun()</a>, TransformF::<a href="#type-transform_fun">transform_fun()</a>, Options::list()) -&gt; #slide{}
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 <a name="reset-1"></a>
@@ -421,9 +413,7 @@ new(HistogramTimeSpan::integer(), SlotPeriod::integer(), SampleF::<a href="#type
 <pre><code>
 reset(Slide::#slide{}) -&gt; #slide{}
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 <a name="to_list-1"></a>
@@ -434,8 +424,6 @@ reset(Slide::#slide{}) -&gt; #slide{}
 <pre><code>
 to_list(Slide::#slide{}) -&gt; list()
 </code></pre>
-
-<br></br>
-
+<br />
 
 

@@ -10,9 +10,7 @@
 
 ### <a name="Creating_custom_exometer_entries">Creating custom exometer entries</a> ###
 .
-__This module defines the `exometer_entry` behaviour.__
-<br></br>
- Required callback functions: `behaviour/0`, `new/3`, `delete/3`, `get_value/4`, `update/4`, `reset/3`, `sample/3`, `get_datapoints/3`, `setopts/4`.
+__This module defines the `exometer_entry` behaviour.__<br /> Required callback functions: `behaviour/0`, `new/3`, `delete/3`, `get_value/4`, `update/4`, `reset/3`, `sample/3`, `get_datapoints/3`, `setopts/4`.
 <a name="description"></a>
 
 ## Description ##
@@ -35,18 +33,14 @@ The life cycle of a an exometer entry consists of the following steps.
 
 
 + Metrics Creation
-
-<br></br>
-`new/3` is invoked by exometer to signal that a new metrics
+<br />`new/3` is invoked by exometer to signal that a new metrics
 should be created. The name of the new metric will be provided as
 a list of atoms.
 
 
 
 + Update Data
-
-<br></br>
-Values will be sent to the entry through the `update/4`
+<br />Values will be sent to the entry through the `update/4`
 function. The custom entry should store this value for the given
 metric and break it down into data points that can be reported for
 the metric.
@@ -54,9 +48,7 @@ the metric.
 
 
 + Retrieve Value
-
-<br></br>
-`get_value/4` will be invoked by exometer to retrieve specific
+<br />`get_value/4` will be invoked by exometer to retrieve specific
 data points from a given metric.
 
 
@@ -100,25 +92,19 @@ it for furure access through `update()` and `get_value()` calls.
 
 
 + `Name`
-
-<br></br>
-Specifies the name of the metric to be created as a list of atoms.
+<br />Specifies the name of the metric to be created as a list of atoms.
 
 
 
 + `Type`
-
-<br></br>
-Specifies the type provided to the `exometer:new()` call (before it
+<br />Specifies the type provided to the `exometer:new()` call (before it
 was translated by the type - exometer entry map). It can be used if several
 different types are mapped to the same entry module.
 
 
 
 + `Options`
-
-<br></br>
-Specifies an option list that contains additional setup directives to
+<br />Specifies an option list that contains additional setup directives to
 the entry. The actual options to support are implementation dependent.
 
 
@@ -151,24 +137,18 @@ The custom entry should free all resources associated with the given name.
 
 
 + `Name`
-
-<br></br>
-Specifies the name of the metric to be deleted as a list of atoms.
+<br />Specifies the name of the metric to be deleted as a list of atoms.
 
 
 
 + `Type`
-
-<br></br>
-Specifies the type provided to the `exometer:new()` call (before it
+<br />Specifies the type provided to the `exometer:new()` call (before it
 was translated by the type - exometer entry map).
 
 
 
 + `Ref`
-
-<br></br>
-Will contain the same tuple returned as `Ref` by the module's `new()` function.
+<br />Will contain the same tuple returned as `Ref` by the module's `new()` function.
 
 
 
@@ -198,31 +178,23 @@ expected to be one or more of those returned by the entry's
 
 
 + `Name`
-
-<br></br>
-Specifies the name of the metric to update with a value.
+<br />Specifies the name of the metric to update with a value.
 
 
 
 + `Type`
-
-<br></br>
-Specifies the type provided to the `exometer:new()` call (before it
+<br />Specifies the type provided to the `exometer:new()` call (before it
 was translated by the type - exometer entry map).
 
 
 
 + `Ref`
-
-<br></br>
-Will contain the same tuple returned as `Ref` by the module's `new()` function.
+<br />Will contain the same tuple returned as `Ref` by the module's `new()` function.
 
 
 
 + `DataPoints`
-
-<br></br>
-Will contain a list of data points, each picked from the list returned by
+<br />Will contain a list of data points, each picked from the list returned by
 the module's `get_datapoints()` function.
 
 
@@ -269,31 +241,23 @@ The `update()` function is invoked as follows:
 
 
 + `Name`
-
-<br></br>
-Specifies the name of the metric to update.
+<br />Specifies the name of the metric to update.
 
 
 
 + `Value`
-
-<br></br>
-Specifies the new value to integrate into the given metric.
+<br />Specifies the new value to integrate into the given metric.
 
 
 
 + `Type`
-
-<br></br>
-Specifies the type provided to the `exometer:new()` call (before it
+<br />Specifies the type provided to the `exometer:new()` call (before it
 was translated by the type - exometer entry map).
 
 
 
 + `Ref`
-
-<br></br>
-Will contain the same tuple returned as `Ref` by the module's `new()` function.
+<br />Will contain the same tuple returned as `Ref` by the module's `new()` function.
 
 
 
@@ -321,24 +285,18 @@ The `reset()` function is invoked as follows:
 
 
 + `Name`
-
-<br></br>
-Specifies the name of the metric to reset.
+<br />Specifies the name of the metric to reset.
 
 
 
 + `Type`
-
-<br></br>
-Specifies the type provided to the `exometer:new()` call (before it
+<br />Specifies the type provided to the `exometer:new()` call (before it
 was translated by the type - exometer entry map).
 
 
 
 + `Ref`
-
-<br></br>
-Will contain the same tuple returned as `Ref` by the module's `new()` function.
+<br />Will contain the same tuple returned as `Ref` by the module's `new()` function.
 
 
 
@@ -369,24 +327,18 @@ The `sample()` function is invoked as follows:
 
 
 + `Name`
-
-<br></br>
-Specifies the name of the metric to run the sample.
+<br />Specifies the name of the metric to run the sample.
 
 
 
 + `Type`
-
-<br></br>
-Specifies the type provided to the `exometer:new()` call (before it
+<br />Specifies the type provided to the `exometer:new()` call (before it
 was translated by the type - exometer entry map).
 
 
 
 + `Ref`
-
-<br></br>
-Will contain the same tuple returned as `Ref` by the module's
+<br />Will contain the same tuple returned as `Ref` by the module's
 `new()` function.
 
 
@@ -419,24 +371,18 @@ The `get_datapoints()` function is invoked as follows:
 
 
 + `Name`
-
-<br></br>
-Specifies the name of the metric to return available datapoints for.
+<br />Specifies the name of the metric to return available datapoints for.
 
 
 
 + `Type`
-
-<br></br>
-Specifies the type provided to the `exometer:new()` call (before it
+<br />Specifies the type provided to the `exometer:new()` call (before it
 was translated by the type - exometer entry map).
 
 
 
 + `Ref`
-
-<br></br>
-Will contain the same tuple returned as `Ref` by the module's
+<br />Will contain the same tuple returned as `Ref` by the module's
 `new()` function.
 
 
@@ -462,32 +408,24 @@ The `setopts()` function is invoked as follows:
 
 
 + `Name`
-
-<br></br>
-Specifies the name of the metric to return available datapoints for.
+<br />Specifies the name of the metric to return available datapoints for.
 
 
 
 + `Options`
-
-<br></br>
-Specifies an option list that contains additional setup directives to
+<br />Specifies an option list that contains additional setup directives to
 the entry. The actual options to support are implementation dependent.
 
 
 
 + `Type`
-
-<br></br>
-Specifies the type provided to the `exometer:new()` call (before it
+<br />Specifies the type provided to the `exometer:new()` call (before it
 was translated by the type - exometer entry map).
 
 
 
 + `Ref`
-
-<br></br>
-Will contain the same tuple returned as `Ref` by the module's
+<br />Will contain the same tuple returned as `Ref` by the module's
 `new()` function.
 
 

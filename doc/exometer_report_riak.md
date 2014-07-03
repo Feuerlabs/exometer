@@ -60,24 +60,18 @@ Tests are done with three components:
 
 
 
-+ Exometer test environment
-<br></br>
-Erlang is started and the exometer
++ Exometer test environment<br />Erlang is started and the exometer
 application is launched.
 
 
 
-+ Command connection
-<br></br>
-A unix domain client socket connection is
++ Command connection<br />A unix domain client socket connection is
 setup to the riak reporter executing inside exometer. This socket
 is used to issue the commands listed under [Riak Reporter Server Protocol](#Riak_Reporter_Server_Protocol).
 
 
 
-+ Metrics Collector
-<br></br>
-A unix domain server socket is
++ Metrics Collector<br />A unix domain server socket is
 setup that will receive subscribed-to metrics from the riak reporter,
 as described in the [Riak Reporter Client Protocol](#Riak_Reporter_Client_Protocol).
 
@@ -212,9 +206,7 @@ Add a metric with the following command:
 
 
 
-The `[a,b,c]` list is a unique metric identifier (or path).
-<br></br>
-
+The `[a,b,c]` list is a unique metric identifier (or path).<br />
 The `histogram` is the symbolic type that is mapped to the
 `exometer_historgram` module through `app.config`. In its default
 behavior, `exometer_historgram` stores 60 seconds worth of metrics,
@@ -317,30 +309,20 @@ datapoints:
 
 
 
-+ Line Based
-<br></br>
-Each command in the protocol is transmitted as a
++ Line Based<br />Each command in the protocol is transmitted as a
 newline-terminated ($10) line.
 
 
 
-+ Field Based
-<br></br>
-Each command line in the protocol is separated into
++ Field Based<br />Each command line in the protocol is separated into
 space-separated fields.
 
 
 
-+ Escape Characters
-<br></br>
-A newline can be a part of a field payload
-if it is escaped with a backslash (`\n`).
-<br></br>
-A space can be
++ Escape Characters<br />A newline can be a part of a field payload
+if it is escaped with a backslash (`\n`).<br />A space can be
 a part of a field payload if it is escaped with a backslash
-(`\`).
-<br></br>
-A backslash can be a part of a field payload if
+(`\`).<br />A backslash can be a part of a field payload if
 it is escaped with a backslash (`\\`).
 
 
@@ -390,9 +372,7 @@ subscribe [hostid] [metric]/[datapoint] [interval] [socket]
 
 
 
-+ `[hostid]`
-<br></br>
- Specifies the hostid that should be used when
++ `[hostid]`<br /> Specifies the hostid that should be used when
 reporting this metric This allows for multiple riak reporters to
 send metric data to to a single collector server, thus allowing
 the server to distinguish between different reporters through
@@ -400,31 +380,23 @@ their individual host ids.
 
 
 
-+ `[metric]`
-<br></br>
-Identifies the metric that is to be sampled and delivered.
++ `[metric]`<br />Identifies the metric that is to be sampled and delivered.
 Each element in the atom list is separated by a slash (`/`).
 Thus `[db, cache, hits]` is identified as 'db/cache/hits'.
 
 
 
-+ `[datapoint]`
-<br></br>
-Identifies the data point within the metric
++ `[datapoint]`<br />Identifies the data point within the metric
 that is to be sampled and delivered.
 
 
 
-+ `[interval]`
-<br></br>
-Specifies the interval, in milliseconds, that should
++ `[interval]`<br />Specifies the interval, in milliseconds, that should
 elapse between each metric/data point delivery.
 
 
 
-+ `[socket]`
-<br></br>
-Specifies the unix socket file path that
++ `[socket]`<br />Specifies the unix socket file path that
 the given metric/data point should be delivered to.
 
 
@@ -444,48 +416,34 @@ back to the client.
 
 
 
-+ `[result]`
-<br></br>
-Result code integer. See below for details.
++ `[result]`<br />Result code integer. See below for details.
 
 
 
-+ `[text]`
-<br></br>
-Descriptive text.
++ `[text]`<br />Descriptive text.
 
 The possible `[result]` codes are as follows:
 
 
 
-+ `0` - Success
-<br></br>
-The subscription has been setup successfully.
++ `0` - Success<br />The subscription has been setup successfully.
 
 
 
-+ `1` - Syntax error
-<br></br>
-The format of the command was not recognized.
++ `1` - Syntax error<br />The format of the command was not recognized.
 
 
 
-+ `2` - No such metric
-<br></br>
-`[metric]` or '[datapoint]' could not be
++ `2` - No such metric<br />`[metric]` or '[datapoint]' could not be
 found among the metrics in the exometer system.
 
 
 
-+ `3` - Invalid socket
-<br></br>
-`[socket]` could not be accessed or connected to.
++ `3` - Invalid socket<br />`[socket]` could not be accessed or connected to.
 
 
 
-+ `4` - Internal error
-<br></br>
-Something went wrong inside the riak reporter.
++ `4` - Internal error<br />Something went wrong inside the riak reporter.
 
 
 
@@ -516,33 +474,25 @@ socket.
 unsubscribe [hostid] [metric]/[datapoint] [socket]
 ```
 
-+ `[hostid]`
-<br></br>
-Specifies the host id provided to the `subscribe` command
++ `[hostid]`<br />Specifies the host id provided to the `subscribe` command
 that creaated the subscription.
 
 
 
-+ `[metric]`
-<br></br>
-Identifies the metric that is to be unsubscribed from.
++ `[metric]`<br />Identifies the metric that is to be unsubscribed from.
 The given metric was provided to the`subscribe` command that
 created the subscription.
 command.
 
 
 
-+ `[datapoint]`
-<br></br>
-Identifies the datapoint that is to be unsubscribed from.
++ `[datapoint]`<br />Identifies the datapoint that is to be unsubscribed from.
 The given data point must have been provided to a previous `subscribe`
 command.
 
 
 
-+ `[socket]`
-<br></br>
-Identifies the socket path that was provided to a previous
++ `[socket]`<br />Identifies the socket path that was provided to a previous
 `subscribe` command.
 
 
@@ -562,15 +512,11 @@ back to the client.
 
 
 
-+ `[result]`
-<br></br>
-Result code integer. See below for details.
++ `[result]`<br />Result code integer. See below for details.
 
 
 
-+ `[text]`
-<br></br>
-Descriptive text.
++ `[text]`<br />Descriptive text.
 
 
 
@@ -578,21 +524,15 @@ The possible `[result]` codes are as follows:
 
 
 
-+ `0` - Success
-<br></br>
-The subscription has been cancelled.
++ `0` - Success<br />The subscription has been cancelled.
 
 
 
-+ `1` - Syntax error
-<br></br>
-The format of the command was not recognized.
++ `1` - Syntax error<br />The format of the command was not recognized.
 
 
 
-+ `2` - No such metric
-<br></br>
-`[metric]` or '[datapoint]' could not be
++ `2` - No such metric<br />`[metric]` or '[datapoint]' could not be
 found among the metrics in the exometer system.
 
 
@@ -616,9 +556,7 @@ list [metric]
 
 
 
-+ `[metric]`
-<br></br>
-Identifies the metric that is to be listed. If the metric
++ `[metric]`<br />Identifies the metric that is to be listed. If the metric
 only specifies the beginning of a path, all metrics whose
 path prefix matches `[metric]` will be listed.
 
@@ -652,15 +590,11 @@ Each line describes a matching metric and its data points.
 
 
 
-+ `[metricN]`
-<br></br>
-The name of the metric, in the `x/y/z` format.
++ `[metricN]`<br />The name of the metric, in the `x/y/z` format.
 
 
 
-+ `[datapointN]`
-<br></br>
-One or more data points supported by the given metric.
++ `[datapointN]`<br />One or more data points supported by the given metric.
 
 
 
@@ -720,34 +654,24 @@ report [hostid] [timestamp] [metric]/[datapoint] [value]
 
 
 
-+ `[hostid]`
-<br></br>
-Specifies the host id provided to the `subscribe` command
++ `[hostid]`<br />Specifies the host id provided to the `subscribe` command
 that generated this report.
 
 
 
-+ `[timestamp]`
-<br></br>
-Specifies the time stamp, in milliseconds since 1970-01-01 00:00:00.000
++ `[timestamp]`<br />Specifies the time stamp, in milliseconds since 1970-01-01 00:00:00.000
 
 
 
-+ `[metric]`
-<br></br>
-The name of the metric reported, in the `x/y/z` format.
++ `[metric]`<br />The name of the metric reported, in the `x/y/z` format.
 
 
 
-+ `[datapoint]`
-<br></br>
-The data point under the given metric reported..
++ `[datapoint]`<br />The data point under the given metric reported..
 
 
 
-+ `[value]`
-<br></br>
-The value of the metric / data point.
++ `[value]`<br />The value of the metric / data point.
 
 
 

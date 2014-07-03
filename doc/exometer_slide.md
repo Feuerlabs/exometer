@@ -138,9 +138,7 @@ value() = any()
 <pre><code>
 add_element(Evt::<a href="#type-value">value()</a>, Slide::#slide{}) -&gt; #slide{}
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Add an element to the buffer, tagging it with the current time.
@@ -156,9 +154,7 @@ move out of the specified time span.
 <pre><code>
 add_element(TS::<a href="#type-timestamp">timestamp()</a>, Evt::<a href="#type-value">value()</a>, Slide::#slide{}) -&gt; #slide{}
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Add an element to the buffer, tagged with the given timestamp.
@@ -174,9 +170,7 @@ Apart from the specified timestamp, this function works just like
 <pre><code>
 add_element(TS::<a href="#type-timestamp">timestamp()</a>, Evt::<a href="#type-value">value()</a>, Slide::#slide{}, Wrap::true) -&gt; {boolean(), #slide{}}
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Add an element to the buffer, optionally indicating if a swap occurred.
@@ -207,9 +201,7 @@ to not lose entries.
 <pre><code>
 foldl(Fun::<a href="#type-fold_fun">fold_fun()</a>, Acc::<a href="#type-fold_acc">fold_acc()</a>, Slide::#slide{}) -&gt; <a href="#type-fold_acc">fold_acc()</a>
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Fold over all values in the sliding window.
@@ -225,9 +217,7 @@ The values are processed in order from oldest to newest.
 <pre><code>
 foldl(Timestamp::<a href="#type-timestamp">timestamp()</a>, Fun::<a href="#type-fold_fun">fold_fun()</a>, Acc::<a href="#type-fold_acc">fold_acc()</a>, Slide::#slide{}) -&gt; <a href="#type-fold_acc">fold_acc()</a>
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Fold over the sliding window, starting from `Timestamp`.
@@ -243,9 +233,7 @@ The values are processed in order from oldest to newest.
 <pre><code>
 new(_Size::integer(), _Options::list()) -&gt; #slide{}
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Create a new sliding-window buffer.
@@ -266,9 +254,7 @@ buffer is very cheap.
 <pre><code>
 new(Size::integer(), Period::integer(), SampleFun::<a href="#type-sample_fun">sample_fun()</a>, TransformFun::<a href="#type-transform_fun">transform_fun()</a>, Opts::list()) -&gt; #slide{}
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Callback function for exometer_histogram
@@ -284,9 +270,7 @@ This function is not intended to be used directly. The arguments
 <pre><code>
 reset(Slide::#slide{}) -&gt; #slide{}
 </code></pre>
-
-<br></br>
-
+<br />
 
 Empty the buffer
 
@@ -298,8 +282,6 @@ Empty the buffer
 <pre><code>
 to_list(Slide::#slide{}) -&gt; [{<a href="#type-timestamp">timestamp()</a>, <a href="#type-value">value()</a>}]
 </code></pre>
-
-<br></br>
-
+<br />
 
 Convert the sliding window into a list of timestamped values.

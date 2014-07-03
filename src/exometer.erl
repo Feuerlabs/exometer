@@ -52,6 +52,7 @@
     setopts/2,
     find_entries/1,
     select/1, select/2, select_cont/1,
+    aggregate/2,
     info/1, info/2,
     register_application/0,
     register_application/1
@@ -699,6 +700,58 @@ select(Pattern, Limit) ->
 select_cont('$end_of_table') -> '$end_of_table';
 select_cont(Cont) ->
     ets:select(Cont).
+
+-spec aggregate(ets:match_spec(), [atom()]) -> [{atom(), integer()}].
+%% @doc Aggregate datapoints of matching entries.
+%%
+%% This function selects metric entries based on the given match spec, and
+%% summarizes the given datapoint values.
+%%
+%% Note that the match body of the match spec will be overwritten, to produce
+%% only the value for each entry matching the head and guard pattern(s).
+%%
+%% The function can for example be used inside a function metric:
+%%
+%% <pre lang="erlang"><![CDATA[
+%% 1> exometer:start().
+%% ok
+%% 2> exometer:new([g,1], gauge, []).
+%% ok
+%% 3> exometer:new([g,2], gauge, []).
+%% ok
+%% 4> exometer:new([g,3], gauge, []).
+%% ok
+%% 5> [exometer:update(N,V) || {N,V} <- [{[g,1],3}, {[g,2],4}, {[g,3],5}]].
+%% [ok,ok,ok]
+%% 6> exometer:new([g], {function,exometer,aggregate,
+%%                       [ [{{[g,'_'],'_','_'},[],[true]}], [value] ],
+%%                       value, [value]}, []).
+%% ok
+%% 7> exometer:get_value([g], [value]).
+%% {ok,[{value,12}]}
+%% ]]></pre>
+%% @end
+aggregate(Pattern, DataPoints) when is_list(DataPoints) ->
+    Found = select([setelement(3,P,[{element,1,'$_'}]) || P <- Pattern]),
+    aggregate(Found, DataPoints, orddict:from_list([{D,0} || D <- DataPoints])).
+
+aggregate([N|Ns], DPs, Acc) ->
+    case get_value(N, DPs) of
+	{ok, Vals} ->
+	    aggregate(Ns, DPs, aggr_acc(Vals, Acc));
+	_ ->
+	    aggregate(Ns, DPs, Acc)
+    end;
+aggregate([], _, Acc) ->
+    Acc.
+
+aggr_acc([{D,V}|T], Acc) ->
+    aggr_acc(T, orddict:update(D, fun(Val) ->
+					  Val + V
+				  end, Acc));
+aggr_acc([], Acc) ->
+    Acc.
+
 
 pattern({'_', Gs, Prod}) ->
     {'_', repl(Gs, g_subst(['$_'])), repl(Prod, p_subst(['$_']))};

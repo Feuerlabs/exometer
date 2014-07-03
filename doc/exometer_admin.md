@@ -61,9 +61,7 @@ __Behaviours:__ [`gen_server`](gen_server.md).
 <pre><code>
 find_auto_template(Name::<a href="exometer.md#type-name">exometer:name()</a>) -&gt; #exometer_entry{} | false
 </code></pre>
-
-<br></br>
-
+<br />
 
 Convenience function for testing which template will apply to
 `Name`. See [`set_default/2`](#set_default-2) and [`exometer:update_or_create/2`](exometer.md#update_or_create-2).
@@ -173,9 +171,7 @@ Convenience function for testing which template will apply to
 <pre><code>
 set_default(NamePattern0::[atom()], Type::atom(), Exometer_entry::#exometer_entry{} | [{atom(), any()}]) -&gt; true
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Sets a default definition for a metric type, possibly using wildcards.

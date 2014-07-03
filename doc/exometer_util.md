@@ -47,9 +47,7 @@ timestamp() = non_neg_integer()
 <pre><code>
 drop_duplicates(List0::[tuple()]) -&gt; [tuple()]
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 `drop_duplicates/1` will drop all duplicate elements from a list of tuples identified by their first element.
@@ -84,9 +82,7 @@ If called with a non-list argument, the argument is returned as is.
 <pre><code>
 get_statistics(Length::non_neg_integer(), Total::non_neg_integer(), Sorted::list()) -&gt; [{atom(), number()}]
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Calculate statistics from a sorted list of values.
@@ -159,9 +155,7 @@ Fulpatchad med min/max av Magnus Feuer.
 <pre><code>
 timestamp() -&gt; <a href="#type-timestamp">timestamp()</a>
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Generate a millisecond-resolution timestamp.
@@ -177,9 +171,7 @@ This timestamp format is used e.g. by the `exometer_slide` and
 <pre><code>
 timestamp_to_datetime(TS::<a href="#type-timestamp">timestamp()</a>) -&gt; <a href="calendar.md#type-datetime">calendar:datetime()</a>
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Convert timestamp to a regular datetime.

@@ -145,12 +145,61 @@ value() = any()
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#create_entry-1">create_entry/1</a></td><td></td></tr><tr><td valign="top"><a href="#delete-1">delete/1</a></td><td>Delete the metric.</td></tr><tr><td valign="top"><a href="#find_entries-1">find_entries/1</a></td><td>Find metrics based on a name prefix pattern.</td></tr><tr><td valign="top"><a href="#get_value-1">get_value/1</a></td><td>Fetch the current value of the metric.</td></tr><tr><td valign="top"><a href="#get_value-2">get_value/2</a></td><td></td></tr><tr><td valign="top"><a href="#get_values-1">get_values/1</a></td><td></td></tr><tr><td valign="top"><a href="#info-1">info/1</a></td><td>Returns a list of info items for Metric, see <a href="#info-2"><code>info/2</code></a>.</td></tr><tr><td valign="top"><a href="#info-2">info/2</a></td><td>Retrieves information about a metric.</td></tr><tr><td valign="top"><a href="#new-2">new/2</a></td><td>Equivalent to <a href="#new-3"><tt>new(Name, Type, [])</tt></a>.</td></tr><tr><td valign="top"><a href="#new-3">new/3</a></td><td>Create a new metrics entry.</td></tr><tr><td valign="top"><a href="#re_register-3">re_register/3</a></td><td>Create a new metrics entry, overwrite any old entry.</td></tr><tr><td valign="top"><a href="#register_application-0">register_application/0</a></td><td>Equivalent to <a href="#register_application-1"><tt>register_application(current_application())</tt></a>.</td></tr><tr><td valign="top"><a href="#register_application-1">register_application/1</a></td><td>Registers statically defined entries with exometer.</td></tr><tr><td valign="top"><a href="#reset-1">reset/1</a></td><td>Reset the metric.</td></tr><tr><td valign="top"><a href="#sample-1">sample/1</a></td><td>Tells the metric (mainly probes) to take a sample.</td></tr><tr><td valign="top"><a href="#select-1">select/1</a></td><td>Perform an <code>ets:select()</code> on the set of metrics.</td></tr><tr><td valign="top"><a href="#select-2">select/2</a></td><td>Perform an <code>ets:select()</code> with a Limit on the set of metrics.</td></tr><tr><td valign="top"><a href="#select_cont-1">select_cont/1</a></td><td>Equivalent to <a href="ets.md#select-1"><tt>ets:select(Cont)</tt></a>.</td></tr><tr><td valign="top"><a href="#setopts-2">setopts/2</a></td><td>Change options for the metric.</td></tr><tr><td valign="top"><a href="#start-0">start/0</a></td><td></td></tr><tr><td valign="top"><a href="#stop-0">stop/0</a></td><td></td></tr><tr><td valign="top"><a href="#update-2">update/2</a></td><td>Update the given metric with <code>Value</code>.</td></tr><tr><td valign="top"><a href="#update_or_create-2">update_or_create/2</a></td><td>Update existing metric, or create+update according to template.</td></tr><tr><td valign="top"><a href="#update_or_create-4">update_or_create/4</a></td><td></td></tr></table>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#aggregate-2">aggregate/2</a></td><td>Aggregate datapoints of matching entries.</td></tr><tr><td valign="top"><a href="#create_entry-1">create_entry/1</a></td><td></td></tr><tr><td valign="top"><a href="#delete-1">delete/1</a></td><td>Delete the metric.</td></tr><tr><td valign="top"><a href="#find_entries-1">find_entries/1</a></td><td>Find metrics based on a name prefix pattern.</td></tr><tr><td valign="top"><a href="#get_value-1">get_value/1</a></td><td>Fetch the current value of the metric.</td></tr><tr><td valign="top"><a href="#get_value-2">get_value/2</a></td><td></td></tr><tr><td valign="top"><a href="#get_values-1">get_values/1</a></td><td></td></tr><tr><td valign="top"><a href="#info-1">info/1</a></td><td>Returns a list of info items for Metric, see <a href="#info-2"><code>info/2</code></a>.</td></tr><tr><td valign="top"><a href="#info-2">info/2</a></td><td>Retrieves information about a metric.</td></tr><tr><td valign="top"><a href="#new-2">new/2</a></td><td>Equivalent to <a href="#new-3"><tt>new(Name, Type, [])</tt></a>.</td></tr><tr><td valign="top"><a href="#new-3">new/3</a></td><td>Create a new metrics entry.</td></tr><tr><td valign="top"><a href="#re_register-3">re_register/3</a></td><td>Create a new metrics entry, overwrite any old entry.</td></tr><tr><td valign="top"><a href="#register_application-0">register_application/0</a></td><td>Equivalent to <a href="#register_application-1"><tt>register_application(current_application())</tt></a>.</td></tr><tr><td valign="top"><a href="#register_application-1">register_application/1</a></td><td>Registers statically defined entries with exometer.</td></tr><tr><td valign="top"><a href="#reset-1">reset/1</a></td><td>Reset the metric.</td></tr><tr><td valign="top"><a href="#sample-1">sample/1</a></td><td>Tells the metric (mainly probes) to take a sample.</td></tr><tr><td valign="top"><a href="#select-1">select/1</a></td><td>Perform an <code>ets:select()</code> on the set of metrics.</td></tr><tr><td valign="top"><a href="#select-2">select/2</a></td><td>Perform an <code>ets:select()</code> with a Limit on the set of metrics.</td></tr><tr><td valign="top"><a href="#select_cont-1">select_cont/1</a></td><td>Equivalent to <a href="ets.md#select-1"><tt>ets:select(Cont)</tt></a>.</td></tr><tr><td valign="top"><a href="#setopts-2">setopts/2</a></td><td>Change options for the metric.</td></tr><tr><td valign="top"><a href="#start-0">start/0</a></td><td></td></tr><tr><td valign="top"><a href="#stop-0">stop/0</a></td><td></td></tr><tr><td valign="top"><a href="#update-2">update/2</a></td><td>Update the given metric with <code>Value</code>.</td></tr><tr><td valign="top"><a href="#update_or_create-2">update_or_create/2</a></td><td>Update existing metric, or create+update according to template.</td></tr><tr><td valign="top"><a href="#update_or_create-4">update_or_create/4</a></td><td></td></tr></table>
 
 
 <a name="functions"></a>
 
 ## Function Details ##
+
+<a name="aggregate-2"></a>
+
+### aggregate/2 ###
+
+
+<pre><code>
+aggregate(Pattern::<a href="ets.md#type-match_spec">ets:match_spec()</a>, DataPoints::[atom()]) -&gt; [{atom(), integer()}]
+</code></pre>
+<br />
+
+
+Aggregate datapoints of matching entries.
+
+
+
+This function selects metric entries based on the given match spec, and
+summarizes the given datapoint values.
+
+
+
+Note that the match body of the match spec will be overwritten, to produce
+only the value for each entry matching the head and guard pattern(s).
+
+
+
+The function can for example be used inside a function metric:
+
+
+
+```erlang
+
+  1> exometer:start().
+  ok
+  2> exometer:new([g,1], gauge, []).
+  ok
+  3> exometer:new([g,2], gauge, []).
+  ok
+  4> exometer:new([g,3], gauge, []).
+  ok
+  5> [exometer:update(N,V) || {N,V} <- [{[g,1],3}, {[g,2],4}, {[g,3],5}]].
+  [ok,ok,ok]
+  6> exometer:new([g], {function,exometer,aggregate,
+                        [ [{{[g,'_'],'_','_'},[],[true]}], [value] ],
+                        value, [value]}, []).
+  ok
+  7> exometer:get_value([g], [value]).
+  {ok,[{value,12}]}
+```
 
 <a name="create_entry-1"></a>
 
@@ -167,9 +216,7 @@ value() = any()
 <pre><code>
 delete(Name::<a href="#type-name">name()</a>) -&gt; ok | <a href="#type-error">error()</a>
 </code></pre>
-
-<br></br>
-
+<br />
 
 Delete the metric
 <a name="find_entries-1"></a>
@@ -180,9 +227,7 @@ Delete the metric
 <pre><code>
 find_entries(Path::[any() | '_']) -&gt; [{<a href="#type-name">name()</a>, <a href="#type-type">type()</a>, <a href="#type-status">status()</a>}]
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Find metrics based on a name prefix pattern.
@@ -209,9 +254,7 @@ The format of the returned metrics is `[{Name, Type, Status}]`.
 <pre><code>
 get_value(Name::<a href="#type-name">name()</a>) -&gt; {ok, <a href="#type-value">value()</a>} | {error, not_found}
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Fetch the current value of the metric.
@@ -230,9 +273,7 @@ value will be returned.
 <pre><code>
 get_value(Name::<a href="#type-name">name()</a>, DataPoint::atom() | [atom()]) -&gt; {ok, <a href="#type-value">value()</a>} | {error, not_found}
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 <a name="get_values-1"></a>
@@ -250,9 +291,7 @@ get_value(Name::<a href="#type-name">name()</a>, DataPoint::atom() | [atom()]) -
 <pre><code>
 info(Name::<a href="#type-name">name()</a>) -&gt; [{<a href="#type-info">info()</a>, any()}]
 </code></pre>
-
-<br></br>
-
+<br />
 
 Returns a list of info items for Metric, see [`info/2`](#info-2).
 <a name="info-2"></a>
@@ -263,9 +302,7 @@ Returns a list of info items for Metric, see [`info/2`](#info-2).
 <pre><code>
 info(Exometer_entry::<a href="#type-name">name()</a>, Item::<a href="#type-info">info()</a>) -&gt; any()
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Retrieves information about a metric.
@@ -293,9 +330,7 @@ Supported info items:
 <pre><code>
 new(Name::<a href="#type-name">name()</a>, Type::<a href="#type-type">type()</a>) -&gt; ok
 </code></pre>
-
-<br></br>
-
+<br />
 
 Equivalent to [`new(Name, Type, [])`](#new-3).
 <a name="new-3"></a>
@@ -306,9 +341,7 @@ Equivalent to [`new(Name, Type, [])`](#new-3).
 <pre><code>
 new(Name::<a href="#type-name">name()</a>, Type::<a href="#type-type">type()</a>, Opts::<a href="#type-options">options()</a>) -&gt; ok
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Create a new metrics entry.
@@ -365,9 +398,7 @@ the counter value).
 <pre><code>
 re_register(Name::<a href="#type-name">name()</a>, Type::<a href="#type-type">type()</a>, Opts::<a href="#type-options">options()</a>) -&gt; ok
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Create a new metrics entry, overwrite any old entry.
@@ -384,9 +415,7 @@ by the new.
 <pre><code>
 register_application() -&gt; ok | <a href="#type-error">error()</a>
 </code></pre>
-
-<br></br>
-
+<br />
 
 Equivalent to [`register_application(current_application())`](#register_application-1).
 <a name="register_application-1"></a>
@@ -397,9 +426,7 @@ Equivalent to [`register_application(current_application())`](#register_applicat
 <pre><code>
 register_application(_Application::atom()) -&gt; ok | <a href="#type-error">error()</a>
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Registers statically defined entries with exometer.
@@ -423,9 +450,7 @@ If exometer is not running, the function does nothing.
 <pre><code>
 reset(Name::<a href="#type-name">name()</a>) -&gt; ok | <a href="#type-error">error()</a>
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Reset the metric.
@@ -444,9 +469,7 @@ indicate the time that has passed since the metric was last reset.
 <pre><code>
 sample(Name::<a href="#type-name">name()</a>) -&gt; ok | <a href="#type-error">error()</a>
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Tells the metric (mainly probes) to take a sample.
@@ -464,9 +487,7 @@ operation likely has no effect, and will return `ok`.
 <pre><code>
 select(Pattern::<a href="ets.md#type-match_spec">ets:match_spec()</a>) -&gt; [{<a href="#type-name">name()</a>, <a href="#type-type">type()</a>, <a href="#type-status">status()</a>}]
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Perform an `ets:select()` on the set of metrics.
@@ -483,9 +504,7 @@ metrics is `{Name, Type, Status}`.
 <pre><code>
 select(Pattern::<a href="ets.md#type-match_spec">ets:match_spec()</a>, Limit::pos_integer() | infinity) -&gt; {[{<a href="#type-name">name()</a>, <a href="#type-type">type()</a>, <a href="#type-status">status()</a>}], _Cont}
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Perform an `ets:select()` with a Limit on the set of metrics.
@@ -502,9 +521,7 @@ continuation, which can be passed to [`select_cont/1`](#select_cont-1).
 <pre><code>
 select_cont(Cont::'$end_of_table' | tuple()) -&gt; '$end_of_table' | {[{<a href="#type-name">name()</a>, <a href="#type-type">type()</a>, <a href="#type-status">status()</a>}], _Cont}
 </code></pre>
-
-<br></br>
-
+<br />
 
 Equivalent to [`ets:select(Cont)`](ets.md#select-1).
 <a name="setopts-2"></a>
@@ -515,9 +532,7 @@ Equivalent to [`ets:select(Cont)`](ets.md#select-1).
 <pre><code>
 setopts(Name::<a href="#type-name">name()</a>, Options::<a href="#type-options">options()</a>) -&gt; ok | <a href="#type-error">error()</a>
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Change options for the metric.
@@ -558,9 +573,7 @@ other options to be processed.
 <pre><code>
 update(Name::<a href="#type-name">name()</a>, Value::<a href="#type-value">value()</a>) -&gt; ok | <a href="#type-error">error()</a>
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Update the given metric with `Value`.
@@ -579,9 +592,7 @@ corresponding callback module will be called. For a disabled metric,
 <pre><code>
 update_or_create(Name::<a href="#type-name">name()</a>, Value::<a href="#type-value">value()</a>) -&gt; ok | <a href="#type-error">error()</a>
 </code></pre>
-
-<br></br>
-
+<br />
 
 
 Update existing metric, or create+update according to template.
