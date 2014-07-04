@@ -27,6 +27,7 @@
     test_update_or_create2/1,
     test_std_histogram/1,
     test_folsom_histogram/1,
+    test_aggregate/1,
     test_history1_slide/1,
     test_history1_slotslide/1,
     test_history1_folsom/1,
@@ -75,6 +76,7 @@ groups() ->
       [
        test_std_histogram,
        test_folsom_histogram,
+       test_aggregate,
        test_history1_slide,
        test_history1_slotslide,
        test_history1_folsom,
@@ -235,6 +237,21 @@ test_folsom_histogram(_Config) ->
     [{n,134},{mean,2126866},{min,1},{max,9},{median,2},
      {50,2},{75,3},{90,4},{95,5},{99,8},{999,9}] =
      	scale_mean(DPs3),
+    ok.
+
+test_aggregate(_Config) ->
+    K = ?LINE,
+    ok = exometer:new(E1 = [?MODULE, K, a, 1], gauge, []),
+    ok = exometer:new(E2 = [?MODULE, K, a, 2], gauge, []),
+    ok = exometer:new(E3 = [?MODULE, K, a, 3], gauge, []),
+    ok = exometer:new(E4 = [?MODULE, K, b, 2], histogram, []),
+    [update_(E,V) || {E,V} <- [{E1,3},{E2,4},{E3,5}|
+			       [{E4,1} || _ <- lists:seq(1,10)]]],
+    [{value,12}] = exometer:aggregate([{ {[?MODULE,K,a,'_'],'_','_'},[],[true] }], [value]),
+    [{50,1},{75,1},{90,1},{95,1},{99,1},{999,1},{max,1},{mean,1},{median,1},{min,1},
+     {ms_since_reset,_},{n,_},
+     {value,12}] =
+	exometer:aggregate([{ {[?MODULE,K,'_','_'],'_','_'},[],[true] }], default),
     ok.
 
 test_history1_slide(_Config) ->

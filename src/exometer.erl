@@ -731,9 +731,15 @@ select_cont(Cont) ->
 %% {ok,[{value,12}]}
 %% ]]></pre>
 %% @end
-aggregate(Pattern, DataPoints) when is_list(DataPoints) ->
-    Found = select([setelement(3,P,[{element,1,'$_'}]) || P <- Pattern]),
-    aggregate(Found, DataPoints, orddict:from_list([{D,0} || D <- DataPoints])).
+aggregate(Pattern, DataPoints) ->
+    case aggr_select(Pattern) of
+	[] -> [];
+	Found ->
+	    aggregate(Found, DataPoints, orddict:new())
+    end.
+
+aggr_select(Pattern) ->
+    select([setelement(3,P,[{element,1,'$_'}]) || P <- Pattern]).
 
 aggregate([N|Ns], DPs, Acc) ->
     case get_value(N, DPs) of
@@ -748,10 +754,9 @@ aggregate([], _, Acc) ->
 aggr_acc([{D,V}|T], Acc) ->
     aggr_acc(T, orddict:update(D, fun(Val) ->
 					  Val + V
-				  end, Acc));
+				  end, V, Acc));
 aggr_acc([], Acc) ->
     Acc.
-
 
 pattern({'_', Gs, Prod}) ->
     {'_', repl(Gs, g_subst(['$_'])), repl(Prod, p_subst(['$_']))};
