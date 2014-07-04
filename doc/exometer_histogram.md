@@ -6,8 +6,58 @@
 * [Function Details](#functions)
 
 
-Exometer histogram probe behavior.
+Exometer histogram probe behavior
+This module implements histogram metrics.
 __Behaviours:__ [`exometer_probe`](exometer_probe.md).
+<a name="description"></a>
+
+## Description ##
+
+Each histogram is a sliding
+window, for which the following datapoints are calculated:
+
+
+
+* `max`: the maximum value
+* `min`: the minimum value
+* `mean`: the arithmetic mean
+* `median`: the median
+* `50|75|90|95|97|99`: percentiles
+* `999`: the 99.9th percentile
+* `n`: the number of values used in the calculation (Note)
+
+
+
+Two histogram implementations are supported and can be selected using
+the option `histogram_module`:
+
+
+
+* `exometer_slide` implements a sliding window, which saves all elements
+within the window. Updating the histogram is cheap, but calculating the
+datapoints may be expensive depending on the size of the window.
+
+
+
+* `exometer_slot_slide` (default), aggregates mean, min and max values
+within given time slots, thereby reducing the amount of data kept for
+datapoint calculation. The update overhead should be insignificant.
+However, some loss of precision must be expected. To achieve slightly
+better accuracy of percentiles, 'extra values' are kept (every 4th
+value). For the calculation, extra vaules are included in the set
+until a suitable number has been reached (up to 600). Note that
+`n` reflects the number of values used in the calculation - not the
+number of updates made within the time window.
+
+
+
+Supported options:
+
+
+* `time_span` (default: `60000`) size of the window in milliseconds.
+* `slot_period` (default: `1000`) size of the time slots in milliseconds.
+* `histogram_module` (default: `exometer_slot_slide`).
+* `truncate` (default: `true`) whether to truncate the datapoint values.
 <a name="index"></a>
 
 ## Function Index ##

@@ -9,6 +9,42 @@
 %% -------------------------------------------------------------------
 
 %% @doc Exometer histogram probe behavior
+%% This module implements histogram metrics. Each histogram is a sliding
+%% window, for which the following datapoints are calculated:
+%%
+%% * `max': the maximum value
+%% * `min': the minimum value
+%% * `mean': the arithmetic mean
+%% * `median': the median
+%% * `50|75|90|95|97|99': percentiles
+%% * `999': the 99.9th percentile
+%% * `n': the number of values used in the calculation (Note)
+%%
+%% Two histogram implementations are supported and can be selected using
+%% the option `histogram_module':
+%%
+%% * `exometer_slide' implements a sliding window, which saves all elements
+%% within the window. Updating the histogram is cheap, but calculating the
+%% datapoints may be expensive depending on the size of the window.
+%%
+%% * `exometer_slot_slide' (default), aggregates mean, min and max values
+%% within given time slots, thereby reducing the amount of data kept for
+%% datapoint calculation. The update overhead should be insignificant.
+%% However, some loss of precision must be expected. To achieve slightly
+%% better accuracy of percentiles, 'extra values' are kept (every 4th
+%% value). For the calculation, extra vaules are included in the set
+%% until a suitable number has been reached (up to 600). Note that
+%% `n' reflects the number of values used in the calculation - not the
+%% number of updates made within the time window.
+%%
+%% Supported options:
+%%
+%% * `time_span' (default: `60000') size of the window in milliseconds.
+%% * `slot_period' (default: `1000') size of the time slots in milliseconds.
+%% * `histogram_module' (default: `exometer_slot_slide').
+%% * `truncate' (default: `true') whether to truncate the datapoint values.
+%%
+%% @end
 -module(exometer_histogram).
 -behaviour(exometer_probe).
 
@@ -42,7 +78,6 @@
              slide = undefined, %%
              slot_period = 1000, %% msec
              time_span = 60000, %% msec
-             percentiles = [ 99.0 ], %% Which percentages to calculate
              truncate = true,
              histogram_module = exometer_slot_slide,
              opts = []}).
@@ -55,8 +90,8 @@ behaviour() ->
 
 probe_init(Name, _Type, Options) ->
      St = process_opts(#st{name = Name}, [{histogram_module, exometer_slot_slide},
-					      {time_span, 60000},
-					      {slot_period, 10}] ++ Options),
+					  {time_span, 60000},
+					  {slot_period, 10}] ++ Options),
      Slide = (St#st.histogram_module):new(St#st.time_span,
 					  St#st.slot_period,
 					  fun average_sample/3,
@@ -170,7 +205,7 @@ probe_sample(_St) ->
 probe_handle_msg(_, S) ->
     {ok, S}.
 
-probe_code_change(_, S, _) -> 
+probe_code_change(_, S, _) ->
     {ok, S}.
 
 process_opts(St, Options) ->
@@ -180,7 +215,6 @@ process_opts(St, Options) ->
           %% Sample interval.
           ( {time_span, Val}, St1) -> St1#st {time_span = Val};
           ( {slot_period, Val}, St1) -> St1#st {slot_period = Val};
-          ( {percentiles, Val}, St1) -> St1#st {percentiles = Val};
           ( {histogram_module, Val}, St1) -> St1#st {histogram_module = Val};
           ( {truncate, Val}, St1) when is_boolean(Val) ->
               St1#st{truncate = Val};
