@@ -251,6 +251,7 @@ get_value(Name) when is_list(Name) ->
 -spec get_value(name(), atom() | [atom()]) -> {ok, value()} | {error, not_found}.
 
 get_value(Name, DataPoint) when is_list(Name), is_atom(DataPoint),
+
                                 DataPoint=/=default ->
     get_value(Name, [DataPoint]);
 
