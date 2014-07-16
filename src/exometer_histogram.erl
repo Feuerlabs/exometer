@@ -149,7 +149,7 @@ get_value_int_(#st{truncate = Trunc,
            true ->
                 {Length, lists:sort(Lst0)}
         end,
-    Results = exometer_util:get_statistics2(Len, List, Mean),
+    Results = exometer_util:get_statistics2(Len, List, Total, Mean),
     [get_dp(K, Results, Trunc) || K <- DataPoints].
 
 add_extra(Length, L, []) ->
