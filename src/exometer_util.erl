@@ -20,7 +20,9 @@
     tables/0,
     table/0,
     get_statistics/3,
-    get_statistics2/3,
+    get_statistics2/4,
+    histogram/1,
+    histogram/2,
     drop_duplicates/1,
     report_type/3,
     get_datapoints/1,
@@ -175,6 +177,19 @@ drop_duplicates(List0) when is_list(List0) ->
 drop_duplicates(Any) ->
     Any.
 
+histogram(Values) ->
+    Sorted = lists:sort(Values),
+    Len = length(Sorted),
+    Total = lists:foldl(fun(I,Acc) -> Acc + I end, 0, Sorted),
+    get_statistics(Len, Total, Sorted).
+
+histogram(Values, default) ->
+    histogram(Values);
+histogram(Values, DataPoints) ->
+    H = histogram(Values),
+    [DP || {K,_} = DP <- H,
+	   lists:member(K, DataPoints)].
+
 -spec get_statistics(Length::non_neg_integer(),
                      Total::non_neg_integer(),
                      Sorted::list()) -> [{atom(), number()}].
@@ -196,25 +211,25 @@ drop_duplicates(Any) ->
 get_statistics(_, _, []) ->
     [];
 get_statistics(L, Total, Sorted) ->
-    get_statistics2(L, Sorted, Total / L).
+    get_statistics2(L, Sorted, Total, Total / L).
 
 %%
 %% Special case when we get called with an empty histogram.
-get_statistics2(_L, [], _Mean) ->
+get_statistics2(_L, [], _Total, _Mean) ->
     [];
 
 %% Special case when we get called from
 %% exometer_histogram:get_value_int() with just
 %% a nil min/max pair.
-get_statistics2(_L, [0,0], _Mean) ->
+get_statistics2(_L, [0,0], _Total, _Mean) ->
     [];
 
-get_statistics2(L, Sorted, Mean) ->
+get_statistics2(L, Sorted, Total, Mean) ->
     P50 = perc(0.5, L),
     Items = [{min,1}, {50, P50}, {median, P50}, {75, perc(0.75,L)},
              {90, perc(0.9,L)}, {95, perc(0.95,L)}, {99, perc(0.99,L)},
              {999, perc(0.999,L)}, {max,L}],
-    [{n,L}, {mean, Mean} | pick_items(Sorted, 1, Items)].
+    [{n,L}, {mean, Mean}, {total, Total} | pick_items(Sorted, 1, Items)].
 
 pick_items([H|_] = L, P, [{Tag,P}|Ps]) ->
     [{Tag,H} | pick_items(L, P, Ps)];
