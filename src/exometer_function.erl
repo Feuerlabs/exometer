@@ -565,6 +565,23 @@ e({element,E,T}, Bs) ->
             element(e(E,Bs), Tup);
         _ -> error(badarg)
     end;
+e({histogram, Vs}, Bs) ->
+    case e(Vs, Bs) of
+	L when is_list(L) ->
+	    exometer_util:histogram(L);
+	_ -> error(badarg)
+    end;
+e({histogram, Vs, DPs}, Bs) ->
+    case e(Vs, Bs) of
+	L when is_list(L) ->
+	    DataPoints = case e(DPs, Bs) of
+			     default -> default;
+			     D when is_list(D) -> D;
+			     _ -> error(badarg)
+			 end,
+	    exometer_util:histogram(L, DataPoints);
+	_ -> error(badarg)
+    end;
 e({fold,Vx,Va,Es,Ea,El}, Bs) when is_atom(Vx), is_atom(Va) ->
     case e(El, Bs) of
         L when is_list(L) ->
@@ -639,7 +656,7 @@ op(Op, A, B) when is_atom(Op) ->
     erlang:Op(A, B).
 
 fold_([H|T], Vx, Va, Es, Bs) ->
-    Bs1 = erl_eval:add_binding(Vx, e(H,Bs), Bs),
+    Bs1 = erl_eval:add_binding(Vx, H, Bs),
     {value, NewA, _} = eval_exprs(Es, Bs1),
     fold_(T, Vx, Va, Es, erl_eval:add_binding(Va, NewA, Bs));
 fold_([], _, Va, _, Bs) ->
