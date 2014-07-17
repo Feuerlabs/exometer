@@ -76,7 +76,7 @@ probe_get_value(DataPoints, St) ->
                0 -> 0.0;
                N -> Total/N
            end,
-    Results = exometer_util:get_statistics2(Length, Sorted, Mean),
+    Results = exometer_util:get_statistics2(Length, Sorted, Total, Mean),
     {ok, [get_dp(Results, DataPoint) || DataPoint <- DataPoints]}.
 
 get_dp(L, D) ->
