@@ -43,7 +43,7 @@
 -export(
    [
     new/2, new/3,
-    re_register/3,
+    re_register/3, ensure/3,
     update/2, update_or_create/2, update_or_create/4,
     get_value/1, get_value/2, get_values/1,
     sample/1,
@@ -51,7 +51,7 @@
     reset/1,
     setopts/2,
     find_entries/1,
-    select/1, select/2, select_cont/1,
+    select/1, select/2, select_cont/1, select_count/1,
     aggregate/2,
     info/1, info/2,
     register_application/0,
@@ -138,6 +138,14 @@ new(Name, Type, Opts) when is_list(Name), is_list(Opts) ->
 re_register(Name, Type, Opts) when is_list(Name), is_list(Opts) ->
     exometer_admin:re_register_entry(Name, Type, Opts).
 
+-spec ensure(name(), type(), options()) -> ok | error().
+%% @doc Ensure that metric exists and is of given type.
+%%
+%% This function is similar to re-register, but doesn't actually re-register
+%% a metric if it already exists. If a matching entry is found, a check is
+%% performed to verify that it is of the correct type. If it isn't, an
+%% error tuple is returned.
+%% @end
 ensure(Name, Type, Opts) when is_list(Name), is_list(Opts) ->
     exometer_admin:ensure(Name, Type, Opts).
 
@@ -681,6 +689,12 @@ get_values(Path) ->
 %% @end
 select(Pattern) ->
     ets:select(?EXOMETER_ENTRIES, [pattern(P) || P <- Pattern]).
+
+-spec select_count(ets:match_spec()) -> non_neg_integer().
+%% @doc Corresponds to {@link ets:select_count/1}.
+%% @end
+select_count(Pattern) ->
+    ets:select_count(?EXOMETER_ENTRIES, [pattern(P) || P <- Pattern]).
 
 -spec select(ets:match_spec(), pos_integer() | infinity) -> {[{name(), type(), status()}], _Cont}.
 %% @doc Perform an `ets:select()' with a Limit on the set of metrics.
