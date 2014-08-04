@@ -72,10 +72,15 @@
 
 -type name()        :: list().
 -type type()        :: atom().
--type status()      :: enabled | disabled.
+-type status()      :: enabled | disabled | non_neg_integer().
 -type options()     :: [{atom(), any()}].
 -type value()       :: any().
 -type error()       :: {error, any()}.
+
+-define(IS_ENABLED(St), St==enabled orelse St band 2#1 == 1).
+-define(IS_DISABLED(St), St==disabled orelse St band 2#1 =/= 1).
+
+-define(EVENT_ENABLED(St), St band 2#10 == 2#10).
 
 start() ->
     lager:start(),
@@ -161,49 +166,42 @@ ensure(Name, Type, Opts) when is_list(Name), is_list(Opts) ->
 %% @end
 update(Name, Value) when is_list(Name) ->
     case ets:lookup(Table = exometer_util:table(), Name) of
-        [#exometer_entry{module = ?MODULE, type = counter,
-                         status = Status}] ->
-            if Status == enabled ->
+	[#exometer_entry{status = Status} = E]
+	  when ?IS_ENABLED(Status) ->
+	    case E of
+		#exometer_entry{module = ?MODULE, type = counter} ->
                     ets:update_counter(
                       Table, Name, {#exometer_entry.value, Value});
-               true -> ok
-            end,
-            ok;
-
-        [#exometer_entry{module = ?MODULE, type = fast_counter,
-                         status = Status, ref = {M, F}}] ->
-            if Status == enabled ->
+		#exometer_entry{module = ?MODULE,
+				type = fast_counter, ref = {M, F}} ->
                     fast_incr(Value, M, F);
-               true -> ok
-            end;
-	[#exometer_entry{module = ?MODULE, type = gauge,
-			 status = Status}] ->
-	    if Status == enabled ->
+		#exometer_entry{module = ?MODULE, type = gauge} ->
 		    ets:update_element(
 		      ?EXOMETER_ENTRIES,
 		      Name, [{#exometer_entry.value, Value}]);
-	       true -> ok
+		#exometer_entry{behaviour = probe,
+				type = T, ref = Pid} ->
+                    exometer_probe:update(Name, Value, T, Pid);
+		#exometer_entry{module = M, behaviour = entry,
+				type = Type, ref = Ref} ->
+		    M:update(Name, Value, Type, Ref)
 	    end,
-	    ok;
-        [#exometer_entry{behaviour = probe,
-			 type = T,
-                         status = Status, ref = Pid}]->
-            if Status == enabled ->
-                    exometer_probe:update(Name, Value, T, Pid),
-
-                    ok;
-               true -> ok
-            end;
-
-        [#exometer_entry{module = M,
-			 behaviour = entry,
-			 type = Type,
-			 ref = Ref}] ->
-            M:update(Name, Value, Type, Ref);
-
+	    update_ok(Status, E, Value);
         [] ->
-            {error, not_found}
+            {error, not_found};
+	_ ->
+	    ok
     end.
+
+update_ok(St, #exometer_entry{name = Name}, Value)
+  when St band 2#10 =:= 2#10 ->
+    try exometer_event ! {updated, Name, Value}
+    catch
+	_:_ -> ok
+    end;
+update_ok(_, _, _) ->
+    ok.
+
 
 -spec update_or_create(Name::name(), Value::value()) -> ok | error().
 %% @doc Update existing metric, or create+update according to template.
@@ -272,7 +270,8 @@ get_value(Name, DataPoints) when is_list(Name) ->
     end.
 
 %% If the entry is disabled, just err out.
-get_value_(#exometer_entry{ status = disabled }, _DataPoints) ->
+get_value_(#exometer_entry{ status = Status }, _DataPoints)
+  when ?IS_DISABLED(Status) ->
     disabled;
 
 %% If the value is cached, see if we can find it.
@@ -289,18 +288,18 @@ get_value_(#exometer_entry{ module = ?MODULE,
 get_value_(#exometer_entry{ module = ?MODULE,
 			    type = counter} = E, DataPoints0) ->
     DataPoints = datapoints(DataPoints0, E),
-    [ get_ctr_datapoint(E, D) || D <- DataPoints];
+    [get_ctr_datapoint(E, D) || D <- DataPoints];
 
 get_value_(#exometer_entry{ module = ?MODULE,
 			    type = gauge, name = Name}, DataPoints0) ->
     [E] = ets:lookup(?EXOMETER_ENTRIES, Name),
     DataPoints = datapoints(DataPoints0, E),
-    [ get_gauge_datapoint(E, D) || D <- DataPoints];
+    [get_gauge_datapoint(E, D) || D <- DataPoints];
 
 get_value_(#exometer_entry{module = ?MODULE,
                            type = fast_counter} = E, DataPoints0) ->
     DataPoints = datapoints(DataPoints0, E),
-    [ get_fctr_datapoint(E, D) || D <- DataPoints ];
+    [get_fctr_datapoint(E, D) || D <- DataPoints ];
 
 get_value_(#exometer_entry{behaviour = entry,
 			   module = Mod,
@@ -363,26 +362,20 @@ delete(Name) when is_list(Name) ->
 %% @end
 sample(Name)  when is_list(Name) ->
     case ets:lookup(exometer_util:table(), Name) of
-        [#exometer_entry{status = disabled}] ->
-	    disabled;
-
-        [#exometer_entry{module = ?MODULE, type = counter}] ->
-            ok;
-
-        [#exometer_entry{module = ?MODULE, type = fast_counter}] ->
-            ok;
-
-        [#exometer_entry{behaviour = probe,
-			 type = Type,
-			 ref = Ref}] ->
-            exometer_probe:sample(Name, Type, Ref),
-            ok;
-
-        [#exometer_entry{status = enabled,
-			 behaviour = entry,
-                         module = M, type = Type, ref = Ref}] ->
-            M:sample(Name, Type, Ref);
-
+	[#exometer_entry{status = Status} = E] when ?IS_ENABLED(Status) ->
+	    case E of
+		#exometer_entry{module = ?MODULE, type = counter} -> ok;
+		#exometer_entry{module = ?MODULE, type = fast_counter} -> ok;
+		#exometer_entry{behaviour = probe,
+				type = Type,
+				ref = Ref} ->
+		    exometer_probe:sample(Name, Type, Ref),
+		    ok;
+		#exometer_entry{behaviour = entry,
+				module = M, type = Type, ref = Ref} ->
+		    M:sample(Name, Type, Ref)
+	    end;
+	[_] -> disabled;
         [] ->
             {error, not_found}
     end.
@@ -399,43 +392,42 @@ sample(Name)  when is_list(Name) ->
 %% @end
 reset(Name)  when is_list(Name) ->
     case ets:lookup(exometer_util:table(), Name) of
-        [#exometer_entry{status = enabled,
-                         module = ?MODULE, type = counter}] ->
-            TS = exometer_util:timestamp(),
-            [ets:update_element(T, Name, [{#exometer_entry.value, 0},
-                                          {#exometer_entry.timestamp, TS}])
-             || T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
-            ok;
-        [#exometer_entry{status = enabled,
-                         module = ?MODULE, type = fast_counter,
-                         ref = {M, F}}] ->
-            TS = exometer_util:timestamp(),
-            set_call_count(M, F, true),
-            [ets:update_element(T, Name, [{#exometer_entry.timestamp, TS}])
-             || T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
-            ok;
-	[#exometer_entry{status = enabled,
-			 module = ?MODULE, type = gauge}] ->
-	    TS = exometer_util:timestamp(),
-	    [ets:update_element(T, Name, [{#exometer_entry.value, 0},
-					  {#exometer_entry.timestamp, TS}])
-	     || T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
-	    ok;
-        [#exometer_entry{behaviour = probe,
-                         type = Type,
-                         ref = Ref} = E] ->
-	    [ exometer_cache:delete(Name, DataPoint) ||
-		DataPoint <- exometer_util:get_datapoints(E)],
-            exometer_probe:reset(Name, Type, Ref),
-            ok;
-        [#exometer_entry{behaviour = entry,
-                         module = M, type = Type, ref = Ref} = E] ->
-	    [ exometer_cache:delete(Name, DataPoint) ||
-		DataPoint <- exometer_util:get_datapoints(E)],
-
-            M:reset(Name, Type, Ref);
-        [] ->
-            {error, not_found}
+	[#exometer_entry{status = Status} = E] when ?IS_ENABLED(Status) ->
+	    case E of
+		#exometer_entry{module = ?MODULE, type = counter} ->
+		    TS = exometer_util:timestamp(),
+		    [ets:update_element(T, Name, [{#exometer_entry.value, 0},
+						  {#exometer_entry.timestamp, TS}])
+		     || T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
+		    ok;
+		#exometer_entry{module = ?MODULE, type = fast_counter,
+				ref = {M, F}} ->
+		    TS = exometer_util:timestamp(),
+		    set_call_count(M, F, true),
+		    [ets:update_element(T, Name, [{#exometer_entry.timestamp, TS}])
+		     || T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
+		    ok;
+		#exometer_entry{module = ?MODULE, type = gauge} ->
+		    TS = exometer_util:timestamp(),
+		    [ets:update_element(T, Name, [{#exometer_entry.value, 0},
+						  {#exometer_entry.timestamp, TS}])
+		     || T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
+		    ok;
+		#exometer_entry{behaviour = probe, type = Type, ref = Ref} ->
+		    [exometer_cache:delete(Name, DataPoint) ||
+			DataPoint <- exometer_util:get_datapoints(E)],
+		    exometer_probe:reset(Name, Type, Ref),
+		    ok;
+		#exometer_entry{behaviour = entry,
+				module = M, type = Type, ref = Ref} ->
+		    [exometer_cache:delete(Name, DataPoint) ||
+			DataPoint <- exometer_util:get_datapoints(E)],
+		    M:reset(Name, Type, Ref)
+	    end;
+	[] ->
+            {error, not_found};
+	_ ->
+	    ok
     end.
 
 
@@ -458,7 +450,7 @@ setopts(Name, Options) when is_list(Name), is_list(Options) ->
         [#exometer_entry{module = ?MODULE,
                          type = Type,
                          status = Status} = E] ->
-            if Status == disabled ->
+	    if ?IS_DISABLED(Status) ->
                     case lists:keyfind(status, 1, Options) of
                         {_, enabled} ->
 			    case Type of
@@ -470,7 +462,7 @@ setopts(Name, Options) when is_list(Name), is_list(Options) ->
                         _ ->
                             {error, disabled}
                     end;
-               Status == enabled ->
+	       ?IS_ENABLED(Status) ->
                     case lists:keyfind(status, 1, Options) of
                         {_, disabled} ->
                             {_, Elems} = process_setopts(E, Options),
@@ -485,13 +477,12 @@ setopts(Name, Options) when is_list(Name), is_list(Options) ->
                             reporter_setopts(E, Options, enabled)
                     end
             end;
-
-        [#exometer_entry{status = enabled} = E] ->
+        [#exometer_entry{status = Status} = E] when ?IS_ENABLED(Status) ->
             {_, Elems} = process_setopts(E, Options),
             update_entry_elems(Name, Elems),
             module_setopts(E, Options);
 
-        [#exometer_entry{status = disabled} = E] ->
+        [#exometer_entry{status = Status} = E] when ?IS_DISABLED(Status) ->
             case lists:keyfind(status, 1, Options) of
                 {_, enabled} ->
                     {_, Elems} = process_setopts(E, Options),
@@ -838,18 +829,48 @@ process_setopts_(#exometer_entry{options = OldOpts} = Entry, Options) ->
                      true -> error({illegal, {cache, Val}})
                   end;
               ({status, Status}, {#exometer_entry{status = Status0} = E, Elems} = Acc) ->
-                  if Status =/= Status0 ->
-                         {E#exometer_entry{status = Status},
-                          add_elem(status, Status, Elems)};
-                     true ->
-                         Acc
+		  case is_status_change(Status, Status0) of
+		      {true, Status1} ->
+			  {E#exometer_entry{status = Status1},
+			   add_elem(status, Status1, Elems)};
+		      false ->
+			  Acc
                   end;
-              ({ref,R}, {E, Elems}) ->
+	      ({update_event, UE},
+	       {#exometer_entry{status = Status0} = E, Elems} = Acc)
+		when is_boolean(UE) ->
+		  case (exometer_util:test_event_flag(update, Status0) == UE) of
+		      true -> Acc;
+		      false ->
+			  %% value changed
+			  if UE ->
+				  Status = exometer_util:set_event_flag(
+					     update, E#exometer_entry.status),
+				  {E#exometer_entry{status = Status},
+				   add_elem(status, Status, Elems)};
+			     true ->
+				  Status = exometer_util:clear_event_flag(
+					     update, E#exometer_entry.status),
+				  {E#exometer_entry{status = Status},
+				   add_elem(status, Status, Elems)}
+			  end
+		  end;
+	      ({ref,R}, {E, Elems}) ->
                   {E#exometer_entry{ref = R}, add_elem(ref, R, Elems)};
               ({_,_}, Acc) ->
                   Acc
           end, {Entry, []}, Options),
         {E1, [{#exometer_entry.options, update_opts(Options, OldOpts)}|Elems]}.
+
+is_status_change(enabled, St) ->
+    if ?IS_ENABLED(St) -> false;
+       true -> {true, exometer_util:set_status(enabled, St)}
+    end;
+is_status_change(disabled, St) ->
+    if ?IS_DISABLED(St) -> false;
+       true -> {true, exometer_util:set_status(disabled, St)}
+    end.
+
 
 add_elem(K, V, Elems) ->
     P = pos(K),
@@ -931,7 +952,7 @@ create_entry(#exometer_entry{module = exometer,
             code:ensure_loaded(M),  % module must be loaded for trace_pattern
             E1 = E#exometer_entry{ref = {M, F}, value = 0,
                                   timestamp = exometer_util:timestamp()},
-            set_call_count(M, F, Status == enabled),
+            set_call_count(M, F, ?IS_ENABLED(Status)),
             [ets:insert(T, E1) ||
                 T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
             ok;

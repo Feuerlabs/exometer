@@ -513,10 +513,22 @@ process_opts(Entry, Options) ->
               end;
           ({status, Status}, #exometer_entry{} = E) ->
               if Status==enabled; Status==disabled ->
-                      E#exometer_entry{status = Status};
+		      Status1 = exometer_util:set_status(
+				  Status, Entry#exometer_entry.status),
+                      E#exometer_entry{status = Status1};
                  true ->
                       error({illegal, {status, Status}})
               end;
+	  ({update_event, UE}, #exometer_entry{} = E) when is_boolean(UE) ->
+	      if UE ->
+		      Status = exometer_util:set_event_flag(
+				 update, E#exometer_entry.status),
+		      E#exometer_entry{status = Status};
+		 true ->
+		      Status = exometer_util:clear_event_flag(
+				 update, E#exometer_entry.status),
+		      E#exometer_entry{status = Status}
+	      end;
           ({_Opt, _Val}, #exometer_entry{} = Entry1) ->
               Entry1
       end, Entry#exometer_entry{options = Options}, Options).

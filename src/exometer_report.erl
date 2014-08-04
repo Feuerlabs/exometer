@@ -157,6 +157,8 @@
     add_reporter/2,
     remove_reporter/1, remove_reporter/2,
     terminate_reporter/1,
+    enable_reporter/1,
+    disable_reporter/1,
     call_reporter/2,
     cast_reporter/2,
     setopts/3,
@@ -253,7 +255,8 @@
           mref      :: reference(),
           module    :: module(),
           opts = [] :: [{atom(), any()}],
-          restart = #restart{}
+          restart = #restart{},
+	  status = enabled :: enabled | disabled
          }).
 
 -record(st, {
@@ -349,6 +352,12 @@ add_reporter(Reporter, Options) ->
 remove_reporter(Reporter) ->
     call({remove_reporter, Reporter}).
 
+enable_reporter(Reporter) ->
+    call({change_reporter_status, Reporter, enabled}).
+
+disable_reporter(Reporter) ->
+    call({change_reporter_status, Reporter, disabled}).
+
 call_reporter(Reporter, Msg) ->
     case lists:keyfind(Reporter, 1, list_reporters()) of
         {_, Pid} ->
@@ -410,10 +419,14 @@ do_start_reporters(S) ->
                          assert_no_duplicates(ReporterRecs),
                          lists:foldr(
                            fun(#reporter{name = Reporter,
+					 status = Status,
                                          opts = ROpts} = R, Acc) ->
                                    Restart = get_restart(ROpts),
                                    {Pid, MRef} =
-                                       spawn_reporter(Reporter, ROpts),
+				       if Status =:= enabled ->
+					       spawn_reporter(Reporter, ROpts);
+					  true -> {undefined, undefined}
+				       end,
                                    [ R#reporter{pid = Pid,
                                                 mref = MRef,
                                                 restart = Restart} | Acc]
@@ -425,7 +438,9 @@ do_start_reporters(S) ->
     SubsList =
         case lists:keyfind(subscribers, 1, Opts) of
             {subscribers, Subscribers} ->
-                lists:foldr(fun init_subscriber/2, [], Subscribers);
+                lists:foldr(fun(Subscr, Acc) ->
+				    init_subscriber(Subscr, Acc, Reporters0)
+			    end, [], Subscribers);
             false -> []
         end,
 
@@ -437,6 +452,7 @@ do_start_reporters(S) ->
 make_reporter_recs([{R, Opts}|T]) ->
     [#reporter{name = R,
                module = get_module(R, Opts),
+	       status = proplists:get_value(status, Opts, enabled),
                opts = Opts}|make_reporter_recs(T)];
 make_reporter_recs([]) ->
     [].
@@ -497,13 +513,17 @@ handle_call({subscribe,
 
     %% Verify that the given metric/data point actually exist.
     case lists:keyfind(Reporter, #reporter.name, Rs) of
-        #reporter{} ->
+        #reporter{status = Status} ->
 	    case is_valid_metric(Metric, DataPoint) of
 		true ->
-                    Reporter ! {exometer_subscribe, Metric,
-                                DataPoint, Interval, Extra},
+		    if Status =:= enabled ->
+			    Reporter ! {exometer_subscribe, Metric,
+					DataPoint, Interval, Extra};
+		       true -> ignore
+		    end,
                     Sub = subscribe_(Reporter, Metric, DataPoint,
-                                     Interval, RetryFailedMetrics, Extra),
+                                     Interval, RetryFailedMetrics,
+				     Extra, Status),
                     {reply, ok, St#st{ subscribers = [Sub | Subs] }};
                 %% Nope - Not found.
                 false -> {reply, not_found, St }
@@ -529,7 +549,8 @@ handle_call({unsubscribe_all, Reporter, Metric}, _,
                   (#subscriber{key=#key{metric=Metric1}=Key, t_ref=TRef}, Acc)
                     when Metric == Metric1 ->
                       #key{datapoint=Dp, extra=Extra} = Key,
-                      Reporter ! {exometer_unsubscribe, Metric, Dp, Extra},
+                      try Reporter ! {exometer_unsubscribe, Metric, Dp, Extra}
+		      catch error:_ -> ok end,
                       cancel_timer(TRef),
                       Acc;
                   (Sub, Acc) ->
@@ -568,12 +589,18 @@ handle_call({add_reporter, Reporter, Opts}, _, #st{reporters = Rs} = St) ->
         true ->
             {reply, {error, already_running}, St};
         false ->
-            {Pid, MRef} = spawn_reporter(Reporter, Opts),
-            Rs1 = [#reporter {name = Reporter,
-                              module = get_module(Reporter, Opts),
-                              pid = Pid,
-                              mref = MRef} | Rs],
-            {reply, ok, St#st{reporters = Rs1}}
+	    try
+		{Pid, MRef} = spawn_reporter(Reporter, Opts),
+		Rs1 = [#reporter {name = Reporter,
+				  module = get_module(Reporter, Opts),
+				  opts = Opts,
+				  pid = Pid,
+				  mref = MRef} | Rs],
+		{reply, ok, St#st{reporters = Rs1}}
+	    catch
+		error:Reason ->
+		    {reply, {error, Reason}, St}
+	    end
     end;
 
 handle_call({remove_reporter, Reporter}, _, St0) ->
@@ -584,6 +611,13 @@ handle_call({remove_reporter, Reporter}, _, St0) ->
             {reply, E, St0}
     end;
 
+handle_call({change_reporter_status, Reporter, Status}, _, St0) ->
+    case change_reporter_status(Status, Reporter, St0) of
+	{ok, St1} ->
+	    {reply, ok, St1};
+	E ->
+	    {reply, E, St0}
+    end;
 handle_call({setopts, Metric, Options, Status}, _, #st{reporters=Rs}=St) ->
     [erlang:send(Pid, {exometer_setopts, Metric, Options, Status})
      || #reporter{pid = Pid} <- Rs],
@@ -711,29 +745,42 @@ handle_info(_Info, State) ->
     ?warning("exometer_report:info(??): ~p~n", [ _Info ]),
     {noreply, State}.
 
-restart_reporter(#reporter{module = Mod, opts = Opts} = R,
+restart_reporter(#reporter{name = Name, opts = Opts} = R,
                  #st{subscribers = Subs, reporters = Reporters} = S) ->
-    {Pid, MRef} = spawn_reporter(Mod, Opts),
-    Subs1 = re_subscribe(Subs, Mod),
-    R1 = R#reporter{pid = Pid, mref = MRef},
+    {Pid, MRef} = spawn_reporter(Name, Opts),
+    Subs1 = re_subscribe(Subs, Name),
+    R1 = R#reporter{pid = Pid, mref = MRef, status = enabled},
     S#st{subscribers = Subs1,
-         reporters = lists:keyreplace(Mod, #reporter.module, Reporters, R1)}.
+         reporters = lists:keyreplace(Name, #reporter.name, Reporters, R1)}.
 
-re_subscribe([#subscriber{key = #key{reporter = Mod,
+re_subscribe([#subscriber{key = #key{reporter = RName,
                                      metric = Metric,
                                      datapoint = DataPoint,
                                      extra = Extra} = Key,
                           t_ref = OldTRef,
-                          interval = Interval} = S | Subs],
-             #reporter{module = Mod} = R) ->
-    Mod ! {exometer_subscribe, Metric, DataPoint, Interval, Extra},
-    erlang:cancel_timer(OldTRef),
+                          interval = Interval} = S | Subs], RName) ->
+    RName ! {exometer_subscribe, Metric, DataPoint, Interval, Extra},
+    cancel_timer(OldTRef),
     TRef = erlang:send_after(Interval, self(), {report, Key, Interval}),
-    [S#subscriber{t_ref = TRef} | re_subscribe(Subs, R)];
+    [S#subscriber{t_ref = TRef} | re_subscribe(Subs, RName)];
 re_subscribe([S|Subs], R) ->
     [S|re_subscribe(Subs, R)];
 re_subscribe([], _) ->
     [].
+
+cancel_subscr_timers(Reporter, Subs) ->
+    lists:map(
+      fun(#subscriber{key = #key{reporter = R},
+		      t_ref = TRef} = S) when R =:= Reporter ->
+	      cancel_timer(TRef),
+	      S#subscriber{t_ref = undefined};
+	 (S) -> S
+      end, Subs).
+
+cancel_timer(undefined) ->
+    false;
+cancel_timer(TRef) ->
+    erlang:cancel_timer(TRef).
 
 
 %%--------------------------------------------------------------------
@@ -774,6 +821,10 @@ code_change(_OldVan, #st{reporters = Rs} = S, _Extra) ->
                     #reporter{name = Module, pid = Pid, mref = MRef,
                               module = Module, opts = Opts,
                               restart = Restart};
+	       ({reporter,Name,Pid,MRef,Module,Opts,Restart}) ->
+		    #reporter{name = Name, pid = Pid, mref = MRef,
+			      module = Module, opts = Opts,
+			      restart = Restart};
                (#reporter{} = R) -> R
             end, Rs),
     {ok, S#st{reporters = Rs1}};
@@ -857,13 +908,23 @@ assert_no_duplicates([]) ->
     ok.
 
 spawn_reporter(Reporter, Opt) ->
+    Ref = make_ref(),
+    Me = self(),
     Fun = fun() ->
                   maybe_register(Reporter, Opt),
-                  reporter_launch(Reporter, Opt)
+                  {ok, Mod, St} = reporter_init(Reporter, Opt),
+		  Me ! {Ref, ok},
+		  reporter_loop(Mod, St)
           end,
     Pid = exometer_proc:spawn_process(Reporter, Fun),
     MRef = erlang:monitor(process, Pid),
-    {Pid, MRef}.
+    receive
+	{Ref, ok} -> {Pid, MRef};
+	{'DOWN', MRef, _, _, Reason} ->
+	    erlang:error({reporter_died, [Reporter, Reason]})
+    after 5000 ->
+	    erlang:error(timeout)
+    end.
 
 maybe_register(R, Opts) ->
     case lists:keyfind(registered_name, 1, Opts) of
@@ -872,7 +933,7 @@ maybe_register(R, Opts) ->
         false     -> register(R, self())
     end.
 
-terminate_reporter(#reporter{pid = Pid, mref = MRef}) ->
+terminate_reporter(#reporter{pid = Pid, mref = MRef}) when is_pid(Pid) ->
     Pid ! {exometer_terminate, shutdown},
     receive
         {'DOWN', MRef, _, _, _} ->
@@ -880,24 +941,31 @@ terminate_reporter(#reporter{pid = Pid, mref = MRef}) ->
     after 1000 ->
             exit(Pid, kill),
             erlang:demonitor(MRef, [flush])
-    end.
+    end;
+terminate_reporter(#reporter{pid = undefined}) ->
+    ok.
 
 
-subscribe_( Reporter, Metric, DataPoint, Interval, RetryFailedMetrics, Extra) ->
-    Key = #key { reporter = Reporter,
-                 metric = Metric,
-                 datapoint = DataPoint,
-                 extra = Extra,
-                 retry_failed_metrics = RetryFailedMetrics
-               },
+
+subscribe_(Reporter, Metric, DataPoint, Interval, RetryFailedMetrics,
+	   Extra, Status) ->
+    Key = #key{reporter = Reporter,
+	       metric = Metric,
+	       datapoint = DataPoint,
+	       extra = Extra,
+	       retry_failed_metrics = RetryFailedMetrics
+	      },
 
     %% FIXME: Validate Metric and datapoint
     %% ?info("Subscribe_(Intv(~p), self(~p))~n", [ Interval, self()]),
-    TRef = erlang:send_after(Interval, self(),
-                             { report, Key, Interval }),
-    #subscriber{ key = Key,
-                 interval = Interval,
-                 t_ref = TRef}.
+    #subscriber{key = Key,
+		interval = Interval,
+		t_ref = maybe_send_after(Status, Key, Interval)}.
+
+maybe_send_after(enabled, Key, Interval) ->
+    erlang:send_after(Interval, self(), {report, Key, Interval});
+maybe_send_after(_, _, _) ->
+    undefined.
 
 unsubscribe_(Reporter, Metric, DataPoint, Extra, Subs) ->
     ?info("unsubscribe_(~p, ~p, ~p, ~p, ~p)~n",
@@ -909,16 +977,13 @@ unsubscribe_(Reporter, Metric, DataPoint, Extra, Subs) ->
                        #subscriber.key, Subs) of
         {value, #subscriber{t_ref = TRef}, Rem} ->
             %% FIXME: Validate Metric and datapoint
-            Reporter ! { exometer_unsubscribe, Metric, DataPoint, Extra },
+            try Reporter ! { exometer_unsubscribe, Metric, DataPoint, Extra }
+	    catch error:_ -> ok end,
             cancel_timer(TRef),
             {ok, Rem};
         _ ->
             {not_found, Subs}
     end.
-
-cancel_timer(undefined) -> ok;
-cancel_timer(TRef) ->
-    erlang:cancel_timer(TRef).
 
 report_value(Reporter, Metric, DataPoint, Extra, Val) ->
     try Reporter ! {exometer_report, Metric, DataPoint, Extra, Val},
@@ -983,14 +1048,14 @@ get_subscribers(Metric, Type, Status,
 
 %% Purge all subscriptions associated with a specific reporter
 %% (that just went down).
-purge_subscriptions(Module, Subs) ->
+purge_subscriptions(R, Subs) ->
     %% Go through all #subscriber elements in Subs and
-    %% cancel the timer of those who match the provided module
+    %% cancel the timer of those who match the provided reporter
     %%
     %% Return new #subscriber list with all original subscribers
-    %% that do not reference Module
-    lists:foldr(fun(#subscriber { key = #key {reporter = Mod},
-                                  t_ref = TRef}, Acc) when Mod =:= Module->
+    %% that do not reference reporter R.
+    lists:foldr(fun(#subscriber { key = #key {reporter = Rptr},
+                                  t_ref = TRef}, Acc) when Rptr =:= R->
                         cancel_timer(TRef),
                         Acc;
                    (Subscriber, Acc) ->
@@ -1000,11 +1065,11 @@ purge_subscriptions(Module, Subs) ->
 %% Called by the spawn_monitor() call in init
 %% Loop and run reporters.
 %% Module is expected to implement exometer_report behavior
-reporter_launch(Reporter, Opts) ->
+reporter_init(Reporter, Opts) ->
     Module = proplists:get_value(module, Opts, Reporter),
     case Module:exometer_init(Opts) of
         {ok, St} ->
-            reporter_loop(Module, St);
+	    {ok, Module, St};
         {error, Reason} ->
             ?error("Failed to start reporter ~p: ~p~n", [Module, Reason]),
             exit(Reason)
@@ -1078,38 +1143,58 @@ call(Req) ->
 cast(Req) ->
     gen_server:cast(?MODULE, Req).
 
-init_subscriber({Reporter, Metric, DataPoint, Interval, RetryFailedMetrics}, Acc) ->
-    [subscribe_(Reporter, Metric, DataPoint, Interval, RetryFailedMetrics, undefined) | Acc];
+init_subscriber({Reporter, Metric, DataPoint, Interval,
+		 RetryFailedMetrics}, Acc, Rs) ->
+    Status = get_reporter_status(Reporter, Rs),
+    [subscribe_(Reporter, Metric, DataPoint, Interval,
+		RetryFailedMetrics, undefined, Status) | Acc];
 
-init_subscriber({Reporter, Metric, DataPoint, Interval, RetryFailedMetrics, Extra}, Acc) ->
-    [subscribe_(Reporter, Metric, DataPoint, Interval, RetryFailedMetrics, Extra) | Acc];
+init_subscriber({Reporter, Metric, DataPoint, Interval,
+		 RetryFailedMetrics, Extra}, Acc, Rs) ->
+    Status = get_reporter_status(Reporter, Rs),
+    [subscribe_(Reporter, Metric, DataPoint, Interval,
+		RetryFailedMetrics, Extra, Status) | Acc];
 
-init_subscriber({Reporter, Metric, DataPoint, Interval}, Acc) ->
-    [subscribe_(Reporter, Metric, DataPoint, Interval, true, undefined) | Acc];
+init_subscriber({Reporter, Metric, DataPoint, Interval}, Acc, Rs) ->
+    Status = get_reporter_status(Reporter, Rs),
+    [subscribe_(Reporter, Metric, DataPoint, Interval,
+		true, undefined, Status) | Acc];
 
-init_subscriber({apply, {M, F, A}}, Acc) ->
-    lists:foldr(fun init_subscriber/2, Acc, apply(M, F, A));
+init_subscriber({apply, {M, F, A}}, Acc, Rs) ->
+    lists:foldr(fun(Sub, Acc1) ->
+			init_subscriber(Sub, Acc1, Rs)
+		end, Acc, apply(M, F, A));
 
-init_subscriber({select, Expr}, Acc) when tuple_size(Expr)==3;
-                                          tuple_size(Expr)==4;
-                                          tuple_size(Expr)==5 ->
+init_subscriber({select, Expr}, Acc, Rs) when tuple_size(Expr)==3;
+					      tuple_size(Expr)==4;
+					      tuple_size(Expr)==5 ->
     {Pattern, Reporter, DataPoint, Interval, Retry, Extra} =
         case Expr of
             {P, R, D, I} -> {P, R, D, I, true, undefined};
             {P, R, D, I, Rf} -> {P, R, D, I, Rf, undefined};
             {P, R, D, I, Rf, X} -> {P, R, D, I, Rf, X}
         end,
+    Status = get_reporter_status(Reporter, Rs),
     Entries = exometer:select(Pattern),
     lists:foldr(
       fun({Entry, _, _}, Acc1) ->
-              [subscribe_(Reporter, Entry, DataPoint, Interval, Retry, Extra)
+              [subscribe_(Reporter, Entry, DataPoint, Interval,
+			  Retry, Extra, Status)
                | Acc1]
       end, Acc, Entries);
 
-init_subscriber(Other, Acc) ->
+init_subscriber(Other, Acc, _) ->
     ?warning("Incorrect static subscriber spec ~p. "
              "Use { Reporter, Metric, DataPoint, Interval [, Extra ]}~n", [ Other ]),
     Acc.
+
+get_reporter_status(R, Rs) ->
+    case lists:keyfind(R, #reporter.name, Rs) of
+	#reporter{status = St} ->
+	    St;
+	false ->
+	    disabled
+    end.
 
 add_restart(#restart{spec = Spec,
                      history = H,
@@ -1187,17 +1272,39 @@ do_remove_reporter(Reporter, St0) ->
     do_remove_reporter(Reporter, St0, true).
 
 do_remove_reporter(Reporter, #st{subscribers=Subs, reporters=Rs}=St0, Terminate) ->
-    case lists:keyfind(Reporter, #reporter.module, Rs) of
-        #reporter{module=M} = R ->
+    case lists:keyfind(Reporter, #reporter.name, Rs) of
+        #reporter{} = R ->
             case Terminate of
                 true ->
                     terminate_reporter(R);
                 false ->
                     ok
             end,
-            St1 = St0#st{reporters = lists:keydelete(M, #reporter.module, Rs),
-                         subscribers = purge_subscriptions(M, Subs)},
+            St1 = St0#st{reporters = lists:keydelete(
+				       Reporter, #reporter.name, Rs),
+                         subscribers = purge_subscriptions(
+					 Reporter, Subs)},
             {ok, St1};
         false ->
             {error, not_found}
+    end.
+
+change_reporter_status(New, Reporter, #st{subscribers = Subs,
+					  reporters = Rs} = St0) ->
+    case lists:keyfind(Reporter, #reporter.name, Rs) of
+	#reporter{status = disabled} = R when New==enabled ->
+	    St1 = restart_reporter(R, St0),
+	    {ok, St1};
+	#reporter{status = enabled} = R when New==disabled ->
+	    Subs1 = cancel_subscr_timers(Reporter, Subs),
+	    terminate_reporter(R),
+	    St1 = St0#st{reporters = lists:keyreplace(
+				       Reporter, #reporter.name, Rs,
+				       R#reporter{status = disabled}),
+			 subscribers = Subs1},
+	    {ok, St1};
+	#reporter{status = New} ->
+	    {ok, St0};
+	false ->
+	    {error, not_found}
     end.

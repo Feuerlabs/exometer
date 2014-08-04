@@ -26,7 +26,11 @@
     drop_duplicates/1,
     report_type/3,
     get_datapoints/1,
-    set_call_count/2, set_call_count/3
+    set_call_count/2, set_call_count/3,
+    set_status/2,
+    set_event_flag/2,
+    clear_event_flag/2,
+    test_event_flag/2
    ]).
 
 -export_type([timestamp/0]).
@@ -292,6 +296,28 @@ set_call_count({M, F}, Bool) ->
 
 set_call_count(M, F, Bool) when is_atom(M), is_atom(F), is_boolean(Bool) ->
     erlang:trace_pattern({M, F, 0}, Bool, [call_count]).
+
+
+set_status(enabled , enabled ) -> 1;
+set_status(enabled , disabled) -> 1;
+set_status(enabled , St      ) -> St bor 2#1;
+set_status(disabled, enabled ) -> 0;
+set_status(disabled, disabled) -> 0;
+set_status(disabled, St      ) -> St band 2#11111110.
+
+set_event_flag(update, St) when is_integer(St) ->
+    St bor 2#10;
+set_event_flag(update, enabled ) -> 2#11;
+set_event_flag(update, disabled) -> 2#10.
+
+
+clear_event_flag(update, St) when is_integer(St) ->
+    St band 2#11111101;
+clear_event_flag(update, enabled ) -> 1;
+clear_event_flag(update, disabled) -> 0.
+
+test_event_flag(update, St) when St band 2#10 =:= 2#10 -> true;
+test_event_flag(update, _) -> false.
 
 %% EUnit tests
 -ifdef(TEST).
