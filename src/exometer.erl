@@ -604,7 +604,7 @@ info_(E, Item) ->
 	module    -> E#exometer_entry.module;
 	value     -> get_value_(E,[]);
 	cache     -> E#exometer_entry.cache;
-	status    -> E#exometer_entry.status;
+	status    -> info_status(E#exometer_entry.status);
 	timestamp -> E#exometer_entry.timestamp;
 	options   -> E#exometer_entry.options;
 	ref       -> E#exometer_entry.ref;
@@ -613,6 +613,10 @@ info_(E, Item) ->
 	_ -> undefined
     end.
 
+info_status(S) when ?IS_ENABLED(S) ->
+    enabled;
+info_status(_) ->
+    disabled.
 
 datapoints(default, _E) ->
     default;
@@ -627,7 +631,8 @@ datapoints(D, _) when is_list(D) ->
 %% @doc Returns a list of info items for Metric, see {@link info/2}.
 info(Name) ->
     case ets:lookup(exometer_util:table(), Name) of
-        [#exometer_entry{} = E] ->
+        [#exometer_entry{} = E0] ->
+	    E = info_set_status(E0),
             Flds = record_info(fields, exometer_entry),
             lists:keyreplace(value, 1,
                              lists:zip(Flds, tl(tuple_to_list(E))) ++
@@ -637,6 +642,9 @@ info(Name) ->
         _ ->
             undefined
     end.
+
+info_set_status(#exometer_entry{status = S} = E) ->
+    E#exometer_entry{status = info_status(S)}.
 
 -spec find_entries([any() | '_']) -> [{name(), type(), status()}].
 %% @doc Find metrics based on a name prefix pattern.
