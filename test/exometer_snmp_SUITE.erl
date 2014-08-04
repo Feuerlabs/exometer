@@ -157,16 +157,16 @@ test_mib_modification(Config) ->
     ExpectedMib = ModifiedMib,
     ct:log("AliasNames = ~p", [snmpa:which_aliasnames()]),
     ct:log("Variabls = ~p", [snmpa:which_variables()]),
-    [{value, _} = snmpa:name_to_oid(N) || N <- [datapointTestAppOneValue, 
+    [{value, _} = snmpa:name_to_oid(N) || N <- [datapointTestAppOneValue,
                                                 datapointTestAppOneMsSinceReset,
-                                                datapointTestAppThreeValue, 
-                                                datapointTestAppThreeMsSinceReset, 
+                                                datapointTestAppThreeValue,
+                                                datapointTestAppThreeMsSinceReset,
                                                 datapointTestAppFourValue,
                                                 datapointTestAppFourMsSinceReset,
                                                 reportTestAppOneValue,
                                                 reportTestAppThreeMsSinceReset,
                                                 reportTestAppFiveValue]],
-    [false = snmpa:name_to_oid(N) || N <- [datapointTestAppTwoValue, 
+    [false = snmpa:name_to_oid(N) || N <- [datapointTestAppTwoValue,
                                            datapointTestAppTwoMsSinceReset]],
     ok.
 
@@ -188,7 +188,7 @@ test_counter_get(Config) ->
     [empty_fun() || _ <- lists:seq(1, 211)],
     {ok, [{value, ValueCounter}]} = {ok, [{value, 20}]} = exometer:get_value(NameCounter, value),
     {ok, [{value, ValueFastCounter}]} = {ok, [{value, 211}]} = exometer:get_value(NameFastCounter, value),
-    
+
     % get with oid
     {ok, ValueCounter} = rpc:call(Manager, exo_test_user, get_value, [OidCounter]),
     {ok, ValueFastCounter} = rpc:call(Manager, exo_test_user, get_value, [OidFastCounter]),
@@ -231,7 +231,7 @@ test_counter_reports(Config) ->
                       {function, {Mod, Fun}} = lists:keyfind(function, 1, Opts),
                       [Mod:Fun() || _ <- lists:seq(1, Exp)]
               end, Counters),
-    
+
     % wait for all correct reports
     FunReceive = fun({_, _, _, Name, Exp}) ->
                          receive
@@ -259,7 +259,7 @@ test_counter_reports(Config) ->
                           ok
                   end
           end,
- 
+
     [ok = Fun(Fun, FunReceive, Counter) || Counter <- Counters],
 
     % disable SNMP export and ensure no more reports are received
@@ -345,7 +345,7 @@ snmp_init_testcase(Case) ->
     MibTemplate = "../../test/data/EXOTEST-MIB.mib",
     TmpPath = filename:join(["tmp", atom_to_list(Case)]),
     application:load(exometer),
-    ReporterSpec = [{reporters, [{exometer_report_snmp, 
+    ReporterSpec = [{reporters, [{exometer_report_snmp,
                                   [
                                    {mib_template, MibTemplate},
                                    {mib_dir, TmpPath},
@@ -366,7 +366,7 @@ snmp_init_testcase(Case) ->
     ok = wait_for_mib_version(1, 10, 10000),
     [{mib_template, MibTemplate},
      {mib_file, MibFilePath},
-     {agent_conf_path, AgentConfPath}, 
+     {agent_conf_path, AgentConfPath},
      {manager_conf_path, ManagerConfPath}].
 
 is_app_running(_, _, Count) when Count < 0 ->
@@ -442,7 +442,7 @@ gethostname() ->
     Hostname = case net_kernel:longnames() of
                    true->
                        net_adm:localhost();
-                   _-> 
+                   _->
                        {ok, Name} = inet:gethostname(),
                        Name
                end,
@@ -457,7 +457,7 @@ deps_code_flags() ->
 start_manager(Config) ->
     Host = gethostname(),
     Node = test_manager,
-    Opts = [{boot_timeout, 30}, {monitor_master, true}, 
+    Opts = [{boot_timeout, 30}, {monitor_master, true},
             {startup_functions,
              [
               {exo_test_user, start, []}

@@ -22,7 +22,7 @@
           type,
           behaviour = undefined,
           module = exometer,
-          status = enabled,
+          status = 1,   % enabled, no event flags
           cache = 0,
           value,
           timestamp,
