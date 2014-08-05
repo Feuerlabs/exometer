@@ -172,6 +172,8 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
 
+-export([disable_me/2]).
+
 -export_type([metric/0, datapoint/0, interval/0, extra/0]).
 
 -include_lib("exometer/include/exometer.hrl").
@@ -189,6 +191,7 @@
 -type interval()        :: pos_integer().
 -type callback_result() :: {ok, mod_state()} | any().
 -type extra()           :: any().
+-type reporter_name()   :: atom().
 %% Restart specification
 -type maxR()            :: pos_integer().
 -type maxT()            :: pos_integer().
@@ -330,34 +333,107 @@ unsubscribe(Reporter, Metric, DataPoint, Extra) ->
 unsubscribe_all(Reporter, Metric) ->
     call({unsubscribe_all, Reporter, Metric}).
 
--spec list_metrics() -> {ok, [datapoint()]} | {error, atom()}.
+-spec list_metrics() -> {ok, [{ exometer:name(),
+				[datapoint()],
+				[{reporter_name(), datapoint()}],
+				exometer:status() }]} | {error, any()}.
+%% @equiv list_metrics([])
 list_metrics()  ->
     list_metrics([]).
 
--spec list_metrics(Path :: metric()) -> {ok, [datapoint()]} | {error, atom()}.
+-spec list_metrics(Path :: metric()) ->
+			  {ok, [{ exometer:name(),
+				  [datapoint()],
+				  [{reporter_name(), datapoint()}],
+				  exometer:status() }]} | {error, any()}.
+%% @doc List all metrics matching `Path', together with subscription status.
+%%
+%% This function performs a metrics search using `exometer:find_entries/1',
+%% then matches the result against known subscriptions. It reports, for each
+%% metric, the available data points, as well as which reporters subscribe to
+%% which data points.
+%% @end
 list_metrics(Path)  ->
     call({list_metrics, Path}).
 
--spec list_reporters() -> [module()].
+-spec list_reporters() -> [{reporter_name(), pid()}].
+%% @doc List the name and pid of each known reporter.
 list_reporters() ->
     call(list_reporters).
 
--spec list_subscriptions(module()) -> [{metric(), datapoint(), interval(), extra()}].
+-spec list_subscriptions(reporter_name()) ->
+				[{metric(), datapoint(), interval(), extra()}].
+%% @doc List all subscriptions for `Reporter'.
 list_subscriptions(Reporter) ->
     call({list_subscriptions, Reporter}).
 
+-spec add_reporter(reporter_name(), options()) -> ok | {error, any()}.
+%% @doc Add a reporter.
+%%
+%% The reporter can be configured using the following options. Note that all
+%% options are also passed to the reporter callback module, which may support
+%% additional options.
+%%
+%% `{module, atom()}' - The name of the reporter callback module. If no module
+%% is given, the module name defaults to the given reporter name.
+%%
+%% `{status, enabled | disabled}' - The operational status of the reporter
+%% if enabled, the reporter will report values to its target. If disabled, the
+%% reporter process will be terminated and subscription timers canceled, but
+%% the subscriptions will remain, and it will also be possible to add new
+%% subscriptions to the reporter.
+%% @end
 add_reporter(Reporter, Options) ->
     call({add_reporter, Reporter, Options}).
 
+-spec remove_reporter(reporter_name()) -> ok | {error, any()}.
+%% @doc Remove reporter and all its subscriptions.
 remove_reporter(Reporter) ->
     call({remove_reporter, Reporter}).
 
+-spec enable_reporter(reporter_name()) -> ok | {error, any()}.
+%% @doc Enable `Reporter'.
+%%
+%% The reporter will be 'restarted' in the same way as if it had crashed
+%% and was restarted by the supervision logic, but without counting it as
+%% a restart.
+%%
+%% If the reporter was already enabled, nothing is changed.
+%% @end
 enable_reporter(Reporter) ->
     call({change_reporter_status, Reporter, enabled}).
 
+-spec disable_reporter(reporter_name()) -> ok | {error, any()}.
+%% @doc Disable `Reporter'.
+%%
+%% The reporter will be terminated, and all subscription timers will be
+%% canceled, but the subscriptions themselves and reporter metadata are kept.
+%% @end
 disable_reporter(Reporter) ->
     call({change_reporter_status, Reporter, disabled}).
 
+-spec disable_me(module(), any()) -> no_return().
+%% @doc Used by a reporter to disable itself.
+%%
+%% This function can be called from a reporter instance if it wants to be
+%% disabled, e.g. after exhausting a configured number of connection attempts.
+%% The arguments passed are the name of the reporter callback module and the
+%% module state, and are used to call the `Mod:terminate/2' function.
+%% @end
+disable_me(Mod, St) ->
+    cast({disable, self()}),
+    receive
+	{exometer_terminate, shutdown} ->
+	    Mod:exometer_terminate(shutdown, St),
+	    exit(shutdown)
+    end.
+
+-spec call_reporter(reporter_name(), any()) -> any() | {error, any()}.
+%% @doc Send a custom (synchronous) call to `Reporter'.
+%%
+%% This function is used to make a client-server call to a given reporter
+%% instance. Note that the reporter type must recognize the request.
+%% @end
 call_reporter(Reporter, Msg) ->
     case lists:keyfind(Reporter, 1, list_reporters()) of
         {_, Pid} ->
@@ -366,6 +442,12 @@ call_reporter(Reporter, Msg) ->
             {error, {no_such_reporter, Reporter}}
     end.
 
+-spec cast_reporter(reporter_name(), any()) -> ok | {error, any()}.
+%% @doc Send a custom (asynchronous) cast to `Reporter'.
+%%
+%% This function is used to make an asynchronous cast to a given reporter
+%% instance. Note that the reporter type must recognize the message.
+%% @end
 cast_reporter(Reporter, Msg) ->
     case lists:keyfind(Reporter, 1, list_reporters()) of
         {_, Pid} ->
@@ -374,12 +456,34 @@ cast_reporter(Reporter, Msg) ->
             {error, {no_such_reporter, Reporter}}
     end.
 
+-spec remove_reporter(reporter_name(), _Reason::any()) -> ok | {error, any()}.
+%% @doc Remove `Reporter' (non-blocking call).
+%%
+%% This function can be used to order removal of a reporter with a custom
+%% reason. Note that the function is asynchronous, making it suitable e.g.
+%% for calling from within the reporter itself.
+%% @end
 remove_reporter(Reporter, Reason) ->
     cast({remove_reporter, Reporter, Reason}).
 
+-spec setopts(exometer:name(), options(), enabled | disabled) -> ok.
+%% @doc Called by exometer when options of a metric entry are changed.
+%%
+%% Reporters subscribing to the metric get a chance to process the options
+%% change in the function `Mod:exometer_setopts(Metric,Options,Status,St)'.
+%% @end
 setopts(Metric, Options, Status) ->
     call({setopts, Metric, Options, Status}).
 
+-spec new_entry(exometer:name()) -> ok.
+%% @doc Called by exometer whenever a new entry is created.
+%%
+%% This function is called whenever a new metric is created, giving each
+%% reporter the chance to enable a subscription for it. Note that each
+%% reporter is free to call the subscription management functions, as there
+%% is no risk of deadlock. The callback function triggered by this call is
+%% `Mod:exometer_newentry(Entry, St)'.
+%% @end
 new_entry(Entry) ->
     call({new_entry, Entry}).
 
@@ -653,6 +757,14 @@ handle_cast({remove_reporter, Reporter, Reason}, St0) ->
         _ ->
             {noreply, St0}
     end;
+handle_cast({disable, Pid}, #st{reporters = Rs} = St) ->
+    case lists:keyfind(Pid, #reporter.pid, Rs) of
+	#reporter{name = Reporter} ->
+	    {ok, St1} = change_reporter_status(disabled, Reporter, St),
+	    {noreply, St1};
+	false ->
+	    {noreply, St}
+    end;
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -722,8 +834,9 @@ handle_info({ report, #key{ reporter = Reporter,
             {noreply, St}
     end;
 
-handle_info({'DOWN', Ref, process, _Pid, Reason}, S) ->
-    S1 = case lists:keyfind(Ref, #reporter.mref, S#st.reporters) of
+handle_info({'DOWN', Ref, process, _Pid, Reason},
+	    #st{reporters = Rs} = S) ->
+    S1 = case lists:keyfind(Ref, #reporter.mref, Rs) of
              #reporter {module = Module, restart = Restart} = R ->
                  case add_restart(Restart) of
                      {remove, How} ->
@@ -736,9 +849,9 @@ handle_info({'DOWN', Ref, process, _Pid, Reason}, S) ->
                          S;
                      {restart, Restart1} ->
                          restart_reporter(R#reporter{restart = Restart1}, S)
-                 end;
-             _ -> S
-         end,
+		 end;
+	     _ -> S
+	 end,
     {noreply, S1};
 
 handle_info(_Info, State) ->
@@ -893,11 +1006,6 @@ get_values({How, Path}, DataPoint) ->
 	 (_, Acc) -> Acc
       end, [], Entries).
 
-
-%% first_datapoint([DP|_]) ->
-%%     DP;
-%% first_datapoint(DP) when is_atom(DP); is_integer(DP) ->
-%%     DP.
 
 assert_no_duplicates([#reporter{name = R}|T]) ->
     case lists:keymember(R, #reporter.name, T) of
@@ -1124,7 +1232,7 @@ reporter_loop(Module, St) ->
                   end;
               %% Allow reporters to generate their own callbacks.
               Other ->
-                  ?info("Custom invocation: ~p(~p)~n", [ Module, Other]),
+                  ?debug("Custom invocation: ~p(~p)~n", [ Module, Other]),
                   case Module:exometer_info(Other, St) of
                       {ok, St1} -> {ok, St1};
                       _ -> {ok, St}
@@ -1197,8 +1305,8 @@ get_reporter_status(R, Rs) ->
     end.
 
 add_restart(#restart{spec = Spec,
-                     history = H,
-                     save_n = N} = R) ->
+		     history = H,
+		     save_n = N} = R) ->
     T = exometer_util:timestamp(),
     H1 = lists:sublist([T|H], 1, N),
     case match_frequency(H1, Spec) of

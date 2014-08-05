@@ -13,9 +13,45 @@ __Behaviours:__ [`exometer_report`](exometer_report.md).
 ## Description ##
 
 
+
 Collectd unix socket integration.
 All data subscribed to by the plugin (through exosense_report:subscribe())
-will be reported to collectd.<a name="index"></a>
+will be reported to collectd.
+
+
+
+Options:
+
+
+
+`{path, string()}` - The AFUNIX socket path to the collectd socket.
+Default: `"/var/run/collectd-unixsock"`.
+
+
+
+`{connect_timeout, non_neg_integer()}` - Timeout, in milliseconds, for the
+connect operation. Default: `5000` (ms).
+
+
+
+`{read_timeout, non_neg_integer()}` - Read timeout, in milliseconds, when
+receiving replies on the AFUNIX socket. Default: `5000` (ms).
+
+
+
+`{reconnect_interval, non_neg_integer()}` - Time, in seconds, before
+attempting to reconnect. Default: `30` (sec)
+
+
+
+`{connect_retries, non_neg_integer() | infinity}` - How many times to
+try reconnecting before automatically disabling the reporter.
+Default: `infinity`
+
+
+`{refresh_interval, non_neg_integer()}` - Time, in seconds, before
+re-sending a metric value, if it hasn't been updated before then.
+Default: `10` (sec).<a name="index"></a>
 
 ## Function Index ##
 
