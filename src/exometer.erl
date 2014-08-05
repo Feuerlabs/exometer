@@ -840,7 +840,9 @@ is_dollar(A) when is_atom(A) ->
 	    catch error:_ -> false
 	    end;
 	_ -> false
-    end.
+    end;
+is_dollar(_) -> false.
+
 
 g_subst_({_,_}=X) -> X;
 g_subst_(K) when is_atom(K) ->
