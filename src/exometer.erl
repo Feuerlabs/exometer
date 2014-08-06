@@ -468,7 +468,7 @@ setopts(Name, Options) when is_list(Name), is_list(Options) ->
                             {_, Elems} = process_setopts(E, Options),
                             update_entry_elems(Name, Elems),
                             reporter_setopts(E, Options, disabled);
-                        false ->
+                        R when R==false; R=={status,disabled} ->
 			    case Type of
 				fast_counter -> setopts_fctr(E, Options);
 				counter      -> setopts_ctr(E, Options);
@@ -478,16 +478,17 @@ setopts(Name, Options) when is_list(Name), is_list(Options) ->
                     end
             end;
         [#exometer_entry{status = Status} = E] when ?IS_ENABLED(Status) ->
+            NewStatus = proplists:get_value(status, Options, enabled),
             {_, Elems} = process_setopts(E, Options),
             update_entry_elems(Name, Elems),
-            module_setopts(E, Options);
+            module_setopts(E, Options, NewStatus);
 
         [#exometer_entry{status = Status} = E] when ?IS_DISABLED(Status) ->
             case lists:keyfind(status, 1, Options) of
                 {_, enabled} ->
                     {_, Elems} = process_setopts(E, Options),
                     update_entry_elems(Name, Elems),
-                    module_setopts(E, Options);
+                    module_setopts(E, Options, enabled);
                 false ->
                     {error, disabled}
             end;
@@ -496,18 +497,17 @@ setopts(Name, Options) when is_list(Name), is_list(Options) ->
     end.
 
 module_setopts(#exometer_entry{behaviour = probe,
-			       module=exometer,
 			       name=N,
 			       type=T,
-			       ref = Pid}=E, Options) ->
-    reporter_setopts(E, Options, enabled),
+			       ref = Pid}=E, Options, NewStatus) ->
+    reporter_setopts(E, Options, NewStatus),
     exometer_probe:setopts(N, Options, T, Pid);
 
 module_setopts(#exometer_entry{behaviour = entry,
 			       name=Name,
 			       module=M,
 			       type=Type,
-			       ref=Ref}=E, Options) ->
+			       ref=Ref}=E, Options, NewStatus) ->
     case [O || {K, _} = O <- Options,
                not lists:member(K, [status, cache, ref])] of
         [] ->
@@ -515,7 +515,7 @@ module_setopts(#exometer_entry{behaviour = entry,
         [_|_] = UserOpts ->
             case M:setopts(Name, UserOpts, Type, Ref) of
                 ok ->
-                    reporter_setopts(E, Options, enabled),
+                    reporter_setopts(E, Options, NewStatus),
                     ok;
                 E ->
                     E
