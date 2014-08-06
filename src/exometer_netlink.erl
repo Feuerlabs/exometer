@@ -64,7 +64,7 @@ probe_get_datapoints(_St) ->
     {ok, ?DATAPOINTS}.
 
 probe_setopts(_Opts, _St) ->
-    error(unsupported).
+    ok.
 
 probe_update(_Value, _St) ->
     error(unsupported).

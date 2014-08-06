@@ -65,7 +65,7 @@ probe_get_value(DataPoints, St) ->
     {ok, [ get_datapoint_value(DataPoint, St) || DataPoint <- DataPoints ]}.
 
 probe_setopts(_Opts, _St) ->
-    error(unsupported).
+    ok.
 
 probe_update(Increment, St) ->
     Slide = exometer_slot_slide:add_element(Increment, St#st.slide),

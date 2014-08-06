@@ -72,7 +72,7 @@ probe_get_datapoints(_St) ->
     {ok, ?DATAPOINTS}.
 
 probe_setopts(_Options, _St)  ->
-    {error, unsupported}.
+    ok.
 
 probe_update(Increment, #st{slide = Slide, total = Total} = St) ->
     {ok, St#st{

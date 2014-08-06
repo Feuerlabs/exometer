@@ -91,7 +91,7 @@ probe_get_datapoints(_St) ->
     { ok, ?DATAPOINTS }.
 
 probe_setopts(_Opts, _St) ->
-    error(unsupported).
+    ok.
 
 probe_update(Value, St) when St#st.cur_sz < St#st.size ->
     NewSz = St#st.cur_sz + 1,

@@ -187,8 +187,8 @@ get_dp(K, L, Trunc) ->
             opt_trunc(Trunc, DP)
     end.
 
-probe_setopts(_Opts, _St)  ->
-    {error, unsupported}.
+probe_setopts(_Opts, St)  ->
+    ok.
 
 probe_update(Value, #st{slide = Slide,
 			histogram_module = Module} = St) ->

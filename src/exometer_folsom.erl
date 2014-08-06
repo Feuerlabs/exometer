@@ -137,7 +137,7 @@ stats_datapoints() ->
     [n,mean,min,max,median,50,75,90,95,99,999].
 
 setopts(_Name, _Options, _Type, _Ref)  ->
-    { error, unsupported }.
+    ok.
 
 sample(_Name, _Type, _Ref) ->
     { error, unsupported }.
