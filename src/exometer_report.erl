@@ -1016,23 +1016,14 @@ assert_no_duplicates([]) ->
     ok.
 
 spawn_reporter(Reporter, Opt) ->
-    Ref = make_ref(),
-    Me = self(),
     Fun = fun() ->
                   maybe_register(Reporter, Opt),
                   {ok, Mod, St} = reporter_init(Reporter, Opt),
-		  Me ! {Ref, ok},
 		  reporter_loop(Mod, St)
           end,
     Pid = exometer_proc:spawn_process(Reporter, Fun),
     MRef = erlang:monitor(process, Pid),
-    receive
-	{Ref, ok} -> {Pid, MRef};
-	{'DOWN', MRef, _, _, Reason} ->
-	    erlang:error({reporter_died, [Reporter, Reason]})
-    after 5000 ->
-	    erlang:error(timeout)
-    end.
+    {Pid, MRef}.
 
 maybe_register(R, Opts) ->
     case lists:keyfind(registered_name, 1, Opts) of
