@@ -468,7 +468,7 @@ setopts(Name, Options) when is_list(Name), is_list(Options) ->
                             {_, Elems} = process_setopts(E, Options),
                             update_entry_elems(Name, Elems),
                             reporter_setopts(E, Options, disabled);
-                        false ->
+                        R when R==false; R=={status,disabled} ->
 			    case Type of
 				fast_counter -> setopts_fctr(E, Options);
 				counter      -> setopts_ctr(E, Options);
@@ -478,16 +478,17 @@ setopts(Name, Options) when is_list(Name), is_list(Options) ->
                     end
             end;
         [#exometer_entry{status = Status} = E] when ?IS_ENABLED(Status) ->
+            NewStatus = proplists:get_value(status, Options, enabled),
             {_, Elems} = process_setopts(E, Options),
             update_entry_elems(Name, Elems),
-            module_setopts(E, Options);
+            module_setopts(E, Options, NewStatus);
 
         [#exometer_entry{status = Status} = E] when ?IS_DISABLED(Status) ->
             case lists:keyfind(status, 1, Options) of
                 {_, enabled} ->
                     {_, Elems} = process_setopts(E, Options),
                     update_entry_elems(Name, Elems),
-                    module_setopts(E, Options);
+                    module_setopts(E, Options, enabled);
                 false ->
                     {error, disabled}
             end;
@@ -496,18 +497,17 @@ setopts(Name, Options) when is_list(Name), is_list(Options) ->
     end.
 
 module_setopts(#exometer_entry{behaviour = probe,
-			       module=exometer,
 			       name=N,
 			       type=T,
-			       ref = Pid}=E, Options) ->
-    reporter_setopts(E, Options, enabled),
+			       ref = Pid}=E, Options, NewStatus) ->
+    reporter_setopts(E, Options, NewStatus),
     exometer_probe:setopts(N, Options, T, Pid);
 
 module_setopts(#exometer_entry{behaviour = entry,
 			       name=Name,
 			       module=M,
 			       type=Type,
-			       ref=Ref}=E, Options) ->
+			       ref=Ref}=E, Options, NewStatus) ->
     case [O || {K, _} = O <- Options,
                not lists:member(K, [status, cache, ref])] of
         [] ->
@@ -515,7 +515,7 @@ module_setopts(#exometer_entry{behaviour = entry,
         [_|_] = UserOpts ->
             case M:setopts(Name, UserOpts, Type, Ref) of
                 ok ->
-                    reporter_setopts(E, Options, enabled),
+                    reporter_setopts(E, Options, NewStatus),
                     ok;
                 E ->
                     E
@@ -665,7 +665,8 @@ find_entries(Path) ->
                [ { #exometer_entry{name = Pat, _ = '_'}, [],
                    [{{ {element, #exometer_entry.name, '$_'},
                        {element, #exometer_entry.type, '$_'},
-                       {element, #exometer_entry.status, '$_'} }}] } ]).
+		       status_body_pattern()
+		     }}] } ]).
 
 get_values(Path) ->
     Entries = find_entries(Path),
@@ -771,15 +772,36 @@ aggr_acc([{D,V}|T], Acc) ->
 aggr_acc([], Acc) ->
     Acc.
 
+%% Perform variable replacement in the ets select pattern.
+%% We want to project the entries as a set of {Name, Type, Status} tuples.
+%% This means we need to perform variable substitution in both guards and
+%% match bodies. Note that the 'status' attribute is now a bit map, but we
+%% want the disabled|enabled 'status' to be presented (and also to be
+%% matchable).
 pattern({'_', Gs, Prod}) ->
     {'_', repl(Gs, g_subst(['$_'])), repl(Prod, p_subst(['$_']))};
 pattern({KP, Gs, Prod}) when is_atom(KP) ->
     {KP, repl(Gs, g_subst([KP,'$_'])), repl(Prod, p_subst([KP,'$_']))};
 pattern({{N,T,S}, Gs, Prod}) ->
+    %% Remember the match head variables, at least if they are simple
+    %% dollar variables, so that we can perform substitution on them
+    %% later on.
+    Tail = match_tail(N,T,S),
     {#exometer_entry{name = N, type = T, status = S, _ = '_'},
-     repl(Gs, g_subst(['$_'])), repl(Prod, p_subst(['$_']))}.
+     repl(Gs, g_subst(['$_'|Tail])), repl(Prod, p_subst(['$_'|Tail]))}.
 
+%% The "named variables" are for now undocumented.
+repl('$name'       ,_) -> {element, #exometer_entry.name, '$_'};
+repl('$type'       ,_) -> {element, #exometer_entry.type, '$_'};
+repl('$options'    ,_) -> {element, #exometer_entry.options, '$_'};
+repl('$status'     ,_) -> status_body_pattern();
+repl('$status_bits',_) -> {element, #exometer_entry.status, '$_'};
+repl('$ref'        ,_) -> {element, #exometer_entry.ref, '$_'};
+repl('$behaviour'  ,_) -> {element, #exometer_entry.behaviour, '$_'};
+repl('$cache'      ,_) -> {element, #exometer_entry.cache, '$_'};
+repl('$timestamp'  ,_) -> {element, #exometer_entry.timestamp, '$_'};
 repl(P, Subst) when is_atom(P) ->
+    %% Check if P is one of the match variables we've saved.
     case lists:keyfind(P, 1, Subst) of
         {_, Repl} -> Repl;
         false     -> P
@@ -793,17 +815,60 @@ repl(X, _) ->
 
 g_subst(Ks) ->
     [g_subst_(K) || K <- Ks].
+
+%% Potentially save Name, Type and Status match head patterns
+match_tail(N,T,S) ->
+    case is_dollar(N) of true ->
+	    [{N, {element,#exometer_entry.name,'$_'}}|match_tail(T,S)];
+	false -> match_tail(T, S)
+    end.
+match_tail(T,S) ->
+    case is_dollar(T) of true ->
+	    [{T, {element,#exometer_entry.type,'$_'}}|match_tail(S)];
+	false -> match_tail(S)
+    end.
+match_tail(S) ->
+    case is_dollar(S) of true ->
+	    [{S, status_element_pattern(S)}];
+	false -> []
+    end.
+
+is_dollar(A) when is_atom(A) ->
+    case atom_to_list(A) of
+	[$$ | Rest] ->
+	    try _ = list_to_integer(Rest), true
+	    catch error:_ -> false
+	    end;
+	_ -> false
+    end;
+is_dollar(_) -> false.
+
+
+g_subst_({_,_}=X) -> X;
 g_subst_(K) when is_atom(K) ->
-    {K, {{element,#exometer_entry.name,'$_'},
-         {element,#exometer_entry.type,'$_'},
-         {element,#exometer_entry.status,'$_'}}}.
+    {K, {{{element,#exometer_entry.name,'$_'},
+	  {element,#exometer_entry.type,'$_'},
+	  status_element_pattern({element,#exometer_entry.status,'$_'})}}}.
+
+
+%% The status attribute: bit 1 indicates enabled (1) or disabled (0)
+status_element_pattern(S) ->
+    %% S is the match head pattern corresponding to the status bits
+    {element, {'+',{'band',S,1},1}, {{disabled,enabled}}}.
+
+status_body_pattern() ->
+    {element,
+     {'+',{'band',
+	   {element,#exometer_entry.status,'$_'},1},1},
+     {{disabled,enabled}}}.
 
 p_subst(Ks) ->
     [p_subst_(K) || K <- Ks].
+p_subst_({_,_}=X) -> X;
 p_subst_(K) when is_atom(K) ->
     {K, {{{element,#exometer_entry.name,'$_'},
           {element,#exometer_entry.type,'$_'},
-          {element,#exometer_entry.status,'$_'}}}}.
+	  status_body_pattern()}}}.
 
 %% This function returns a list of elements for ets:update_element/3,
 %% to be used for updating the #exometer_entry{} instances.

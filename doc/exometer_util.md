@@ -31,13 +31,20 @@ timestamp() = non_neg_integer()
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#drop_duplicates-1">drop_duplicates/1</a></td><td>
-<code>drop_duplicates/1</code> will drop all duplicate elements from a list of tuples identified by their first element.</td></tr><tr><td valign="top"><a href="#get_datapoints-1">get_datapoints/1</a></td><td></td></tr><tr><td valign="top"><a href="#get_env-2">get_env/2</a></td><td></td></tr><tr><td valign="top"><a href="#get_opt-3">get_opt/3</a></td><td></td></tr><tr><td valign="top"><a href="#get_statistics-3">get_statistics/3</a></td><td>Calculate statistics from a sorted list of values.</td></tr><tr><td valign="top"><a href="#get_statistics2-3">get_statistics2/3</a></td><td></td></tr><tr><td valign="top"><a href="#report_type-3">report_type/3</a></td><td></td></tr><tr><td valign="top"><a href="#set_call_count-2">set_call_count/2</a></td><td></td></tr><tr><td valign="top"><a href="#set_call_count-3">set_call_count/3</a></td><td></td></tr><tr><td valign="top"><a href="#table-0">table/0</a></td><td></td></tr><tr><td valign="top"><a href="#tables-0">tables/0</a></td><td></td></tr><tr><td valign="top"><a href="#timestamp-0">timestamp/0</a></td><td>Generate a millisecond-resolution timestamp.</td></tr><tr><td valign="top"><a href="#timestamp_to_datetime-1">timestamp_to_datetime/1</a></td><td>Convert timestamp to a regular datetime.</td></tr></table>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#clear_event_flag-2">clear_event_flag/2</a></td><td></td></tr><tr><td valign="top"><a href="#drop_duplicates-1">drop_duplicates/1</a></td><td>
+<code>drop_duplicates/1</code> will drop all duplicate elements from a list of tuples identified by their first element.</td></tr><tr><td valign="top"><a href="#get_datapoints-1">get_datapoints/1</a></td><td></td></tr><tr><td valign="top"><a href="#get_env-2">get_env/2</a></td><td></td></tr><tr><td valign="top"><a href="#get_opt-3">get_opt/3</a></td><td></td></tr><tr><td valign="top"><a href="#get_statistics-3">get_statistics/3</a></td><td>Calculate statistics from a sorted list of values.</td></tr><tr><td valign="top"><a href="#get_statistics2-4">get_statistics2/4</a></td><td></td></tr><tr><td valign="top"><a href="#histogram-1">histogram/1</a></td><td></td></tr><tr><td valign="top"><a href="#histogram-2">histogram/2</a></td><td></td></tr><tr><td valign="top"><a href="#report_type-3">report_type/3</a></td><td></td></tr><tr><td valign="top"><a href="#set_call_count-2">set_call_count/2</a></td><td></td></tr><tr><td valign="top"><a href="#set_call_count-3">set_call_count/3</a></td><td></td></tr><tr><td valign="top"><a href="#set_event_flag-2">set_event_flag/2</a></td><td></td></tr><tr><td valign="top"><a href="#set_status-2">set_status/2</a></td><td></td></tr><tr><td valign="top"><a href="#table-0">table/0</a></td><td></td></tr><tr><td valign="top"><a href="#tables-0">tables/0</a></td><td></td></tr><tr><td valign="top"><a href="#test_event_flag-2">test_event_flag/2</a></td><td></td></tr><tr><td valign="top"><a href="#timestamp-0">timestamp/0</a></td><td>Generate a millisecond-resolution timestamp.</td></tr><tr><td valign="top"><a href="#timestamp_to_datetime-1">timestamp_to_datetime/1</a></td><td>Convert timestamp to a regular datetime.</td></tr></table>
 
 
 <a name="functions"></a>
 
 ## Function Details ##
+
+<a name="clear_event_flag-2"></a>
+
+### clear_event_flag/2 ###
+
+`clear_event_flag(X1, St) -> any()`
+
 
 <a name="drop_duplicates-1"></a>
 
@@ -105,11 +112,25 @@ This function is similar to `bear:get_statistics_subset/2`.
 
 
 Fulpatchad med min/max av Magnus Feuer.
-<a name="get_statistics2-3"></a>
+<a name="get_statistics2-4"></a>
 
-### get_statistics2/3 ###
+### get_statistics2/4 ###
 
-`get_statistics2(L, Sorted, Mean) -> any()`
+`get_statistics2(L, Sorted, Total, Mean) -> any()`
+
+
+<a name="histogram-1"></a>
+
+### histogram/1 ###
+
+`histogram(Values) -> any()`
+
+
+<a name="histogram-2"></a>
+
+### histogram/2 ###
+
+`histogram(Values, DataPoints) -> any()`
 
 
 <a name="report_type-3"></a>
@@ -133,6 +154,20 @@ Fulpatchad med min/max av Magnus Feuer.
 `set_call_count(M, F, Bool) -> any()`
 
 
+<a name="set_event_flag-2"></a>
+
+### set_event_flag/2 ###
+
+`set_event_flag(X1, St) -> any()`
+
+
+<a name="set_status-2"></a>
+
+### set_status/2 ###
+
+`set_status(X1, St) -> any()`
+
+
 <a name="table-0"></a>
 
 ### table/0 ###
@@ -145,6 +180,13 @@ Fulpatchad med min/max av Magnus Feuer.
 ### tables/0 ###
 
 `tables() -> any()`
+
+
+<a name="test_event_flag-2"></a>
+
+### test_event_flag/2 ###
+
+`test_event_flag(X1, St) -> any()`
 
 
 <a name="timestamp-0"></a>

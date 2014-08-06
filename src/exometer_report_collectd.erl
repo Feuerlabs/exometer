@@ -13,12 +13,33 @@
 %% Collectd unix socket integration.
 %% All data subscribed to by the plugin (through exosense_report:subscribe())
 %% will be reported to collectd.
+%%
+%% Options:
+%%
+%% `{path, string()}' - The AFUNIX socket path to the collectd socket.
+%% Default: `"/var/run/collectd-unixsock"'.
+%%
+%% `{connect_timeout, non_neg_integer()}' - Timeout, in milliseconds, for the
+%% connect operation. Default: `5000' (ms).
+%%
+%% `{read_timeout, non_neg_integer()}' - Read timeout, in milliseconds, when
+%% receiving replies on the AFUNIX socket. Default: `5000' (ms).
+%%
+%% `{reconnect_interval, non_neg_integer()}' - Time, in seconds, before
+%% attempting to reconnect. Default: `30' (sec)
+%%
+%% `{connect_retries, non_neg_integer() | infinity}' - How many times to
+%% try reconnecting before automatically disabling the reporter.
+%% Default: `infinity'
+%%
+%% `{refresh_interval, non_neg_integer()}' - Time, in seconds, before
+%% re-sending a metric value, if it hasn't been updated before then.
+%% Default: `10' (sec).
 %% @end
 
-%% We have to do this as a gen server since collectd expects periodical
-%% metrics "refreshs", even if the values have not changed. We do this
-%% through erlang:send_after() calls with the metrics / value update
-%% to emit.
+%% Collectd expects periodical metrics "refreshes", even if the values
+%% have not changed. We do this through erlang:send_after() calls with
+%% the metrics / value update to emit.
 %%
 %% Please note that exometer_report_collectd is still also a
 %% exometer_report implementation.
@@ -46,6 +67,7 @@
 -include("exometer.hrl").
 
 -define(CONNECT_TIMEOUT, 5000).
+-define(CONNECT_RETRIES, infinity).
 -define(RECONNECT_INTERVAL, 30). %% seconds
 -define(READ_TIMEOUT, 5000).
 -define(REFRESH_INTERVAL, 10). %% seconds
@@ -60,6 +82,7 @@
           type_map = undefined,
           read_timeout = ?READ_TIMEOUT,
           connect_timeout = ?CONNECT_TIMEOUT,
+	  connect_retries = infinity,
           reconnect_interval = ?RECONNECT_INTERVAL,
           socket = undefined}).
 
@@ -74,49 +97,47 @@ exometer_init(Opts) ->
     ConnectTimeout = get_opt(connect_timeout, Opts, ?CONNECT_TIMEOUT),
     ReconnectInterval =
         get_opt(reconnect_interval, Opts, ?RECONNECT_INTERVAL) * 1000,
+    ConnectRetries = reconnect_init(
+		       get_opt(connect_retries, Opts, ?CONNECT_RETRIES)),
 
     %% [ { metric, type }, ... ]
     ets:new(exometer_collectd, [named_table, {keypos, 1}, public, set]),
 
     %% Try to connect to collectd.
+    St0 = #st{socket_path = SockPath,
+	      reconnect_interval = ReconnectInterval,
+	      hostname = check_hostname(
+			   get_opt(hostname, Opts, "auto")),
+	      plugin_name = get_opt(plugin_name, Opts, "exometer"),
+	      plugin_instance = check_instance(
+				  get_opt(plugin_instance, Opts, "auto")),
+	      read_timeout = get_opt(read_timeout, Opts, ?READ_TIMEOUT),
+	      connect_timeout = ConnectTimeout,
+	      connect_retries = ConnectRetries,
+	      refresh_interval = get_opt(refresh_interval, Opts,
+					 ?REFRESH_INTERVAL) * 1000,
+	      type_map = get_opt(type_map, Opts, undefined)
+	     },
     case connect_collectd(SockPath, ConnectTimeout) of
         {ok, Sock} ->
-            {ok,
-             #st{socket_path = SockPath,
-                 reconnect_interval = ReconnectInterval,
-                 hostname = check_hostname(
-                              get_opt(hostname, Opts, "auto")),
-                 plugin_name = get_opt(plugin_name, Opts, "exometer"),
-                 plugin_instance = check_instance(
-                                     get_opt(plugin_instance, Opts, "auto")),
-                 socket = Sock,
-                 read_timeout = get_opt(read_timeout, Opts, ?READ_TIMEOUT),
-                 connect_timeout = ConnectTimeout,
-                 refresh_interval = get_opt(refresh_interval, Opts,
-                                            ?REFRESH_INTERVAL) * 1000,
-                 type_map = get_opt(type_map, Opts, undefined)
-                }
-            };
+	    {ok, St0#st{socket = Sock}};
         {error, _} = Error ->
-            ?warning("Exometer exometer connection failed; ~p. Retry in ~p~n",
-                      [Error, ReconnectInterval]),
-            reconnect_after(ReconnectInterval),
-            {ok,
-             #st{socket_path = SockPath,
-                 reconnect_interval = ReconnectInterval,
-                 hostname = check_hostname(
-                              get_opt(hostname, Opts, "auto")),
-                 plugin_name = get_opt(plugin_name, Opts, "exometer"),
-                 plugin_instance = check_instance(
-                                     get_opt(plugin_instance, Opts, "auto")),
-                 socket = undefined,
-                 read_timeout = get_opt(read_timeout, Opts, ?READ_TIMEOUT),
-                 connect_timeout = ConnectTimeout,
-                 refresh_interval = get_opt(refresh_interval, Opts, 10) * 1000,
-                 type_map = get_opt(type_map, Opts, undefined)
-                }
-            }
+            ?warning("Exometer collectd connection failed; ~p. Retry in ~p~n",
+		     [Error, ReconnectInterval]),
+	    prepare_reconnect(),
+	    {ok, St0}
     end.
+
+reconnect_init(infinity) ->
+    infinity;
+reconnect_init(Retries) when is_integer(Retries), Retries >= 0 ->
+    {1, Retries}.
+
+reconnect_incr(infinity) ->
+    {true, infinity};
+reconnect_incr({N, Max}) ->
+    N1 = N+1,
+    {N < Max, {N1, Max}}.
 
 exometer_subscribe(_Metric, _DataPoint, _Extra, _Interval, St) ->
     {ok, St}.
@@ -170,6 +191,17 @@ exometer_cast(Unknown, St) ->
     ?info("Unknown cast: ~p", [Unknown]),
     {ok, St}.
 
+exometer_info({exometer_callback, prepare_reconnect},
+	      #st{reconnect_interval = Int,
+		  connect_retries = Retries} = St) ->
+    case reconnect_incr(Retries) of
+	{true, Retries1} ->
+	    reconnect_after(Int),
+	    {ok, St#st{connect_retries = Retries1}};
+	{false, _} ->
+	    ?warning("Reached max connection retries, disabling~n", []),
+	    exometer_report:disable_me(?MODULE, St)
+    end;
 exometer_info({exometer_callback, refresh_metric,
                Metric, DataPoint, Extra, Value}, St) ->
     %% Make sure that we still have an entry in the ets table.
@@ -192,7 +224,7 @@ exometer_info({exometer_callback, reconnect}, St) ->
             {ok, NSt};
         Err  ->
             ?warning("Could not reconnect: ~p~n", [Err]),
-            reconnect_after(St#st.reconnect_interval),
+	    prepare_reconnect(),
             {ok, St}
     end;
 exometer_info(Unknown, St) ->
@@ -255,7 +287,7 @@ send_request(Sock, Request, Metric, DataPoint, Extra, Value,
                     %% close and setup later reconnect
                     ?warning("Failed to receive. Will reconnect in ~p~n",
                              [St#st.reconnect_interval]),
-                    reconnect_after(Sock, St#st.reconnect_interval),
+                    maybe_reconnect_after(Sock),
                     St#st{socket = undefined}
             end;
         _ ->
@@ -265,7 +297,7 @@ send_request(Sock, Request, Metric, DataPoint, Extra, Value,
             %% We failed to receive data, close and setup later reconnect
             ?warning("Failed to send. Will reconnect in ~p~n",
                      [St#st.reconnect_interval]),
-            reconnect_after(Sock, St#st.reconnect_interval),
+            maybe_reconnect_after(Sock),
             St#st {socket = undefined}
     end.
 
@@ -377,12 +409,15 @@ get_type(TypeMap, Extra, Name) ->
     ?debug("type_map(~p) -> ~p~n", [ Name, Res ]),
     Res.
 
-reconnect_after(Socket, ReconnectInterval) ->
+maybe_reconnect_after(Socket) ->
     %% Close socket if open
     if Socket =/= undefined -> afunix:close(Socket);
         true -> true
     end,
-    reconnect_after(ReconnectInterval).
+    prepare_reconnect().
+
+prepare_reconnect() ->
+    self() ! {exometer_callback, prepare_reconnect}.
 
 reconnect_after(ReconnectInterval) ->
    erlang:send_after(ReconnectInterval, self(), {exometer_callback, reconnect}).

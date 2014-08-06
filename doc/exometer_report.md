@@ -250,8 +250,6 @@ extra() = any()
 
 
 
-  Restart specification
-
 
 
 ### <a name="type-interval">interval()</a> ###
@@ -275,12 +273,38 @@ metric() = <a href="exometer.md#type-name">exometer:name()</a> | {find, <a href=
 </code></pre>
 
 
+
+
+
+### <a name="type-options">options()</a> ###
+
+
+
+<pre><code>
+options() = [{atom(), any()}]
+</code></pre>
+
+
+
+
+
+### <a name="type-reporter_name">reporter_name()</a> ###
+
+
+
+<pre><code>
+reporter_name() = atom()
+</code></pre>
+
+
+
+  Restart specification
 <a name="index"></a>
 
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#add_reporter-2">add_reporter/2</a></td><td></td></tr><tr><td valign="top"><a href="#call_reporter-2">call_reporter/2</a></td><td></td></tr><tr><td valign="top"><a href="#cast_reporter-2">cast_reporter/2</a></td><td></td></tr><tr><td valign="top"><a href="#list_metrics-0">list_metrics/0</a></td><td></td></tr><tr><td valign="top"><a href="#list_metrics-1">list_metrics/1</a></td><td></td></tr><tr><td valign="top"><a href="#list_reporters-0">list_reporters/0</a></td><td></td></tr><tr><td valign="top"><a href="#list_subscriptions-1">list_subscriptions/1</a></td><td></td></tr><tr><td valign="top"><a href="#new_entry-1">new_entry/1</a></td><td></td></tr><tr><td valign="top"><a href="#remove_reporter-1">remove_reporter/1</a></td><td></td></tr><tr><td valign="top"><a href="#remove_reporter-2">remove_reporter/2</a></td><td></td></tr><tr><td valign="top"><a href="#setopts-3">setopts/3</a></td><td></td></tr><tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td>Starts the server
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#add_reporter-2">add_reporter/2</a></td><td>Add a reporter.</td></tr><tr><td valign="top"><a href="#call_reporter-2">call_reporter/2</a></td><td>Send a custom (synchronous) call to <code>Reporter</code>.</td></tr><tr><td valign="top"><a href="#cast_reporter-2">cast_reporter/2</a></td><td>Send a custom (asynchronous) cast to <code>Reporter</code>.</td></tr><tr><td valign="top"><a href="#disable_me-2">disable_me/2</a></td><td>Used by a reporter to disable itself.</td></tr><tr><td valign="top"><a href="#disable_reporter-1">disable_reporter/1</a></td><td>Disable <code>Reporter</code>.</td></tr><tr><td valign="top"><a href="#enable_reporter-1">enable_reporter/1</a></td><td>Enable <code>Reporter</code>.</td></tr><tr><td valign="top"><a href="#list_metrics-0">list_metrics/0</a></td><td>Equivalent to <a href="#list_metrics-1"><tt>list_metrics([])</tt></a>.</td></tr><tr><td valign="top"><a href="#list_metrics-1">list_metrics/1</a></td><td>List all metrics matching <code>Path</code>, together with subscription status.</td></tr><tr><td valign="top"><a href="#list_reporters-0">list_reporters/0</a></td><td>List the name and pid of each known reporter.</td></tr><tr><td valign="top"><a href="#list_subscriptions-1">list_subscriptions/1</a></td><td>List all subscriptions for <code>Reporter</code>.</td></tr><tr><td valign="top"><a href="#new_entry-1">new_entry/1</a></td><td>Called by exometer whenever a new entry is created.</td></tr><tr><td valign="top"><a href="#remove_reporter-1">remove_reporter/1</a></td><td>Remove reporter and all its subscriptions.</td></tr><tr><td valign="top"><a href="#remove_reporter-2">remove_reporter/2</a></td><td>Remove <code>Reporter</code> (non-blocking call).</td></tr><tr><td valign="top"><a href="#setopts-3">setopts/3</a></td><td>Called by exometer when options of a metric entry are changed.</td></tr><tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td>Starts the server
 --------------------------------------------------------------------.</td></tr><tr><td valign="top"><a href="#start_reporters-0">start_reporters/0</a></td><td></td></tr><tr><td valign="top"><a href="#subscribe-4">subscribe/4</a></td><td>Equivalent to <a href="#subscribe-5"><tt>subscribe(Reporter, Metric, DataPoint, Interval, [])</tt></a>.</td></tr><tr><td valign="top"><a href="#subscribe-5">subscribe/5</a></td><td>Add a subscription to an existing reporter.</td></tr><tr><td valign="top"><a href="#terminate_reporter-1">terminate_reporter/1</a></td><td></td></tr><tr><td valign="top"><a href="#unsubscribe-3">unsubscribe/3</a></td><td>Equivalent to <a href="#unsubscribe-4"><tt>unsubscribe(Reporter, Metric, DataPoint, [])</tt></a>.</td></tr><tr><td valign="top"><a href="#unsubscribe-4">unsubscribe/4</a></td><td>Removes a subscription.</td></tr><tr><td valign="top"><a href="#unsubscribe_all-2">unsubscribe_all/2</a></td><td>Removes all subscriptions related to Metric in Reporter.</td></tr></table>
 
 
@@ -292,95 +316,233 @@ metric() = <a href="exometer.md#type-name">exometer:name()</a> | {find, <a href=
 
 ### add_reporter/2 ###
 
-`add_reporter(Reporter, Options) -> any()`
+
+<pre><code>
+add_reporter(Reporter::<a href="#type-reporter_name">reporter_name()</a>, Options::<a href="#type-options">options()</a>) -&gt; ok | {error, any()}
+</code></pre>
+<br />
 
 
+Add a reporter.
+
+
+
+The reporter can be configured using the following options. Note that all
+options are also passed to the reporter callback module, which may support
+additional options.
+
+
+
+`{module, atom()}` - The name of the reporter callback module. If no module
+is given, the module name defaults to the given reporter name.
+
+
+`{status, enabled | disabled}` - The operational status of the reporter
+if enabled, the reporter will report values to its target. If disabled, the
+reporter process will be terminated and subscription timers canceled, but
+the subscriptions will remain, and it will also be possible to add new
+subscriptions to the reporter.
 <a name="call_reporter-2"></a>
 
 ### call_reporter/2 ###
 
-`call_reporter(Reporter, Msg) -> any()`
+
+<pre><code>
+call_reporter(Reporter::<a href="#type-reporter_name">reporter_name()</a>, Msg::any()) -&gt; any() | {error, any()}
+</code></pre>
+<br />
 
 
+Send a custom (synchronous) call to `Reporter`.
+
+
+This function is used to make a client-server call to a given reporter
+instance. Note that the reporter type must recognize the request.
 <a name="cast_reporter-2"></a>
 
 ### cast_reporter/2 ###
 
-`cast_reporter(Reporter, Msg) -> any()`
+
+<pre><code>
+cast_reporter(Reporter::<a href="#type-reporter_name">reporter_name()</a>, Msg::any()) -&gt; ok | {error, any()}
+</code></pre>
+<br />
 
 
+Send a custom (asynchronous) cast to `Reporter`.
+
+
+This function is used to make an asynchronous cast to a given reporter
+instance. Note that the reporter type must recognize the message.
+<a name="disable_me-2"></a>
+
+### disable_me/2 ###
+
+
+<pre><code>
+disable_me(Mod::module(), St::any()) -&gt; no_return()
+</code></pre>
+<br />
+
+
+Used by a reporter to disable itself.
+
+
+This function can be called from a reporter instance if it wants to be
+disabled, e.g. after exhausting a configured number of connection attempts.
+The arguments passed are the name of the reporter callback module and the
+module state, and are used to call the `Mod:terminate/2` function.
+<a name="disable_reporter-1"></a>
+
+### disable_reporter/1 ###
+
+
+<pre><code>
+disable_reporter(Reporter::<a href="#type-reporter_name">reporter_name()</a>) -&gt; ok | {error, any()}
+</code></pre>
+<br />
+
+
+Disable `Reporter`.
+
+
+The reporter will be terminated, and all subscription timers will be
+canceled, but the subscriptions themselves and reporter metadata are kept.
+<a name="enable_reporter-1"></a>
+
+### enable_reporter/1 ###
+
+
+<pre><code>
+enable_reporter(Reporter::<a href="#type-reporter_name">reporter_name()</a>) -&gt; ok | {error, any()}
+</code></pre>
+<br />
+
+
+Enable `Reporter`.
+
+
+
+The reporter will be 'restarted' in the same way as if it had crashed
+and was restarted by the supervision logic, but without counting it as
+a restart.
+
+
+If the reporter was already enabled, nothing is changed.
 <a name="list_metrics-0"></a>
 
 ### list_metrics/0 ###
 
 
 <pre><code>
-list_metrics() -&gt; {ok, [<a href="#type-datapoint">datapoint()</a>]} | {error, atom()}
+list_metrics() -&gt; {ok, [{<a href="exometer.md#type-name">exometer:name()</a>, [<a href="#type-datapoint">datapoint()</a>], [{<a href="#type-reporter_name">reporter_name()</a>, <a href="#type-datapoint">datapoint()</a>}], <a href="exometer.md#type-status">exometer:status()</a>}]} | {error, any()}
 </code></pre>
 <br />
 
-
+Equivalent to [`list_metrics([])`](#list_metrics-1).
 <a name="list_metrics-1"></a>
 
 ### list_metrics/1 ###
 
 
 <pre><code>
-list_metrics(Path::<a href="#type-metric">metric()</a>) -&gt; {ok, [<a href="#type-datapoint">datapoint()</a>]} | {error, atom()}
+list_metrics(Path::<a href="#type-metric">metric()</a>) -&gt; {ok, [{<a href="exometer.md#type-name">exometer:name()</a>, [<a href="#type-datapoint">datapoint()</a>], [{<a href="#type-reporter_name">reporter_name()</a>, <a href="#type-datapoint">datapoint()</a>}], <a href="exometer.md#type-status">exometer:status()</a>}]} | {error, any()}
 </code></pre>
 <br />
 
 
+List all metrics matching `Path`, together with subscription status.
+
+
+This function performs a metrics search using `exometer:find_entries/1`,
+then matches the result against known subscriptions. It reports, for each
+metric, the available data points, as well as which reporters subscribe to
+which data points.
 <a name="list_reporters-0"></a>
 
 ### list_reporters/0 ###
 
 
 <pre><code>
-list_reporters() -&gt; [module()]
+list_reporters() -&gt; [{<a href="#type-reporter_name">reporter_name()</a>, pid()}]
 </code></pre>
 <br />
 
-
+List the name and pid of each known reporter.
 <a name="list_subscriptions-1"></a>
 
 ### list_subscriptions/1 ###
 
 
 <pre><code>
-list_subscriptions(Reporter::module()) -&gt; [{<a href="#type-metric">metric()</a>, <a href="#type-datapoint">datapoint()</a>, <a href="#type-interval">interval()</a>, <a href="#type-extra">extra()</a>}]
+list_subscriptions(Reporter::<a href="#type-reporter_name">reporter_name()</a>) -&gt; [{<a href="#type-metric">metric()</a>, <a href="#type-datapoint">datapoint()</a>, <a href="#type-interval">interval()</a>, <a href="#type-extra">extra()</a>}]
 </code></pre>
 <br />
 
-
+List all subscriptions for `Reporter`.
 <a name="new_entry-1"></a>
 
 ### new_entry/1 ###
 
-`new_entry(Entry) -> any()`
+
+<pre><code>
+new_entry(Entry::<a href="exometer.md#type-name">exometer:name()</a>) -&gt; ok
+</code></pre>
+<br />
 
 
+Called by exometer whenever a new entry is created.
+
+
+This function is called whenever a new metric is created, giving each
+reporter the chance to enable a subscription for it. Note that each
+reporter is free to call the subscription management functions, as there
+is no risk of deadlock. The callback function triggered by this call is
+`Mod:exometer_newentry(Entry, St)`.
 <a name="remove_reporter-1"></a>
 
 ### remove_reporter/1 ###
 
-`remove_reporter(Reporter) -> any()`
 
+<pre><code>
+remove_reporter(Reporter::<a href="#type-reporter_name">reporter_name()</a>) -&gt; ok | {error, any()}
+</code></pre>
+<br />
 
+Remove reporter and all its subscriptions.
 <a name="remove_reporter-2"></a>
 
 ### remove_reporter/2 ###
 
-`remove_reporter(Reporter, Reason) -> any()`
+
+<pre><code>
+remove_reporter(Reporter::<a href="#type-reporter_name">reporter_name()</a>, _Reason::any()) -&gt; ok | {error, any()}
+</code></pre>
+<br />
 
 
+Remove `Reporter` (non-blocking call).
+
+
+This function can be used to order removal of a reporter with a custom
+reason. Note that the function is asynchronous, making it suitable e.g.
+for calling from within the reporter itself.
 <a name="setopts-3"></a>
 
 ### setopts/3 ###
 
-`setopts(Metric, Options, Status) -> any()`
+
+<pre><code>
+setopts(Metric::<a href="exometer.md#type-name">exometer:name()</a>, Options::<a href="#type-options">options()</a>, Status::enabled | disabled) -&gt; ok
+</code></pre>
+<br />
 
 
+Called by exometer when options of a metric entry are changed.
+
+
+Reporters subscribing to the metric get a chance to process the options
+change in the function `Mod:exometer_setopts(Metric,Options,Status,St)`.
 <a name="start_link-0"></a>
 
 ### start_link/0 ###
