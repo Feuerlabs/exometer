@@ -435,10 +435,12 @@ disable_me(Mod, St) ->
 %% instance. Note that the reporter type must recognize the request.
 %% @end
 call_reporter(Reporter, Msg) ->
-    case lists:keyfind(Reporter, 1, list_reporters()) of
-        {_, Pid} ->
+    case ets:lookup(?EXOMETER_REPORTERS, Reporter) of
+	[#reporter{pid = Pid}] when is_pid(Pid) ->
             exometer_proc:call(Pid, Msg);
-        false ->
+	[#reporter{status = disabled}] ->
+	    {error, disabled};
+        [] ->
             {error, {no_such_reporter, Reporter}}
     end.
 
@@ -449,10 +451,12 @@ call_reporter(Reporter, Msg) ->
 %% instance. Note that the reporter type must recognize the message.
 %% @end
 cast_reporter(Reporter, Msg) ->
-    case lists:keyfind(Reporter, 1, list_reporters()) of
-        {_, Pid} ->
+    case ets:lookup(?EXOMETER_REPORTERS, Reporter) of
+	[#reporter{pid = Pid}] when is_pid(Pid) ->
             exometer_proc:cast(Pid, Msg);
-        false ->
+	[#reporter{status = disabled}] ->
+	    {error, disabled};
+        [] ->
             {error, {no_such_reporter, Reporter}}
     end.
 
@@ -485,7 +489,7 @@ setopts(Metric, Options, Status) ->
 %% `Mod:exometer_newentry(Entry, St)'.
 %% @end
 new_entry(Entry) ->
-    call({new_entry, Entry}).
+    cast({new_entry, Entry}).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -517,41 +521,35 @@ do_start_reporters(S) ->
     %% { reporters, [ {reporter1, [{opt1, val}, ...]}, {reporter2, [...]}]}
     %% Traverse list of reporter and launch reporter gen servers as dynamic
     %% supervisor children.
-    Reporters0 = case lists:keyfind(reporters, 1, Opts) of
-                     {reporters, ReporterList} ->
-                         ReporterRecs = make_reporter_recs(ReporterList),
-                         assert_no_duplicates(ReporterRecs),
-                         lists:foldr(
-                           fun(#reporter{name = Reporter,
-					 status = Status,
-                                         opts = ROpts} = R, Acc) ->
-                                   Restart = get_restart(ROpts),
-                                   {Pid, MRef} =
-				       if Status =:= enabled ->
-					       spawn_reporter(Reporter, ROpts);
-					  true -> {undefined, undefined}
-				       end,
-                                   [ R#reporter{pid = Pid,
-                                                mref = MRef,
-                                                restart = Restart} | Acc]
-                           end, [], ReporterRecs);
-                     false ->
-                         []
-                 end,
+    case lists:keyfind(reporters, 1, Opts) of
+	{reporters, ReporterList} ->
+	    ReporterRecs = make_reporter_recs(ReporterList),
+	    assert_no_duplicates(ReporterRecs),
+	    lists:foreach(
+	      fun(#reporter{name = Reporter,
+			    status = Status,
+			    opts = ROpts} = R) ->
+		      Restart = get_restart(ROpts),
+		      {Pid, MRef} =
+			  if Status =:= enabled ->
+				  spawn_reporter(Reporter, ROpts);
+			     true -> {undefined, undefined}
+			  end,
+		      ets:insert(?EXOMETER_REPORTERS,
+				 R#reporter{pid = Pid,
+					    mref = MRef,
+					    restart = Restart})
+	      end, ReporterRecs);
+	false ->
+	    []
+    end,
     %% Dig out configured 'static' subscribers
-    SubsList =
-        case lists:keyfind(subscribers, 1, Opts) of
-            {subscribers, Subscribers} ->
-                lists:foldr(fun(Subscr, Acc) ->
-				    init_subscriber(Subscr, Acc, Reporters0)
-			    end, [], Subscribers);
-            false -> []
-        end,
-
-    S#st{
-      reporters = Reporters0,
-      subscribers = SubsList
-     }.
+    case lists:keyfind(subscribers, 1, Opts) of
+	{subscribers, Subscribers} ->
+	    lists:foreach(fun init_subscriber/1, Subscribers);
+	false -> []
+    end,
+    S#st{}.
 
 make_reporter_recs([{R, Opts}|T]) ->
     [#reporter{name = R,
@@ -613,11 +611,11 @@ handle_call({subscribe,
                    datapoint = DataPoint,
                    retry_failed_metrics = RetryFailedMetrics,
                    extra = Extra} , Interval },
-            _From, #st{reporters = Rs, subscribers = Subs} = St) ->
+            _From, #st{} = St) ->
 
     %% Verify that the given metric/data point actually exist.
-    case lists:keyfind(Reporter, #reporter.name, Rs) of
-        #reporter{status = Status} ->
+    case ets:lookup(?EXOMETER_REPORTERS, Reporter) of
+	[#reporter{status = Status}] ->
 	    case is_valid_metric(Metric, DataPoint) of
 		true ->
 		    if Status =:= enabled ->
@@ -625,14 +623,14 @@ handle_call({subscribe,
 					DataPoint, Interval, Extra};
 		       true -> ignore
 		    end,
-                    Sub = subscribe_(Reporter, Metric, DataPoint,
-                                     Interval, RetryFailedMetrics,
-				     Extra, Status),
-                    {reply, ok, St#st{ subscribers = [Sub | Subs] }};
+                    subscribe_(Reporter, Metric, DataPoint,
+			       Interval, RetryFailedMetrics,
+			       Extra, Status),
+                    {reply, ok, St};
                 %% Nope - Not found.
                 false -> {reply, not_found, St }
             end;
-        false ->
+        [] ->
             {reply, unknown_reporter, St}
     end;
 
@@ -640,35 +638,26 @@ handle_call({unsubscribe,
              #key{reporter = Reporter,
                   metric = Metric,
                   datapoint = DataPoint,
-                  extra = Extra}}, _,
-            #st{subscribers = Subs} = St) ->
-
-    {Res, NSubs} = unsubscribe_(Reporter, Metric, DataPoint, Extra, Subs),
-    {reply, Res, St#st{ subscribers = NSubs } };
+                  extra = Extra}}, _, #st{} = St) ->
+    Res = unsubscribe_(Reporter, Metric, DataPoint, Extra),
+    {reply, Res, St};
 
 handle_call({unsubscribe_all, Reporter, Metric}, _,
-            #st{subscribers=Subs0}=St) ->
-    Subs1 = lists:foldl(
-              fun
-                  (#subscriber{key=#key{metric=Metric1}=Key, t_ref=TRef}, Acc)
-                    when Metric == Metric1 ->
-                      #key{datapoint=Dp, extra=Extra} = Key,
-                      try Reporter ! {exometer_unsubscribe, Metric, Dp, Extra}
-		      catch error:_ -> ok end,
-                      cancel_timer(TRef),
-                      Acc;
-                  (Sub, Acc) ->
-                      [Sub | Acc]
-              end, [], Subs0),
-    {reply, ok, St#st{subscribers=Subs1}};
+            #st{}=St) ->
+    Subs = ets:select(?EXOMETER_SUBS,
+		      [{#subscriber{key = #key{reporter = Reporter,
+					       metric = Metric},
+				    _ = '_'}, [], ['$_']}]),
+    lists:foreach(fun unsubscribe_/1, Subs),
+    {reply, ok, St};
 
 handle_call({list_metrics, Path}, _, St) ->
     DP = lists:foldr(fun(Metric, Acc) ->
-                             retrieve_metric(Metric, St#st.subscribers, Acc)
+                             retrieve_metric(Metric, Acc)
                      end, [], exometer:find_entries(Path)),
     {reply, {ok, DP}, St};
 
-handle_call({list_subscriptions, Reporter}, _, #st{subscribers = Subs0} = St) ->
+handle_call({list_subscriptions, Reporter}, _, #st{} = St) ->
     Subs1 = lists:foldl(
               fun
                   (#subscriber{key=#key{reporter=Rep}}=Sub, Acc) when Reporter == Rep ->
@@ -681,55 +670,53 @@ handle_call({list_subscriptions, Reporter}, _, #st{subscribers = Subs0} = St) ->
                       [{Metric, Dp, Interval, Extra} | Acc];
                   (_, Acc) ->
                       Acc
-              end, [], Subs0),
+              end, [], ets:select(?EXOMETER_SUBS, [{'_',[],['$_']}])),
     {reply, Subs1, St};
 
-handle_call(list_reporters, _, #st{reporters = Reporters} = St) ->
-    Info = [{N, Pid} || #reporter{name = N, pid = Pid} <- Reporters],
+handle_call(list_reporters, _, #st{} = St) ->
+    Info = ets:select(?EXOMETER_REPORTERS,
+		      [{#reporter{name = '$1', pid = '$2', _ = '_'},
+			[], [{{'$1', '$2'}}]}]),
     {reply, Info, St};
 
-handle_call({add_reporter, Reporter, Opts}, _, #st{reporters = Rs} = St) ->
-    case lists:keymember(Reporter, #reporter.name, Rs) of
+handle_call({add_reporter, Reporter, Opts}, _, #st{} = St) ->
+    case ets:member(?EXOMETER_REPORTERS, Reporter) of
         true ->
             {reply, {error, already_running}, St};
         false ->
 	    try
 		{Pid, MRef} = spawn_reporter(Reporter, Opts),
-		Rs1 = [#reporter {name = Reporter,
-				  module = get_module(Reporter, Opts),
-				  opts = Opts,
-				  pid = Pid,
-				  mref = MRef} | Rs],
-		{reply, ok, St#st{reporters = Rs1}}
+		R = #reporter {name = Reporter,
+			       module = get_module(Reporter, Opts),
+			       opts = Opts,
+			       pid = Pid,
+			       mref = MRef},
+		ets:insert(?EXOMETER_REPORTERS, R),
+		{reply, ok, St}
 	    catch
 		error:Reason ->
 		    {reply, {error, Reason}, St}
 	    end
     end;
 
-handle_call({remove_reporter, Reporter}, _, St0) ->
-    case do_remove_reporter(Reporter, St0) of
-        {ok, St1} ->
-            {reply, ok, St1};
+handle_call({remove_reporter, Reporter}, _, St) ->
+    case do_remove_reporter(Reporter) of
+	ok ->
+            {reply, ok, St};
         E ->
-            {reply, E, St0}
+            {reply, E, St}
     end;
 
-handle_call({change_reporter_status, Reporter, Status}, _, St0) ->
-    case change_reporter_status(Status, Reporter, St0) of
-	{ok, St1} ->
-	    {reply, ok, St1};
+handle_call({change_reporter_status, Reporter, Status}, _, St) ->
+    case change_reporter_status(Reporter, Status) of
+	ok ->
+	    {reply, ok, St};
 	E ->
-	    {reply, E, St0}
+	    {reply, E, St}
     end;
-handle_call({setopts, Metric, Options, Status}, _, #st{reporters=Rs}=St) ->
+handle_call({setopts, Metric, Options, Status}, _, #st{}=St) ->
     [erlang:send(Pid, {exometer_setopts, Metric, Options, Status})
-     || #reporter{pid = Pid} <- Rs],
-    {reply, ok, St};
-
-handle_call({new_entry, Entry}, _, #st{reporters=Rs}=St) ->
-    [erlang:send(Pid, {exometer_newentry, Entry})
-     || #reporter{pid = Pid} <- Rs],
+     || Pid <- reporter_pids()],
     {reply, ok, St};
 
 handle_call(_Request, _From, State) ->
@@ -744,27 +731,28 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_cast({remove_reporter, Reporter, Reason}, St0) ->
+handle_cast({new_entry, Entry}, #st{} = St) ->
+    [try erlang:send(Pid, {exometer_newentry, Entry}) catch error:_ -> ok end
+     || Pid <- reporter_pids()],
+    maybe_enable_subscriptions(Entry),
+    {noreply, St};
+
+handle_cast({remove_reporter, Reporter, Reason}, St) ->
     Terminate = case Reason of
                     user ->
                         true;
                     _ ->
                         false
                 end,
-    case do_remove_reporter(Reporter, St0, Terminate) of
-        {ok, St1} ->
-            {noreply, St1};
-        _ ->
-            {noreply, St0}
-    end;
-handle_cast({disable, Pid}, #st{reporters = Rs} = St) ->
-    case lists:keyfind(Pid, #reporter.pid, Rs) of
-	#reporter{name = Reporter} ->
-	    {ok, St1} = change_reporter_status(disabled, Reporter, St),
-	    {noreply, St1};
-	false ->
-	    {noreply, St}
-    end;
+    do_remove_reporter(Reporter, Terminate),
+    {noreply, St};
+handle_cast({disable, Pid}, #st{} = St) ->
+    case reporter_by_pid(Pid) of
+	[#reporter{} = Reporter] ->
+	    do_change_reporter_status(Reporter, disabled);
+	[] -> ok
+    end,
+    {noreply, St};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -781,10 +769,9 @@ handle_info({ report, #key{ reporter = Reporter,
                             metric = Metric,
                             datapoint = DataPoint,
                             retry_failed_metrics = RetryFailedMetrics,
-                            extra = Extra} = Key, Interval},
-            #st{subscribers = Subs} = St) ->
-    case lists:keyfind(Key, #subscriber.key, Subs) of
-        #subscriber{} = Sub ->
+                            extra = Extra} = Key, Interval}, #st{} = St) ->
+    case ets:member(?EXOMETER_SUBS, Key) of
+	true ->
             case {RetryFailedMetrics,  get_values(Metric, DataPoint)} of
                 %% We found a value, or values.
                 {_, [_|_] = Found} ->
@@ -798,10 +785,9 @@ handle_info({ report, #key{ reporter = Reporter,
 
                     %% Replace the pid_subscriber info with a record having
                     %% the new timer ref.
-                    {noreply, St#st{subscribers =
-                                        lists:keyreplace(
-                                          Key, #subscriber.key, Subs,
-                                          Sub#subscriber{ t_ref = TRef })}};
+		    ets:update_element(?EXOMETER_SUBS, Key,
+				       [{#subscriber.t_ref, TRef}]),
+                    {noreply, St};
 
                 %% We did not find a value, but we should try again.
                 {true, _ } ->
@@ -817,10 +803,9 @@ handle_info({ report, #key{ reporter = Reporter,
 
                     %% Replace the pid_subscriber info with a record having
                     %% the new timer ref.
-                    {noreply, St#st{subscribers =
-                                        lists:keyreplace(
-                                          Key, #subscriber.key, Subs,
-                                          Sub#subscriber{ t_ref = TRef })}};
+		    ets:update_element(?EXOMETER_SUBS, Key,
+				       [{#subscriber.t_ref, TRef}]),
+                    {noreply, St};
                 %% We did not find a value, and we should not retry.
                 _ ->
                     %% Entry removed while timer in progress.
@@ -834,61 +819,80 @@ handle_info({ report, #key{ reporter = Reporter,
             {noreply, St}
     end;
 
-handle_info({'DOWN', Ref, process, _Pid, Reason},
-	    #st{reporters = Rs} = S) ->
-    S1 = case lists:keyfind(Ref, #reporter.mref, Rs) of
-             #reporter {module = Module, restart = Restart} = R ->
-                 case add_restart(Restart) of
-                     {remove, How} ->
-                         case How of
-                             {M, F} when is_atom(M), is_atom(F) ->
-                                 try M:F(Module, Reason) catch _:_ -> ok end;
-                             _ ->
-                                 ok
-                         end,
-                         S;
-                     {restart, Restart1} ->
-                         restart_reporter(R#reporter{restart = Restart1}, S)
-		 end;
-	     _ -> S
-	 end,
-    {noreply, S1};
+handle_info({'DOWN', Ref, process, _Pid, Reason}, #st{} = S) ->
+    case reporter_by_mref(Ref) of
+	[#reporter{module = Module, restart = Restart} = R] ->
+	    case add_restart(Restart) of
+		{remove, How} ->
+		    case How of
+			{M, F} when is_atom(M), is_atom(F) ->
+			    try M:F(Module, Reason) catch _:_ -> ok end;
+			_ ->
+			    ok
+		    end,
+		    S;
+		{restart, Restart1} ->
+		    restart_reporter(R#reporter{restart = Restart1})
+	    end;
+	_ -> S
+    end,
+    {noreply, S};
 
 handle_info(_Info, State) ->
     ?warning("exometer_report:info(??): ~p~n", [ _Info ]),
     {noreply, State}.
 
-restart_reporter(#reporter{name = Name, opts = Opts} = R,
-                 #st{subscribers = Subs, reporters = Reporters} = S) ->
+restart_reporter(#reporter{name = Name, opts = Opts, restart = Restart}) ->
     {Pid, MRef} = spawn_reporter(Name, Opts),
-    Subs1 = re_subscribe(Subs, Name),
-    R1 = R#reporter{pid = Pid, mref = MRef, status = enabled},
-    S#st{subscribers = Subs1,
-         reporters = lists:keyreplace(Name, #reporter.name, Reporters, R1)}.
+    [resubscribe(S) ||
+	S <- ets:select(?EXOMETER_SUBS,
+			[{#subscriber{key = #key{reporter = Name,
+						 _ = '_'},
+				      _ = '_'}, [], ['$_']}])],
+    ets:update_element(?EXOMETER_REPORTERS, Name,
+		       [{#reporter.pid, Pid},
+			{#reporter.mref, MRef},
+			{#reporter.restart, Restart},
+			{#reporter.status, enabled}]),
+    ok.
 
-re_subscribe([#subscriber{key = #key{reporter = RName,
-                                     metric = Metric,
-                                     datapoint = DataPoint,
-                                     extra = Extra} = Key,
-                          t_ref = OldTRef,
-                          interval = Interval} = S | Subs], RName) ->
-    RName ! {exometer_subscribe, Metric, DataPoint, Interval, Extra},
+%% If there are already subscriptions, enable them.
+maybe_enable_subscriptions(Entry) ->
+    lists:foreach(
+      fun(#subscriber{key = #key{reporter = RName}} = S) ->
+	      case get_reporter_status(RName) of
+		  enabled ->
+		      resubscribe(S);
+		  _ ->
+		      ok
+	      end
+      end, ets:select(?EXOMETER_SUBS,
+		      [{#subscriber{key = #key{metric = Entry,
+					       _ = '_'},
+				    _ = '_'}, [], ['$_']}])).
+
+resubscribe(#subscriber{key = #key{reporter = RName,
+				   metric = Metric,
+				   datapoint = DataPoint,
+				   extra = Extra} = Key,
+			t_ref = OldTRef,
+			interval = Interval}) ->
+    try_send(RName, {exometer_subscribe, Metric, DataPoint, Interval, Extra}),
     cancel_timer(OldTRef),
     TRef = erlang:send_after(Interval, self(), {report, Key, Interval}),
-    [S#subscriber{t_ref = TRef} | re_subscribe(Subs, RName)];
-re_subscribe([S|Subs], R) ->
-    [S|re_subscribe(Subs, R)];
-re_subscribe([], _) ->
-    [].
+    ets:update_element(?EXOMETER_SUBS, Key, [{#subscriber.t_ref, TRef}]).
 
-cancel_subscr_timers(Reporter, Subs) ->
-    lists:map(
-      fun(#subscriber{key = #key{reporter = R},
-		      t_ref = TRef} = S) when R =:= Reporter ->
+
+cancel_subscr_timers(Reporter) ->
+    lists:foreach(
+      fun(#subscriber{key = Key, t_ref = TRef}) ->
 	      cancel_timer(TRef),
-	      S#subscriber{t_ref = undefined};
-	 (S) -> S
-      end, Subs).
+	      ets:update_element(?EXOMETER_SUBS, Key,
+				 [{#subscriber.t_ref, undefined}])
+      end, ets:select(?EXOMETER_SUBS,
+		      [{#subscriber{key = #key{reporter = Reporter,
+					       _ = '_'},
+				    _ = '_'}, [], ['$_']}])).
 
 cancel_timer(undefined) ->
     false;
@@ -907,8 +911,8 @@ cancel_timer(TRef) ->
 %% @spec terminate(Reason, State) -> void()
 %% @end
 %%--------------------------------------------------------------------
-terminate(_Reason, #st{reporters=Rs}) ->
-    rpc:pmap({?MODULE, terminate_reporter}, [], Rs),
+terminate(_Reason, _) ->
+    [terminate_reporter(R) || R <- ets:tab2list(?EXOMETER_REPORTERS)],
     ok.
 
 %%--------------------------------------------------------------------
@@ -928,7 +932,7 @@ terminate(_Reason, #st{reporters=Rs}) ->
 %%           opts = [] :: [{atom(), any()}],
 %%           restart = #restart{}
 %%          }).
-code_change(_OldVan, #st{reporters = Rs} = S, _Extra) ->
+code_change(_OldVan, #st{reporters = Rs, subscribers = Ss} = S, _Extra) ->
     Rs1 = lists:map(
             fun({reporter,Pid,MRef,Module,Opts,Restart}) ->
                     #reporter{name = Module, pid = Pid, mref = MRef,
@@ -940,13 +944,34 @@ code_change(_OldVan, #st{reporters = Rs} = S, _Extra) ->
 			      restart = Restart};
                (#reporter{} = R) -> R
             end, Rs),
-    {ok, S#st{reporters = Rs1}};
+    [ets:insert(?EXOMETER_REPORTERS, R) || R <- Rs1],
+    [ets:insert(?EXOMETER_SUBS, Sub) || Sub <- Ss],
+    {ok, S#st{reporters = [], subscribers = []}};
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+reporter_pids() ->
+    ets:select(?EXOMETER_REPORTERS,
+	       [{#reporter{pid = '$1', _ = '_'}, [], ['$1']}]).
+
+reporter_by_pid(Pid) ->
+    ets:select(?EXOMETER_REPORTERS,
+	       [{#reporter{pid = Pid, _='_'}, [], ['$_']}]).
+
+reporter_by_mref(Ref) ->
+    ets:select(?EXOMETER_REPORTERS,
+	       [{#reporter{mref = Ref, _='_'}, [], ['$_']}]).
+
+try_send(To, Msg) ->
+    try To ! Msg
+    catch
+	error:_ ->
+	    Msg
+    end.
 
 is_valid_metric({find, Name}, _DataPoint) when is_list(Name) ->
     true;
@@ -1054,35 +1079,39 @@ subscribe_(Reporter, Metric, DataPoint, Interval, RetryFailedMetrics,
 	       extra = Extra,
 	       retry_failed_metrics = RetryFailedMetrics
 	      },
-
-    %% FIXME: Validate Metric and datapoint
-    %% ?info("Subscribe_(Intv(~p), self(~p))~n", [ Interval, self()]),
-    #subscriber{key = Key,
-		interval = Interval,
-		t_ref = maybe_send_after(Status, Key, Interval)}.
+    ets:insert(?EXOMETER_SUBS,
+	       #subscriber{key = Key,
+			   interval = Interval,
+			   t_ref = maybe_send_after(Status, Key, Interval)}).
 
 maybe_send_after(enabled, Key, Interval) ->
     erlang:send_after(Interval, self(), {report, Key, Interval});
 maybe_send_after(_, _, _) ->
     undefined.
 
-unsubscribe_(Reporter, Metric, DataPoint, Extra, Subs) ->
-    ?info("unsubscribe_(~p, ~p, ~p, ~p, ~p)~n",
-          [ Reporter, Metric, DataPoint, Extra, Subs]),
-    case lists:keytake(#key{reporter = Reporter,
-                            metric = Metric,
-                            datapoint = DataPoint,
-                            extra = Extra},
-                       #subscriber.key, Subs) of
-        {value, #subscriber{t_ref = TRef}, Rem} ->
-            %% FIXME: Validate Metric and datapoint
-            try Reporter ! { exometer_unsubscribe, Metric, DataPoint, Extra }
-	    catch error:_ -> ok end,
-            cancel_timer(TRef),
-            {ok, Rem};
-        _ ->
-            {not_found, Subs}
+unsubscribe_(Reporter, Metric, DataPoint, Extra) ->
+    ?info("unsubscribe_(~p, ~p, ~p, ~p)~n",
+          [ Reporter, Metric, DataPoint, Extra]),
+    case ets:lookup(?EXOMETER_SUBS, #key{reporter = Reporter,
+					 metric = Metric,
+					 datapoint = DataPoint,
+					 extra = Extra}) of
+	[#subscriber{} = Sub] ->
+	    unsubscribe_(Sub);
+        [] ->
+            not_found
     end.
+
+unsubscribe_(#subscriber{key = #key{reporter = Reporter,
+				    metric = Metric,
+				    datapoint = DataPoint,
+				    extra = Extra} = Key, t_ref = TRef}) ->
+    try_send(
+      Reporter, {exometer_unsubscribe, Metric, DataPoint, Extra}),
+    cancel_timer(TRef),
+    ets:delete(?EXOMETER_SUBS, Key),
+    ok.
+
 
 report_value(Reporter, Metric, DataPoint, Extra, Val) ->
     try Reporter ! {exometer_report, Metric, DataPoint, Extra, Val},
@@ -1092,17 +1121,21 @@ report_value(Reporter, Metric, DataPoint, Extra, Val) ->
         exit:_ -> false
     end.
 
-retrieve_metric({Metric, Type, Enabled}, Subscribers, Acc) ->
+retrieve_metric({Metric, Type, Enabled}, Acc) ->
+    Cands = ets:select(
+	      ?EXOMETER_SUBS,
+	      [{#subscriber{key = #key{metric = Metric, _='_'},
+			    _ = '_'}, [], ['$_']}]),
     [ { Metric, exometer:info(Metric, datapoints),
-        get_subscribers(Metric, Type, Enabled, Subscribers), Enabled } | Acc ].
+        get_subscribers(Metric, Type, Enabled, Cands), Enabled } | Acc ].
 
-find_entries_in_list(find, Path, List) ->
-    Pat = Path ++ '_',
-    Spec = ets:match_spec_compile([{ {Pat, '_', '_'}, [], ['$_'] }]),
-    ets:match_spec_run(List, Spec);
-find_entries_in_list(select, Pat, List) ->
-    Spec = ets:match_spec_compile(Pat),
-    ets:match_spec_run(List, Spec).
+%% find_entries_in_list(find, Path, List) ->
+%%     Pat = Path ++ '_',
+%%     Spec = ets:match_spec_compile([{ {Pat, '_', '_'}, [], ['$_'] }]),
+%%     ets:match_spec_run(List, Spec);
+%% find_entries_in_list(select, Pat, List) ->
+%%     Spec = ets:match_spec_compile(Pat),
+%%     ets:match_spec_run(List, Spec).
 
 get_subscribers(_Metric, _Type, _Status, []) ->
     [];
@@ -1118,20 +1151,20 @@ get_subscribers(Metric, Type, Status,
     ?debug("get_subscribers(~p, ~p, ~p): match~n", [ Metric, SDataPoint, SReporter]),
     [ { SReporter, SDataPoint } | get_subscribers(Metric, Type, Status, T) ];
 
-get_subscribers(Metric, Type, Status,
-		[ #subscriber {
-		     key = #key {
-			      metric = {How, Path},
-			      reporter = SReporter,
-			      datapoint = SDataPoint
-			     }} | T ]) ->
-    case find_entries_in_list(How, Path, [{Metric, Type, Status}]) of
-	[] ->
-	    get_subscribers(Metric, Type, Status, T);
-	[_] ->
-	    [ { SReporter, SDataPoint }
-	      | get_subscribers(Metric, Type, Status, T) ]
-    end;
+%% get_subscribers(Metric, Type, Status,
+%% 		[ #subscriber {
+%% 		     key = #key {
+%% 			      metric = {How, Path},
+%% 			      reporter = SReporter,
+%% 			      datapoint = SDataPoint
+%% 			     }} | T ]) ->
+%%     case find_entries_in_list(How, Path, [{Metric, Type, Status}]) of
+%% 	[] ->
+%% 	    get_subscribers(Metric, Type, Status, T);
+%% 	[_] ->
+%% 	    [ { SReporter, SDataPoint }
+%% 	      | get_subscribers(Metric, Type, Status, T) ]
+%%     end;
 
 %% This subscription does not match Metric.
 get_subscribers(Metric, Type, Status,
@@ -1147,19 +1180,19 @@ get_subscribers(Metric, Type, Status,
 
 %% Purge all subscriptions associated with a specific reporter
 %% (that just went down).
-purge_subscriptions(R, Subs) ->
+purge_subscriptions(R) ->
     %% Go through all #subscriber elements in Subs and
     %% cancel the timer of those who match the provided reporter
     %%
     %% Return new #subscriber list with all original subscribers
     %% that do not reference reporter R.
-    lists:foldr(fun(#subscriber { key = #key {reporter = Rptr},
-                                  t_ref = TRef}, Acc) when Rptr =:= R->
-                        cancel_timer(TRef),
-                        Acc;
-                   (Subscriber, Acc) ->
-                        [ Subscriber | Acc ]
-                end, [], Subs).
+    Subs = ets:select(?EXOMETER_SUBS,
+		      [{#subscriber{key = #key{reporter = R, _='_'},
+				    _ = '_'}, [], ['$_']}]),
+    lists:foreach(fun(#subscriber {key = Key, t_ref = TRef}) ->
+			  cancel_timer(TRef),
+			  ets:delete(?EXOMETER_SUBS, Key)
+		  end, Subs).
 
 %% Called by the spawn_monitor() call in init
 %% Loop and run reporters.
@@ -1242,57 +1275,49 @@ call(Req) ->
 cast(Req) ->
     gen_server:cast(?MODULE, Req).
 
+init_subscriber({Reporter, Metric, DataPoint, Interval, RetryFailedMetrics}) ->
+    Status = get_reporter_status(Reporter),
+    subscribe_(Reporter, Metric, DataPoint, Interval,
+	       RetryFailedMetrics, undefined, Status);
 init_subscriber({Reporter, Metric, DataPoint, Interval,
-		 RetryFailedMetrics}, Acc, Rs) ->
-    Status = get_reporter_status(Reporter, Rs),
-    [subscribe_(Reporter, Metric, DataPoint, Interval,
-		RetryFailedMetrics, undefined, Status) | Acc];
-
-init_subscriber({Reporter, Metric, DataPoint, Interval,
-		 RetryFailedMetrics, Extra}, Acc, Rs) ->
-    Status = get_reporter_status(Reporter, Rs),
-    [subscribe_(Reporter, Metric, DataPoint, Interval,
-		RetryFailedMetrics, Extra, Status) | Acc];
-
-init_subscriber({Reporter, Metric, DataPoint, Interval}, Acc, Rs) ->
-    Status = get_reporter_status(Reporter, Rs),
-    [subscribe_(Reporter, Metric, DataPoint, Interval,
-		true, undefined, Status) | Acc];
-
-init_subscriber({apply, {M, F, A}}, Acc, Rs) ->
-    lists:foldr(fun(Sub, Acc1) ->
-			init_subscriber(Sub, Acc1, Rs)
-		end, Acc, apply(M, F, A));
-
-init_subscriber({select, Expr}, Acc, Rs) when tuple_size(Expr)==3;
-					      tuple_size(Expr)==4;
-					      tuple_size(Expr)==5 ->
+		 RetryFailedMetrics, Extra}) ->
+    Status = get_reporter_status(Reporter),
+    subscribe_(Reporter, Metric, DataPoint, Interval,
+		RetryFailedMetrics, Extra, Status);
+init_subscriber({Reporter, Metric, DataPoint, Interval}) ->
+    Status = get_reporter_status(Reporter),
+    subscribe_(Reporter, Metric, DataPoint, Interval,
+	       true, undefined, Status);
+init_subscriber({apply, {M, F, A}}) ->
+    lists:foreach(fun(Sub) ->
+			  init_subscriber(Sub)
+		  end, apply(M, F, A));
+init_subscriber({select, Expr}) when tuple_size(Expr)==3;
+				     tuple_size(Expr)==4;
+				     tuple_size(Expr)==5 ->
     {Pattern, Reporter, DataPoint, Interval, Retry, Extra} =
         case Expr of
             {P, R, D, I} -> {P, R, D, I, true, undefined};
             {P, R, D, I, Rf} -> {P, R, D, I, Rf, undefined};
             {P, R, D, I, Rf, X} -> {P, R, D, I, Rf, X}
         end,
-    Status = get_reporter_status(Reporter, Rs),
+    Status = get_reporter_status(Reporter),
     Entries = exometer:select(Pattern),
-    lists:foldr(
-      fun({Entry, _, _}, Acc1) ->
-              [subscribe_(Reporter, Entry, DataPoint, Interval,
-			  Retry, Extra, Status)
-               | Acc1]
-      end, Acc, Entries);
+    lists:foreach(
+      fun({Entry, _, _}) ->
+              subscribe_(Reporter, Entry, DataPoint, Interval,
+			 Retry, Extra, Status)
+      end, Entries);
 
-init_subscriber(Other, Acc, _) ->
+init_subscriber(Other) ->
     ?warning("Incorrect static subscriber spec ~p. "
-             "Use { Reporter, Metric, DataPoint, Interval [, Extra ]}~n", [ Other ]),
-    Acc.
+             "Use { Reporter, Metric, DataPoint, Interval [, Extra ]}~n",
+	     [ Other ]).
 
-get_reporter_status(R, Rs) ->
-    case lists:keyfind(R, #reporter.name, Rs) of
-	#reporter{status = St} ->
-	    St;
-	false ->
-	    disabled
+get_reporter_status(R) ->
+    try ets:lookup_element(?EXOMETER_REPORTERS, R, #reporter.status)
+    catch
+	error:_ -> disabled
     end.
 
 add_restart(#restart{spec = Spec,
@@ -1367,43 +1392,40 @@ valid_restart(L) when is_list(L) ->
       end, L),
     L.
 
-do_remove_reporter(Reporter, St0) ->
-    do_remove_reporter(Reporter, St0, true).
+do_remove_reporter(Reporter) ->
+    do_remove_reporter(Reporter, true).
 
-do_remove_reporter(Reporter, #st{subscribers=Subs, reporters=Rs}=St0, Terminate) ->
-    case lists:keyfind(Reporter, #reporter.name, Rs) of
-        #reporter{} = R ->
+do_remove_reporter(Reporter, Terminate) ->
+    case ets:lookup(?EXOMETER_REPORTERS, Reporter) of
+	[#reporter{} = R] ->
             case Terminate of
                 true ->
                     terminate_reporter(R);
                 false ->
                     ok
             end,
-            St1 = St0#st{reporters = lists:keydelete(
-				       Reporter, #reporter.name, Rs),
-                         subscribers = purge_subscriptions(
-					 Reporter, Subs)},
-            {ok, St1};
-        false ->
+	    ets:delete(?EXOMETER_REPORTERS, Reporter),
+	    purge_subscriptions(Reporter),
+	    ok;
+        [] ->
             {error, not_found}
     end.
 
-change_reporter_status(New, Reporter, #st{subscribers = Subs,
-					  reporters = Rs} = St0) ->
-    case lists:keyfind(Reporter, #reporter.name, Rs) of
-	#reporter{status = disabled} = R when New==enabled ->
-	    St1 = restart_reporter(R, St0),
-	    {ok, St1};
-	#reporter{status = enabled} = R when New==disabled ->
-	    Subs1 = cancel_subscr_timers(Reporter, Subs),
-	    terminate_reporter(R),
-	    St1 = St0#st{reporters = lists:keyreplace(
-				       Reporter, #reporter.name, Rs,
-				       R#reporter{status = disabled}),
-			 subscribers = Subs1},
-	    {ok, St1};
-	#reporter{status = New} ->
-	    {ok, St0};
-	false ->
-	    {error, not_found}
+change_reporter_status(Reporter, New) ->
+    case ets:lookup(?EXOMETER_REPORTERS, Reporter) of
+	[R] -> do_change_reporter_status(R, New);
+	[]  -> {error, not_found}
     end.
+
+do_change_reporter_status(#reporter{name = Reporter,
+				    status = Old} = R, New) ->
+    case {Old, New} of
+	{disabled, enabled} ->
+	    restart_reporter(R);
+	{enabled, disabled} ->
+	    cancel_subscr_timers(Reporter),
+	    terminate_reporter(R),
+	    ets:update_element(?EXOMETER_REPORTERS,
+			       Reporter, [{#reporter.status, disabled}])
+    end,
+    ok.

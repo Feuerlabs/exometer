@@ -10,6 +10,8 @@
 
 -define(EXOMETER_SHARED, exometer_shared).
 -define(EXOMETER_ENTRIES, exometer_entries).
+-define(EXOMETER_SUBS, exometer_subscriptions).
+-define(EXOMETER_REPORTERS, exometer_reporters).
 
 -record(exometer_event, {
           time = exometer_util:timestamp(),

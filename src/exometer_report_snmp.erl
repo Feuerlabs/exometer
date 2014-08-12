@@ -51,7 +51,7 @@
 -define(OBJECT_GROUP_NAME, <<"allObjects">>).
 -define(INFORM_GROUP_NAME, <<"allNotifications">>).
 
--type snmp_option() :: {exometer_entry:datapoint(), exometer_report:interval()} | 
+-type snmp_option() :: {exometer_entry:datapoint(), exometer_report:interval()} |
                        {exometer_entry:datapoint(), exometer_report:interval(), exometer_report:extra()}.
 -type snmp()        :: disabled | [snmp_option()].
 
@@ -82,7 +82,7 @@ exometer_init(Opts) ->
     ets:insert(?MIB_NR_MAP, {?MIB_NR_NEXT, 0}),
     ets:insert(?MIB_NR_MAP, {?MIB_NR_FREE, []}),
 
-    % load MIB template which is used through the operation of 
+    % load MIB template which is used through the operation of
     % the process to dynamically export metrics
     MibPath0 = proplists:get_value(mib_template, Opts, ?MIB_TEMPLATE),
     MibWorkPath = proplists:get_value(mib_dir, Opts, ?MIB_DIR),
@@ -101,9 +101,9 @@ exometer_init(Opts) ->
     {ok, Vsn} = load_mib(0, MibPath1, true),
 
     State0 = #st{mib_version=Vsn,
-                 mib_file_path=MibPath1, 
-                 mib_file=FileBin, 
-                 mib_domain=Id, 
+                 mib_file_path=MibPath1,
+                 mib_file=FileBin,
+                 mib_domain=Id,
                  mib_funcs_file_path=FuncsPath},
     % ensure the mib is synced with exometer in case of reporter restarts
     State = sync_mib(State0),
@@ -178,14 +178,14 @@ exometer_terminate(_, #st{mib_file_path=MibPath0}) ->
 
 % @doc Returns the latest mib and its metadata.
 get_mib() ->
-    try 
+    try
         exometer_proc:call(?MODULE, get_mib)
     catch
         error:badarg ->
             {error, not_running}
     end.
 
-% @doc 
+% @doc
 % Callback function used by the SNMP master agent upon operations performed by a manager.
 % Currently only get operations are handled.
 % @end
@@ -207,7 +207,7 @@ snmp_operation(Op, Val, Key) ->
 %%%===================================================================
 
 enable_metric(#exometer_entry{} = E, #st{mib_version=Vsn0,
-                                         mib_file_path=MibPath, 
+                                         mib_file_path=MibPath,
                                          mib_file=Mib0,
                                          mib_domain=Domain,
                                          mib_funcs_file_path=FuncsPath}=S) ->
@@ -223,7 +223,7 @@ enable_metric(#exometer_entry{} = E, #st{mib_version=Vsn0,
     end.
 
 disable_metric(#exometer_entry{} = E, #st{mib_version=Vsn0,
-                                          mib_file_path=MibPath, 
+                                          mib_file_path=MibPath,
                                           mib_file=Mib0,
                                           mib_domain=Domain,
                                           mib_funcs_file_path=FuncsPath}=S) ->
@@ -239,7 +239,7 @@ disable_metric(#exometer_entry{} = E, #st{mib_version=Vsn0,
     end.
 
 enable_inform(E, Dp, Extra, #st{mib_version=Vsn0,
-                                mib_file_path=MibPath, 
+                                mib_file_path=MibPath,
                                 mib_file=Mib0,
                                 mib_domain=Domain,
                                 mib_funcs_file_path=FuncsPath}=S) ->
@@ -261,7 +261,7 @@ enable_inform(E, Dp, Extra, #st{mib_version=Vsn0,
     end.
 
 disable_inform(E, Dp, Extra, #st{mib_version=Vsn0,
-                                 mib_file_path=MibPath, 
+                                 mib_file_path=MibPath,
                                  mib_file=Mib0,
                                  mib_domain=Domain,
                                  mib_funcs_file_path=FuncsPath}=S) ->
@@ -336,7 +336,7 @@ modify_mib(enable_metric, #exometer_entry{name = Metric} = E,
             case create_bin(Name, Dp, E) of
                 {ok, Bin} ->
                     L = [
-                         A, B, 
+                         A, B,
                          <<"-- METRIC ", Name/binary, " START\n">>,
                          Bin,
                          <<"    ::= { ", Domain/binary, " ">>, Nr1, <<" }\n">>,
@@ -640,7 +640,7 @@ update_subscriptions_(M, {[Opt | A], R, Ch, Co}) ->
 option({Dp, Int}) -> {Dp, Int, undefined};
 option({_, _, _}=Opt) -> Opt.
 
--spec compare_subscriptions([snmp_option()], [snmp_option()]) -> 
+-spec compare_subscriptions([snmp_option()], [snmp_option()]) ->
     {[snmp_option()], [snmp_option()], [{snmp_option(), snmp_option()}], [snmp_option()]}.
 compare_subscriptions(Old, New) ->
     {A, Ch, Co} = lists:foldl(
