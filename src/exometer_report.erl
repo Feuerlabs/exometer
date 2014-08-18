@@ -76,10 +76,12 @@
 %% + `Metric'<br/>Specifies the metric that is now subscribed to by the plugin
 %%     as a list of atoms.
 %%
-%% + `DataPoint'<br/>Specifies the data point within the subscribed-to metric as an atom, or a list of atoms.
+%% + `DataPoint'<br/>Specifies the data point within the subscribed-to metric
+%% as an atom, or a list of atoms.
 %%
-%% + `Interval'<br/>Specifies the interval, in milliseconds, that the subscribed-to
-%%     value will be reported at.
+%% + `Interval'<br/>Specifies the interval, in milliseconds, that the
+%% subscribed-to value will be reported at, or an atom, referring to a named
+%% interval configured in the reporter.
 %%
 %% + `State'<br/>Contains the state returned by the last called plugin function.
 %%
@@ -155,6 +157,9 @@
     list_reporters/0,
     list_subscriptions/1,
     add_reporter/2,
+    set_interval/3,
+    delete_interval/2,
+    restart_intervals/1,
     remove_reporter/1, remove_reporter/2,
     terminate_reporter/1,
     enable_reporter/1,
@@ -181,6 +186,7 @@
 
 -define(SERVER, ?MODULE).
 
+-type error()           :: {error, any()}.
 -type metric()          :: exometer:name()
 			 | {find, exometer:name()}
 			 | {select, ets:match_spec()}.
@@ -188,7 +194,11 @@
 -type options()         :: [{atom(), any()}].
 -type mod_state()       :: any().
 -type value()           :: any().
--type interval()        :: pos_integer().
+-type interval()        :: pos_integer() | atom().
+-type time_ms()         :: pos_integer().
+-type delay()           :: time_ms().
+-type named_interval()  :: {atom(), time_ms()}
+			 | {atom(), time_ms(), delay()}.
 -type callback_result() :: {ok, mod_state()} | any().
 -type extra()           :: any().
 -type reporter_name()   :: atom().
@@ -243,7 +253,7 @@
 -record(subscriber, {
           key       :: #key{},
           interval  :: interval(),
-          t_ref     :: reference()
+          t_ref     :: reference() | undefined
          }).
 
 -record(restart, {
@@ -252,12 +262,20 @@
           save_n = 10               :: pos_integer()}
        ).
 
+-record(interval, {
+	  name      :: atom(),
+	  time = 0  :: non_neg_integer(),
+	  delay = 0 :: non_neg_integer(),
+	  t_ref     :: reference() | undefined
+	 }).
+
 -record(reporter, {
           name      :: atom(),
           pid       :: pid(),
           mref      :: reference(),
           module    :: module(),
           opts = [] :: [{atom(), any()}],
+	  intervals = [] :: [#interval{}],
           restart = #restart{},
 	  status = enabled :: enabled | disabled
          }).
@@ -293,7 +311,10 @@ subscribe(Reporter, Metric, DataPoint, Interval) ->
 %% a static configuration. `Metric' is the name of an exometer entry. `DataPoint'
 %% is either a single data point (an atom) or a list of data points (a list).
 %%
-%% `Interval' is the sampling/reporting interval in milliseconds.
+%% `Interval' is the sampling/reporting interval in milliseconds, or an atom,
+%% referring to a named interval configured in the reporter. The named
+%% interval need not be defined yet in the reporter (the subscription will
+%% not trigger until it <em>is</em> defined.)
 %%
 %% `Extra' can be anything that the chosen reporter understands (default: `[]').
 %% If the reporter uses {@link exometer_util:report_type/3}, `Extra' should be
@@ -318,8 +339,8 @@ unsubscribe(Reporter, Metric, DataPoint) ->
 %% @doc Removes a subscription.
 %%
 %% Note that the subscription is identified by the combination
-%% `{Reporter, Metric, DataPoint, Extra}'. The exact information can be extracted
-%% using {@link list_subscriptions/1}.
+%% `{Reporter, Metric, DataPoint, Extra}'. The exact information can be
+%% extracted using {@link list_subscriptions/1}.
 %% @end
 unsubscribe(Reporter, Metric, DataPoint, Extra) ->
     call({unsubscribe, #key{reporter = Reporter,
@@ -382,6 +403,16 @@ list_subscriptions(Reporter) ->
 %% reporter process will be terminated and subscription timers canceled, but
 %% the subscriptions will remain, and it will also be possible to add new
 %% subscriptions to the reporter.
+%%
+%% `{intervals, [named_interval()]}'
+%% named_interval() :: {Name::atom(), Interval::pos_integer()}
+%%                   | {Name::atom(), Interval::time_ms(), delay()::time_ms()}
+%% Define named intervals. The name can be used by subscribers, so that all
+%% subsriptions for a given named interval will be reported when the interval
+%% triggers. An optional delay (in ms) can be given: this will cause the first
+%% interval to start in `Delay' milliseconds. When all intervals are named
+%% at the same time, the delay parameter can be used to achieve staggered
+%% reporting.
 %% @end
 add_reporter(Reporter, Options) ->
     call({add_reporter, Reporter, Options}).
@@ -390,6 +421,43 @@ add_reporter(Reporter, Options) ->
 %% @doc Remove reporter and all its subscriptions.
 remove_reporter(Reporter) ->
     call({remove_reporter, Reporter}).
+
+-spec set_interval(reporter_name(), atom(),
+		   time_ms() | {time_ms(), delay()}) -> ok |error().
+%% @doc Specify a named interval.
+%%
+%% See {@link add_reporter/2} for a description of named intervals.
+%% The named interval is here specified as either `Time' (milliseconds) or
+%% `{Time, Delay}', where a delay in milliseconds is provided.
+%%
+%% If the named interval exists, it will be replaced with the new definition.
+%% Otherwise, it will be added. Use {@link restart_intervals/1} if you want
+%% all intervals to be restarted/resynched with corresponding relative delays.
+%% @end
+set_interval(Reporter, Name, Time) when is_atom(Name),
+					is_integer(Time), Time >= 0 ->
+    call({set_interval, Reporter, Name, Time});
+set_interval(Reporter, Name, {Time, Delay}) when is_atom(Name),
+						 is_integer(Time), Time >= 0,
+						 is_integer(Delay),
+						 Delay >= 0 ->
+    call({set_interval, Reporter, Name, {Time, Delay}}).
+
+-spec delete_interval(reporter_name(), atom()) -> ok | error().
+%% @doc Delete a named interval.
+%%
+delete_interval(Reporter, Name) ->
+    call({delete_interval, Reporter, Name}).
+
+-spec restart_intervals(reporter_name()) -> ok.
+%% @doc Restart all named intervals, respecting specified delays.
+%%
+%% This function can be used if named intervals are added incrementally, and
+%% it is important that all intervals trigger separated by the given delays.
+%% @end
+restart_intervals(Reporter) ->
+    call({restart_intervals, Reporter}).
+
 
 -spec enable_reporter(reporter_name()) -> ok | {error, any()}.
 %% @doc Enable `Reporter'.
@@ -528,16 +596,20 @@ do_start_reporters(S) ->
 	    lists:foreach(
 	      fun(#reporter{name = Reporter,
 			    status = Status,
-			    opts = ROpts} = R) ->
+			    opts = ROpts,
+			    intervals = Ints0} = R) ->
 		      Restart = get_restart(ROpts),
-		      {Pid, MRef} =
+		      {Pid, MRef, Ints} =
 			  if Status =:= enabled ->
-				  spawn_reporter(Reporter, ROpts);
-			     true -> {undefined, undefined}
+				  {P1,R1} = spawn_reporter(Reporter, ROpts),
+				  I1 = start_interval_timers(R),
+				  {P1,R1,I1};
+			     true -> {undefined, undefined, Ints0}
 			  end,
 		      ets:insert(?EXOMETER_REPORTERS,
 				 R#reporter{pid = Pid,
 					    mref = MRef,
+					    intervals = Ints,
 					    restart = Restart})
 	      end, ReporterRecs);
 	false ->
@@ -555,12 +627,49 @@ make_reporter_recs([{R, Opts}|T]) ->
     [#reporter{name = R,
                module = get_module(R, Opts),
 	       status = proplists:get_value(status, Opts, enabled),
-               opts = Opts}|make_reporter_recs(T)];
+               opts = Opts,
+	       intervals = get_intervals(Opts)}|make_reporter_recs(T)];
 make_reporter_recs([]) ->
     [].
 
 get_module(R, Opts) ->
     proplists:get_value(module, Opts, R).
+
+get_intervals(Opts) ->
+    case lists:keyfind(intervals, 1, Opts) of
+	false -> [];
+	{_, Is} ->
+	    lists:map(
+	      fun({Name, Time}) when is_atom(Name),
+				     is_integer(Time), Time >= 0 ->
+		      #interval{name = Name, time = Time};
+		 ({Name, Time, Delay}) when is_atom(Name),
+					    is_integer(Time), Time >= 0,
+					    is_integer(Delay), Delay >= 0 ->
+		      #interval{name = Name, time = Time, delay = Delay};
+		 (Other) ->
+		      error({invalid_interval, Other})
+	      end, Is)
+    end.
+
+start_interval_timers(#reporter{name = R, intervals = Ints}) ->
+    lists:map(fun(I) -> start_interval_timer(I, R) end, Ints).
+
+start_interval_timer(#interval{name = Name, delay = Delay,
+			       t_ref = Ref} = I, R) ->
+    cancel_timer(Ref),
+    case Delay of
+	0 ->
+	    do_start_interval_timer(I, R);
+	D ->
+	    TRef = erlang:send_after(D, self(), {start_interval, R, Name}),
+	    I#interval{t_ref = TRef}
+    end.
+
+do_start_interval_timer(#interval{name = Name, time = Time} = I, R) ->
+    TRef = erlang:send_after(Time, self(), {report_batch, R, Name}),
+    I#interval{t_ref = TRef}.
+
 
 get_report_env() ->
     Opts0 = exometer_util:get_env(report, []),
@@ -685,13 +794,13 @@ handle_call({add_reporter, Reporter, Opts}, _, #st{} = St) ->
             {reply, {error, already_running}, St};
         false ->
 	    try
+		[R] = make_reporter_recs([{Reporter, Opts}]),
 		{Pid, MRef} = spawn_reporter(Reporter, Opts),
-		R = #reporter {name = Reporter,
-			       module = get_module(Reporter, Opts),
-			       opts = Opts,
-			       pid = Pid,
-			       mref = MRef},
-		ets:insert(?EXOMETER_REPORTERS, R),
+		Ints = start_interval_timers(R),
+		R1 = R#reporter{intervals = Ints,
+				pid = Pid,
+				mref = MRef},
+		ets:insert(?EXOMETER_REPORTERS, R1),
 		{reply, ok, St}
 	    catch
 		error:Reason ->
@@ -713,6 +822,61 @@ handle_call({change_reporter_status, Reporter, Status}, _, St) ->
 	    {reply, ok, St};
 	E ->
 	    {reply, E, St}
+    end;
+handle_call({set_interval, Reporter, Name, Int}, _, #st{}=St) ->
+    case ets:lookup(?EXOMETER_REPORTERS, Reporter) of
+	[#reporter{intervals = Ints}] ->
+	    try
+		I0 = case lists:keyfind(Name, #interval.name, Ints) of
+			 false -> #interval{name = Name};
+			 Interval -> Interval
+		     end,
+		I1 = case Int of
+			 {Time, Delay} when is_integer(Time), Time >= 0,
+					    is_integer(Delay), Delay >= 0 ->
+			     I0#interval{time = Time, delay = Delay};
+			 Time when is_integer(Time), Time >= 0 ->
+			     I0#interval{time = Time}
+		     end,
+		ets:update_element(?EXOMETER_REPORTERS, Reporter,
+				   [{#reporter.intervals,
+				     lists:keystore(
+				       Name, #interval.name, Ints,
+				       start_interval_timer(I1, Reporter))}]),
+		{reply, ok, St}
+	    catch
+		error:Reason ->
+		    {reply, {error, Reason}, St}
+	    end;
+	[] ->
+	    {reply, {error, not_found}, St}
+    end;
+handle_call({delete_interval, Reporter, Name}, _, #st{} = St) ->
+    case ets:lookup(?EXOMETER_REPORTERS, Reporter) of
+	[#reporter{intervals = Ints}] ->
+	    case lists:keyfind(Name, #interval.name, Ints) of
+		#interval{t_ref = TRef} ->
+		    cancel_timer(TRef),
+		    ets:update_element(?EXOMETER_REPORTERS, Reporter,
+				       [{#reporter.intervals,
+					 lists:keydelete(
+					   Name, #interval.name, Ints)}]),
+		    {reply, ok, St};
+		false ->
+		    {reply, {error, not_found}, St}
+	    end;
+	[] ->
+	    {reply, {error, not_found}, St}
+    end;
+handle_call({restart_intervals, Reporter}, _, #st{} = St) ->
+    case ets:lookup(?EXOMETER_REPORTERS, Reporter) of
+	[#reporter{} = R] ->
+	    Ints = start_interval_timers(R),
+	    ets:update_element(?EXOMETER_REPORTERS, Reporter,
+			       [{#reporter.intervals, Ints}]),
+	    {reply, ok, St};
+	[] ->
+	    {reply, {error, not_found}, St}
     end;
 handle_call({setopts, Metric, Options, Status}, _, #st{}=St) ->
     [erlang:send(Pid, {exometer_setopts, Metric, Options, Status})
@@ -765,6 +929,42 @@ handle_cast(_Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_info({start_interval, Reporter, Name}, #st{} = St) ->
+    case ets:lookup(?EXOMETER_REPORTERS, Reporter) of
+	[#reporter{intervals = Ints}] ->
+	    case lists:keyfind(Name, #interval.name, Ints) of
+		#interval{} = I ->
+		    I1 = do_start_interval_timer(I, Reporter),
+		    ets:update_element(?EXOMETER_REPORTERS, Reporter,
+				       [{#reporter.intervals,
+					 lists:keyreplace(
+					   Name, #interval.name, Ints, I1)}]);
+		false ->
+		    ok
+	    end;
+	[] ->
+	    ok
+    end,
+    {noreply, St};
+handle_info({report_batch, Reporter, Name}, #st{} = St) ->
+    %% Find all entries where reporter is Reporter and interval is Name,
+    %% and report them.
+    case ets:lookup(?EXOMETER_REPORTERS, Reporter) of
+	[R] ->
+	    Entries = ets:select(?EXOMETER_SUBS,
+				 [{#subscriber{key = #key{reporter = Reporter,
+							  _ = '_'},
+					       interval = Name,
+					       _ = '_'}, [], ['$_']}]),
+	    lists:foreach(
+	      fun(#subscriber{key = Key}) ->
+		      do_report(Key, Name)
+	      end, Entries),
+	    restart_batch_timer(Name, R);
+	[] ->
+	    skip
+    end,
+    {noreply, St};
 handle_info({ report, #key{ reporter = Reporter,
                             metric = Metric,
                             datapoint = DataPoint,
@@ -772,6 +972,7 @@ handle_info({ report, #key{ reporter = Reporter,
                             extra = Extra} = Key, Interval}, #st{} = St) ->
     case ets:member(?EXOMETER_SUBS, Key) of
 	true ->
+	    do_report(Key, Interval),
             case {RetryFailedMetrics,  get_values(Metric, DataPoint)} of
                 %% We found a value, or values.
                 {_, [_|_] = Found} ->
@@ -780,13 +981,7 @@ handle_info({ report, #key{ reporter = Reporter,
 		      || {DP, Val} <- Values] || {Name, Values} <- Found],
 
                     %% Re-arm the timer for next round
-                    TRef = erlang:send_after(Interval, self(),
-                                             {report, Key, Interval}),
-
-                    %% Replace the pid_subscriber info with a record having
-                    %% the new timer ref.
-		    ets:update_element(?EXOMETER_SUBS, Key,
-				       [{#subscriber.t_ref, TRef}]),
+		    restart_subscr_timer(Key, Interval),
                     {noreply, St};
 
                 %% We did not find a value, but we should try again.
@@ -798,14 +993,8 @@ handle_info({ report, #key{ reporter = Reporter,
 		       true -> ok
 		    end,
                     %% Re-arm the timer for next round
-                    TRef = erlang:send_after(Interval, self(),
-                                             {report, Key, Interval}),
-
-                    %% Replace the pid_subscriber info with a record having
-                    %% the new timer ref.
-		    ets:update_element(?EXOMETER_SUBS, Key,
-				       [{#subscriber.t_ref, TRef}]),
-                    {noreply, St};
+		    restart_subscr_timer(Key, Interval),
+		    {noreply, St};
                 %% We did not find a value, and we should not retry.
                 _ ->
                     %% Entry removed while timer in progress.
@@ -883,6 +1072,38 @@ resubscribe(#subscriber{key = #key{reporter = RName,
     ets:update_element(?EXOMETER_SUBS, Key, [{#subscriber.t_ref, TRef}]).
 
 
+do_report(#key{reporter = Reporter,
+	       metric = Metric,
+	       datapoint = DataPoint,
+	       retry_failed_metrics = RetryFailedMetrics,
+	       extra = Extra} = Key, Interval) ->
+    case {RetryFailedMetrics,  get_values(Metric, DataPoint)} of
+	%% We found a value, or values.
+	{_, [_|_] = Found} ->
+	    %% Distribute metric value to the correct process
+	    [[report_value(Reporter, Name, DP, Extra, Val)
+	      || {DP, Val} <- Values] || {Name, Values} <- Found],
+	    %% Re-arm the timer for next round
+	    restart_subscr_timer(Key, Interval);
+	%% We did not find a value, but we should try again.
+	{true, _ } ->
+	    if is_list(Metric) ->
+		    ?debug("Metric(~p) Datapoint(~p) not found."
+			   " Will try again in ~p msec~n",
+			   [Metric, DataPoint, Interval]);
+	       true -> ok
+	    end,
+	    %% Re-arm the timer for next round
+	    restart_subscr_timer(Key, Interval);
+	%% We did not find a value, and we should not retry.
+	_ ->
+	    %% Entry removed while timer in progress.
+	    ?warning("Metric(~p) Datapoint(~p) not found. Will not try again~n",
+		     [Metric, DataPoint])
+    end,
+    ok.
+
+
 cancel_subscr_timers(Reporter) ->
     lists:foreach(
       fun(#subscriber{key = Key, t_ref = TRef}) ->
@@ -893,6 +1114,28 @@ cancel_subscr_timers(Reporter) ->
 		      [{#subscriber{key = #key{reporter = Reporter,
 					       _ = '_'},
 				    _ = '_'}, [], ['$_']}])).
+
+restart_subscr_timer(Key, Interval) when is_integer(Interval) ->
+    TRef = erlang:send_after(Interval, self(),
+			     {report, Key, Interval}),
+    ets:update_element(?EXOMETER_SUBS, Key,
+		       [{#subscriber.t_ref, TRef}]);
+restart_subscr_timer(_, _) ->
+    true.
+
+restart_batch_timer(Name, #reporter{name = Reporter,
+				    intervals = Ints}) ->
+    case lists:keyfind(Name, #interval.name, Ints) of
+	#interval{time = Time} = I ->
+	    TRef = erlang:send_after(Time, self(),
+				     {report_batch, Reporter, Name}),
+	    ets:update_element(?EXOMETER_REPORTERS, Reporter,
+			       [{#reporter.intervals,
+				 lists:keyreplace(Name, #interval.name, Ints,
+						  I#interval{t_ref = TRef})}]);
+	false ->
+	    false
+    end.
 
 cancel_timer(undefined) ->
     false;
@@ -942,6 +1185,10 @@ code_change(_OldVan, #st{reporters = Rs, subscribers = Ss} = S, _Extra) ->
 		    #reporter{name = Name, pid = Pid, mref = MRef,
 			      module = Module, opts = Opts,
 			      restart = Restart};
+	       ({reporter,Name,Pid,Mref,Module,Opts,Restart,Status}) ->
+		    #reporter{name = Name, pid = Pid, mref = Mref,
+			      module = Module, opts = Opts,
+			      restart = Restart, status = Status};
                (#reporter{} = R) -> R
             end, Rs),
     [ets:insert(?EXOMETER_REPORTERS, R) || R <- Rs1],
@@ -1084,7 +1331,7 @@ subscribe_(Reporter, Metric, DataPoint, Interval, RetryFailedMetrics,
 			   interval = Interval,
 			   t_ref = maybe_send_after(Status, Key, Interval)}).
 
-maybe_send_after(enabled, Key, Interval) ->
+maybe_send_after(enabled, Key, Interval) when is_integer(Interval) ->
     erlang:send_after(Interval, self(), {report, Key, Interval});
 maybe_send_after(_, _, _) ->
     undefined.

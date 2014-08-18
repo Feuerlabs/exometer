@@ -121,12 +121,14 @@ as a list of atoms.
 
 
 
-+ `DataPoint`<br />Specifies the data point within the subscribed-to metric as an atom, or a list of atoms.
++ `DataPoint`<br />Specifies the data point within the subscribed-to metric
+as an atom, or a list of atoms.
 
 
 
-+ `Interval`<br />Specifies the interval, in milliseconds, that the subscribed-to
-value will be reported at.
++ `Interval`<br />Specifies the interval, in milliseconds, that the
+subscribed-to value will be reported at, or an atom, referring to a named
+interval configured in the reporter.
 
 
 
@@ -240,6 +242,30 @@ datapoint() = atom()
 
 
 
+### <a name="type-delay">delay()</a> ###
+
+
+
+<pre><code>
+delay() = <a href="#type-time_ms">time_ms()</a>
+</code></pre>
+
+
+
+
+
+### <a name="type-error">error()</a> ###
+
+
+
+<pre><code>
+error() = {error, any()}
+</code></pre>
+
+
+
+
+
 ### <a name="type-extra">extra()</a> ###
 
 
@@ -257,7 +283,7 @@ extra() = any()
 
 
 <pre><code>
-interval() = pos_integer()
+interval() = pos_integer() | atom()
 </code></pre>
 
 
@@ -299,12 +325,24 @@ reporter_name() = atom()
 
 
   Restart specification
+
+
+
+### <a name="type-time_ms">time_ms()</a> ###
+
+
+
+<pre><code>
+time_ms() = pos_integer()
+</code></pre>
+
+
 <a name="index"></a>
 
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#add_reporter-2">add_reporter/2</a></td><td>Add a reporter.</td></tr><tr><td valign="top"><a href="#call_reporter-2">call_reporter/2</a></td><td>Send a custom (synchronous) call to <code>Reporter</code>.</td></tr><tr><td valign="top"><a href="#cast_reporter-2">cast_reporter/2</a></td><td>Send a custom (asynchronous) cast to <code>Reporter</code>.</td></tr><tr><td valign="top"><a href="#disable_me-2">disable_me/2</a></td><td>Used by a reporter to disable itself.</td></tr><tr><td valign="top"><a href="#disable_reporter-1">disable_reporter/1</a></td><td>Disable <code>Reporter</code>.</td></tr><tr><td valign="top"><a href="#enable_reporter-1">enable_reporter/1</a></td><td>Enable <code>Reporter</code>.</td></tr><tr><td valign="top"><a href="#list_metrics-0">list_metrics/0</a></td><td>Equivalent to <a href="#list_metrics-1"><tt>list_metrics([])</tt></a>.</td></tr><tr><td valign="top"><a href="#list_metrics-1">list_metrics/1</a></td><td>List all metrics matching <code>Path</code>, together with subscription status.</td></tr><tr><td valign="top"><a href="#list_reporters-0">list_reporters/0</a></td><td>List the name and pid of each known reporter.</td></tr><tr><td valign="top"><a href="#list_subscriptions-1">list_subscriptions/1</a></td><td>List all subscriptions for <code>Reporter</code>.</td></tr><tr><td valign="top"><a href="#new_entry-1">new_entry/1</a></td><td>Called by exometer whenever a new entry is created.</td></tr><tr><td valign="top"><a href="#remove_reporter-1">remove_reporter/1</a></td><td>Remove reporter and all its subscriptions.</td></tr><tr><td valign="top"><a href="#remove_reporter-2">remove_reporter/2</a></td><td>Remove <code>Reporter</code> (non-blocking call).</td></tr><tr><td valign="top"><a href="#setopts-3">setopts/3</a></td><td>Called by exometer when options of a metric entry are changed.</td></tr><tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td>Starts the server
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#add_reporter-2">add_reporter/2</a></td><td>Add a reporter.</td></tr><tr><td valign="top"><a href="#call_reporter-2">call_reporter/2</a></td><td>Send a custom (synchronous) call to <code>Reporter</code>.</td></tr><tr><td valign="top"><a href="#cast_reporter-2">cast_reporter/2</a></td><td>Send a custom (asynchronous) cast to <code>Reporter</code>.</td></tr><tr><td valign="top"><a href="#delete_interval-2">delete_interval/2</a></td><td>Delete a named interval.</td></tr><tr><td valign="top"><a href="#disable_me-2">disable_me/2</a></td><td>Used by a reporter to disable itself.</td></tr><tr><td valign="top"><a href="#disable_reporter-1">disable_reporter/1</a></td><td>Disable <code>Reporter</code>.</td></tr><tr><td valign="top"><a href="#enable_reporter-1">enable_reporter/1</a></td><td>Enable <code>Reporter</code>.</td></tr><tr><td valign="top"><a href="#list_metrics-0">list_metrics/0</a></td><td>Equivalent to <a href="#list_metrics-1"><tt>list_metrics([])</tt></a>.</td></tr><tr><td valign="top"><a href="#list_metrics-1">list_metrics/1</a></td><td>List all metrics matching <code>Path</code>, together with subscription status.</td></tr><tr><td valign="top"><a href="#list_reporters-0">list_reporters/0</a></td><td>List the name and pid of each known reporter.</td></tr><tr><td valign="top"><a href="#list_subscriptions-1">list_subscriptions/1</a></td><td>List all subscriptions for <code>Reporter</code>.</td></tr><tr><td valign="top"><a href="#new_entry-1">new_entry/1</a></td><td>Called by exometer whenever a new entry is created.</td></tr><tr><td valign="top"><a href="#remove_reporter-1">remove_reporter/1</a></td><td>Remove reporter and all its subscriptions.</td></tr><tr><td valign="top"><a href="#remove_reporter-2">remove_reporter/2</a></td><td>Remove <code>Reporter</code> (non-blocking call).</td></tr><tr><td valign="top"><a href="#restart_intervals-1">restart_intervals/1</a></td><td>Restart all named intervals, respecting specified delays.</td></tr><tr><td valign="top"><a href="#set_interval-3">set_interval/3</a></td><td>Specify a named interval.</td></tr><tr><td valign="top"><a href="#setopts-3">setopts/3</a></td><td>Called by exometer when options of a metric entry are changed.</td></tr><tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td>Starts the server
 --------------------------------------------------------------------.</td></tr><tr><td valign="top"><a href="#start_reporters-0">start_reporters/0</a></td><td></td></tr><tr><td valign="top"><a href="#subscribe-4">subscribe/4</a></td><td>Equivalent to <a href="#subscribe-5"><tt>subscribe(Reporter, Metric, DataPoint, Interval, [])</tt></a>.</td></tr><tr><td valign="top"><a href="#subscribe-5">subscribe/5</a></td><td>Add a subscription to an existing reporter.</td></tr><tr><td valign="top"><a href="#terminate_reporter-1">terminate_reporter/1</a></td><td></td></tr><tr><td valign="top"><a href="#unsubscribe-3">unsubscribe/3</a></td><td>Equivalent to <a href="#unsubscribe-4"><tt>unsubscribe(Reporter, Metric, DataPoint, [])</tt></a>.</td></tr><tr><td valign="top"><a href="#unsubscribe-4">unsubscribe/4</a></td><td>Removes a subscription.</td></tr><tr><td valign="top"><a href="#unsubscribe_all-2">unsubscribe_all/2</a></td><td>Removes all subscriptions related to Metric in Reporter.</td></tr></table>
 
 
@@ -337,11 +375,23 @@ additional options.
 is given, the module name defaults to the given reporter name.
 
 
+
 `{status, enabled | disabled}` - The operational status of the reporter
 if enabled, the reporter will report values to its target. If disabled, the
 reporter process will be terminated and subscription timers canceled, but
 the subscriptions will remain, and it will also be possible to add new
 subscriptions to the reporter.
+
+
+`{intervals, [named_interval()]}`
+named_interval() :: {Name::atom(), Interval::pos_integer()}
+| {Name::atom(), Interval::time_ms(), delay()::time_ms()}
+Define named intervals. The name can be used by subscribers, so that all
+subsriptions for a given named interval will be reported when the interval
+triggers. An optional delay (in ms) can be given: this will cause the first
+interval to start in `Delay` milliseconds. When all intervals are named
+at the same time, the delay parameter can be used to achieve staggered
+reporting.
 <a name="call_reporter-2"></a>
 
 ### call_reporter/2 ###
@@ -374,6 +424,18 @@ Send a custom (asynchronous) cast to `Reporter`.
 
 This function is used to make an asynchronous cast to a given reporter
 instance. Note that the reporter type must recognize the message.
+<a name="delete_interval-2"></a>
+
+### delete_interval/2 ###
+
+
+<pre><code>
+delete_interval(Reporter::<a href="#type-reporter_name">reporter_name()</a>, Name::atom()) -&gt; ok | <a href="#type-error">error()</a>
+</code></pre>
+<br />
+
+Delete a named interval.
+
 <a name="disable_me-2"></a>
 
 ### disable_me/2 ###
@@ -527,6 +589,45 @@ Remove `Reporter` (non-blocking call).
 This function can be used to order removal of a reporter with a custom
 reason. Note that the function is asynchronous, making it suitable e.g.
 for calling from within the reporter itself.
+<a name="restart_intervals-1"></a>
+
+### restart_intervals/1 ###
+
+
+<pre><code>
+restart_intervals(Reporter::<a href="#type-reporter_name">reporter_name()</a>) -&gt; ok
+</code></pre>
+<br />
+
+
+Restart all named intervals, respecting specified delays.
+
+
+This function can be used if named intervals are added incrementally, and
+it is important that all intervals trigger separated by the given delays.
+<a name="set_interval-3"></a>
+
+### set_interval/3 ###
+
+
+<pre><code>
+set_interval(Reporter::<a href="#type-reporter_name">reporter_name()</a>, Name::atom(), Time::<a href="#type-time_ms">time_ms()</a> | {<a href="#type-time_ms">time_ms()</a>, <a href="#type-delay">delay()</a>}) -&gt; ok | <a href="#type-error">error()</a>
+</code></pre>
+<br />
+
+
+Specify a named interval.
+
+
+
+See [`add_reporter/2`](#add_reporter-2) for a description of named intervals.
+The named interval is here specified as either `Time` (milliseconds) or
+`{Time, Delay}`, where a delay in milliseconds is provided.
+
+
+If the named interval exists, it will be replaced with the new definition.
+Otherwise, it will be added. Use [`restart_intervals/1`](#restart_intervals-1) if you want
+all intervals to be restarted/resynched with corresponding relative delays.
 <a name="setopts-3"></a>
 
 ### setopts/3 ###
@@ -594,7 +695,10 @@ is either a single data point (an atom) or a list of data points (a list).
 
 
 
-`Interval` is the sampling/reporting interval in milliseconds.
+`Interval` is the sampling/reporting interval in milliseconds, or an atom,
+referring to a named interval configured in the reporter. The named
+interval need not be defined yet in the reporter (the subscription will
+not trigger until it _is_ defined.)
 
 
 `Extra` can be anything that the chosen reporter understands (default: `[]`).
@@ -634,8 +738,8 @@ Removes a subscription.
 
 
 Note that the subscription is identified by the combination
-`{Reporter, Metric, DataPoint, Extra}`. The exact information can be extracted
-using [`list_subscriptions/1`](#list_subscriptions-1).
+`{Reporter, Metric, DataPoint, Extra}`. The exact information can be
+extracted using [`list_subscriptions/1`](#list_subscriptions-1).
 <a name="unsubscribe_all-2"></a>
 
 ### unsubscribe_all/2 ###

@@ -550,6 +550,8 @@ e(A, _) when is_atom(A) -> A;
 e({T,I}, _) when T==i; T==integer -> I;
 e({T,A}, _) when T==a; T==atom -> A;
 e({cons,Eh,Et}, Bs) -> [e(Eh, Bs)|e(Et, Bs)];
+e({hd,E}, Bs) -> hd(e(E, Bs));
+e({tl,E}, Bs) -> tl(e(E, Bs));
 e({l, Es}, Bs) -> [e(E, Bs) || E <- Es];
 e({T,S}, _) when T==s; T==string -> S;
 e({T,Es}, Bs) when T==t; T==tuple -> list_to_tuple([e(E,Bs) || E <- Es]);
@@ -649,6 +651,18 @@ call1(length   , [L]) -> length(L);
 call1(size     , [T]) -> size(T);
 call1(byte_size, [B]) -> byte_size(B);
 call1(bit_size , [B]) -> bit_size(B);
+call1(tuple_to_list , [T]) -> tuple_to_list(T);
+call1(list_to_tuple , [L]) -> list_to_tuple(L);
+call1(atom_to_list  , [A]) -> atom_to_list(A);
+call1(list_to_atom  , [L]) -> list_to_atom(L);
+call1(list_to_binary, [L]) -> list_to_binary(L);
+call1(binary_to_list, [B]) -> binary_to_list(B);
+call1(t2l, [T]) -> tuple_to_list(T);
+call1(l2t, [L]) -> list_to_tuple(L);
+call1(a2l, [A]) -> atom_to_list(A);
+call1(l2a, [L]) -> list_to_atom(L);
+call1(l2b, [L]) -> list_to_binary(L);
+call1(b2l, [B]) -> binary_to_list(B);
 call1({M,F}, As) when is_atom(M), is_atom(F) ->
     apply(M, F, As).
 
