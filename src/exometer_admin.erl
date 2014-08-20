@@ -333,7 +333,18 @@ terminate(_, _) ->
     ok.
 
 code_change(_, S, _) ->
+    case ets:info(?EXOMETER_REPORTERS, name) of
+	undefined -> create_reporter_tabs();
+	_ -> ok
+    end,
     {ok, S}.
+
+create_reporter_tabs() ->
+    Heir = {heir, whereis(exometer_sup), []},
+    ets:new(?EXOMETER_REPORTERS, [public, named_table, set,
+				  {keypos, 2}, Heir]),
+    ets:new(?EXOMETER_SUBS, [public, named_table, ordered_set,
+			     {keypos, 2}, Heir]).
 
 
 create_ets_tabs() ->
@@ -344,7 +355,11 @@ create_ets_tabs() ->
             ets:new(?EXOMETER_SHARED, [public, named_table, ordered_set,
                                        {keypos, 2}]),
             ets:new(?EXOMETER_ENTRIES, [public, named_table, ordered_set,
-                                        {keypos, 2}]);
+                                        {keypos, 2}]),
+	    ets:new(?EXOMETER_REPORTERS, [public, named_table, set,
+					  {keypos, 2}]),
+	    ets:new(?EXOMETER_SUBS, [public, named_table, ordered_set,
+				     {keypos, 2}]);
         _ ->
             true
     end.

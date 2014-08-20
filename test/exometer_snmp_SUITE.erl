@@ -455,6 +455,7 @@ deps_code_flags() ->
     string:join(Deps1, " ").
 
 start_manager(Config) ->
+    io:fwrite(user, "STARTMGR: ~p~n", [Config]),
     Host = gethostname(),
     Node = test_manager,
     Opts = [{boot_timeout, 30}, {monitor_master, true},
