@@ -160,6 +160,7 @@
     set_interval/3,
     delete_interval/2,
     restart_intervals/1,
+    get_intervals/1,
     remove_reporter/1, remove_reporter/2,
     terminate_reporter/1,
     enable_reporter/1,
@@ -458,6 +459,14 @@ delete_interval(Reporter, Name) ->
 restart_intervals(Reporter) ->
     call({restart_intervals, Reporter}).
 
+-spec get_intervals(reporter_name()) ->
+			   [{atom(), [{time, pos_integer()}
+				      | {delay, pos_integer()}
+				      | {timer_ref, reference()}]}].
+%% @doc List the named intervals for `Reporter'.
+get_intervals(Reporter) ->
+    call({get_intervals, Reporter}).
+
 
 -spec enable_reporter(reporter_name()) -> ok | {error, any()}.
 %% @doc Enable `Reporter'.
@@ -628,14 +637,15 @@ make_reporter_recs([{R, Opts}|T]) ->
                module = get_module(R, Opts),
 	       status = proplists:get_value(status, Opts, enabled),
                opts = Opts,
-	       intervals = get_intervals(Opts)}|make_reporter_recs(T)];
+	       intervals = get_interval_opts(Opts)}|make_reporter_recs(T)];
 make_reporter_recs([]) ->
     [].
 
 get_module(R, Opts) ->
     proplists:get_value(module, Opts, R).
 
-get_intervals(Opts) ->
+-spec get_interval_opts([named_interval() | any()]) -> [#interval{}].
+get_interval_opts(Opts) ->
     case lists:keyfind(intervals, 1, Opts) of
 	false -> [];
 	{_, Is} ->
@@ -875,6 +885,20 @@ handle_call({restart_intervals, Reporter}, _, #st{} = St) ->
 	    ets:update_element(?EXOMETER_REPORTERS, Reporter,
 			       [{#reporter.intervals, Ints}]),
 	    {reply, ok, St};
+	[] ->
+	    {reply, {error, not_found}, St}
+    end;
+handle_call({get_intervals, Reporter}, _, #st{} = St) ->
+    case ets:lookup(?EXOMETER_REPORTERS, Reporter) of
+	[#reporter{intervals = Ints}] ->
+	    Info =
+		[{Name, [{time, T},
+			 {delay, D},
+			 {timer_ref, TR}]} || #interval{name = Name,
+							time = T,
+							delay = D,
+							t_ref = TR} <- Ints],
+	    {reply, Info, St};
 	[] ->
 	    {reply, {error, not_found}, St}
     end;
