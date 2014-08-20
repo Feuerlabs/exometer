@@ -428,6 +428,8 @@ match_pat([H|T], [H1|T1], DPs) when is_atom(H) ->
         false ->
             match_pat(T, T1, DPs)
     end;
+match_pat([H|T], [H1|T1], DPs) ->
+    match_pat(H, H1, DPs) ++ match_pat(T, T1, DPs);
 match_pat(A, B, DPs) when is_atom(A), A =/= '_' ->
     case lists:member(A, DPs) of
         true ->
