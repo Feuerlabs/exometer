@@ -476,74 +476,75 @@ create_inform_bin(Name, Domain, Nr, Object, _) ->
      <<"-- INFORM ">>, Name, <<" END\n\n">>
     ].
 
-create_bin(Name, Dp, #exometer_entry{module=exometer, type=Type, options=Opts})
-  when Type == counter; Type == fast_counter ->
-    SNMPType = snmp_syntax(Type, Dp, Opts),
-    B = [
-         Name, <<" OBJECT-TYPE\n">>,
-         <<"    SYNTAX ", SNMPType/binary, "\n">>,
-         <<"    MAX-ACCESS read-only\n">>,
-         <<"    STATUS current\n">>,
-         <<"    DESCRIPTION \"\"\n">>
-        ],
-    {ok, binary:list_to_bin(B)};
-
-create_bin(Name, Dp, #exometer_entry{module=exometer_histogram, type=histogram,
-                                     options=Opts}) ->
-    Type = snmp_syntax(histogram, Dp, Opts),
-    B = [
-         Name, <<" OBJECT-TYPE\n">>,
-         <<"    SYNTAX ", Type/binary, "\n">>,
-         <<"    MAX-ACCESS read-only\n">>,
-         <<"    STATUS current\n">>,
-         <<"    DESCRIPTION \"\"\n">>
-        ],
-    {ok, binary:list_to_bin(B)};
-
-create_bin(Name, Dp, #exometer_entry{module=Mod}=E) ->
-    Exports = Mod:module_info(exports),
-    F = snmp_bin,
-    case proplists:get_value(F, Exports) of
-        3 ->
-            case Mod:snmp_bin(Name, Dp, E) of
-                undefined ->
-                    {error, binary_representation_undefined};
-                Bin ->
-                    {ok, Bin}
-            end;
-        _ ->
-            {error, {function_not_exported, {F, 1}}}
+create_bin(Name, Dp, #exometer_entry{module=Mod, type=Type, options=Opts}=E) ->
+    case is_build_in_probe_or_entry(Mod) of
+        true ->
+            %% handle object binary creation for build-in entries and probes
+            %% as a special case
+            SNMPType = snmp_syntax(Type, Dp, Opts),
+            B =
+                <<Name/binary, " OBJECT-TYPE\n"
+                  "    SYNTAX ", SNMPType/binary, "\n"
+                  "    MAX-ACCESS read-only\n"
+                  "    STATUS current\n"
+                  "    DESCRIPTION \"\"\n" >>,
+            {ok, B};
+        false ->
+            Function = snmp_bin,
+            Arity = 3,
+            case erlang:function_exported(Mod, Function, Arity) of
+                true ->
+                    case Mod:snmp_bin(Name, Dp, E) of
+                        undefined ->
+                            {error, binary_representation_undefined};
+                        Bin ->
+                            {ok, Bin}
+                    end;
+                false ->
+                    {error, {function_not_exported, {Mod, Function, Arity}}}
+            end
     end.
 
 snmp_value(Name, Dp, Value) ->
     Type = exometer:info(Name, type),
     Mod = exometer:info(Name, module),
-    case {Mod, Type, Dp} of
-        {exometer, T, _} when T == counter; T == fast_counter ->
-            {value, Value};
-        {exometer_histogram, histogram, mean} when is_float(Value) ->
-            {value, erlang:float_to_list(Value)};
-        {exometer_histogram, histogram, mean} when is_integer(Value) ->
-            {value, erlang:integer_to_list(Value)};
-        {exometer_histogram, histogram, _ } ->
-            {value, Value};
+    case is_build_in_probe_or_entry(Mod) of
+        true ->
+            case {Mod, Type, Dp} of
+                {exometer_histogram, histogram, mean} ->
+                    {value, number_to_list(Value)};
+                {exometer_histogram, uniform, mean} ->
+                    {value, number_to_list(Value)};
+                _ ->
+                    {value, Value}
+            end;
         _ ->
-            Exports = Mod:module_info(exports),
-            F = snmp_value,
-            case proplists:get_value(F, Exports) of
-                3 ->
+            case erlang:function_exported(Mod, snmp_value, 3) of
+                true ->
                     case Mod:snmp_value(Name, Dp, Value) of
                         undefined ->
-                            ?error("SNMP value representation undefined in module ~p for ~p:~p", [Mod, Name, Dp]),
+                            ?error("SNMP value representation undefined in"
+                                   "module ~p for ~p:~p", [Mod, Name, Dp]),
                             {noValue, noSuchObject};
                         NewValue ->
                             {value, NewValue}
                     end;
-                _ ->
-                    ?error("snmp_value/3 not exported in module ~p for ~p:~p", [Mod, Name, Dp]),
+                false ->
+                    ?error("snmp_value/3 not exported in module ~p for ~p:~p",
+                           [Mod, Name, Dp]),
                     {noValue, noSuchObject}
             end
     end.
+
+number_to_list(Value) when is_float(Value)   -> float_to_list(Value);
+number_to_list(Value) when is_integer(Value) -> integer_to_list(Value).
+
+is_build_in_probe_or_entry(exometer)           -> true;
+is_build_in_probe_or_entry(exometer_histogram) -> true;
+is_build_in_probe_or_entry(exometer_uniform)   -> true;
+is_build_in_probe_or_entry(exometer_spiral)    -> true;
+is_build_in_probe_or_entry(exometer_function)  -> true;
+is_build_in_probe_or_entry(_Mod)               -> false.
 
 metric_name(Name0, Dp) when is_integer(Dp) ->
     metric_name(Name0, erlang:integer_to_list(Dp));
@@ -668,20 +669,18 @@ compare_subscriptions(Old, New) ->
 datapoints(Name) ->
     exometer:info(Name, datapoints).
 
+snmp_syntax(Type, Dp, Opts) ->
+    DefaultSnmpSyntax = default_snmp_syntax(Type, Dp),
+    snmp_syntax_opt(Dp, Opts, DefaultSnmpSyntax).
+
+default_snmp_syntax(counter, _Dp)      -> <<"Counter32">>;
+default_snmp_syntax(fast_counter, _Dp) -> <<"Counter32">>;
+default_snmp_syntax(histogram, mean)   -> <<"OCTET STRING (SIZE(0..64))">>;
+default_snmp_syntax(uniform, mean)     -> <<"OCTET STRING (SIZE(0..64))">>;
+default_snmp_syntax(_Type, _Dp)        -> <<"Gauge32">>.
+
 %% Allow for an option, {snmp_syntax, [{DataPoint, SYNTAX}]}, where
 %% SYNTAX is a valid SNMP SYNTAX expression (string() or binary()).
-%%
-snmp_syntax(Type, Dp, Opts) when Type==counter; Type==fast_counter ->
-    snmp_syntax_opt(Dp, Opts, <<"Counter32">>);
-snmp_syntax(histogram, Dp, Opts) ->
-    case Dp of
-        mean -> snmp_syntax_opt(mean, Opts, <<"OCTET STRING (SIZE(0..64))">>);
-        _    -> snmp_syntax_opt(Dp, Opts, <<"Gauge32">>)
-    end;
-snmp_syntax(_, Dp, Opts) ->
-    snmp_syntax_opt(Dp, Opts, <<"Gauge32">>).
-
-
 %% Made explicit for speed
 snmp_syntax_opt(Dp, Opts, Default) ->
     Res = case lists:keyfind(snmp_syntax, 1, Opts) of
