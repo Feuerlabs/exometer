@@ -468,7 +468,7 @@ reset(_Name, _Type, Pid) when is_pid(Pid) ->
     exometer_proc:cast(Pid, reset).
 
 sample(_Name, _Type, Pid) when is_pid(Pid) ->
-    exometer_proc:call(Pid, sample).
+    exometer_proc:cast(Pid, sample).
 
 init(Name, Type, Mod, Opts) ->
     process_flag(min_heap_size, 40000),
