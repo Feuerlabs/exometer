@@ -108,7 +108,7 @@
 %%     Will be forwarded by the probe's process to `erlang:process_flag/2'.
 %%
 %% + `{sample_interval, t}'
-%%     Specifies the interval, in milliseconds, that `erlang:process_flag/2'.
+%%     Specifies the interval, in milliseconds, that `exometer_probe:sample/1'.
 %%     should be invoked at.
 %%
 %% The `probe_init/3' implementation is invoked by `exometer:new/3',
