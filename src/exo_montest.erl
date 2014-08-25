@@ -42,8 +42,10 @@ new(N, _, Opts) ->
     {ok, {proplists:get_value(type, Opts, unknown),
 	  proplists:get_value(folsom_name, Opts, N)}}.
 
-update(_, Value, _, {_, Name}) ->
-    folsom:notify_existing_metric(Name, Value).
+update(_, Value, counter, {_, Name}) ->
+    folsom_metrics:notify_existing_metric(Name, {inc,Value}, counter);
+update(_, Value, Type, {_, Name}) ->
+    folsom_metrics:notify_existing_metric(Name, Value, Type).
 
 reset(_, _, _) ->
     {error, unsupported}.

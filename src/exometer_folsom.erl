@@ -65,9 +65,9 @@ delete(Name, _Type, _Ref) ->
 update(Name, Value, counter, _Ref) ->
     folsom_metrics:notify_existing_metric(Name, {inc, Value}, counter);
 update(Name, tick, meter_reader, _Ref) ->
-    folsom_metric_meter_reader:tick(Name);
+    folsom_metrics_meter_reader:tick(Name);
 update(Name, Value, meter_reader, _Ref) ->
-    folsom_metric_meter_reader:mark(Name, Value);
+    folsom_metrics_meter_reader:mark(Name, Value);
 update(Name, Value, Type, _Ref) ->
     folsom_metrics:notify_existing_metric(Name, Value, Type).
 
