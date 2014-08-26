@@ -105,7 +105,8 @@ init_per_testcase(Case, Config) when
       Case == test_folsom_histogram;
       Case == test_history1_folsom;
       Case == test_history4_folsom ->
-    application:ensure_all_started(folsom),
+    application:start(bear),
+    application:start(folsom),
     exometer:start(),
     Config;
 init_per_testcase(Case, Config) when
@@ -133,6 +134,7 @@ end_per_testcase(Case, _Config) when
       Case == test_history4_folsom ->
     exometer:stop(),
     folsom:stop(),
+    application:stop(bear),
     ok;
 end_per_testcase(Case, _Config) when
       Case == test_ext_predef;
