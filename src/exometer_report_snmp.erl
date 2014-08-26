@@ -117,10 +117,11 @@ exometer_unsubscribe(Metric, DataPoint, Extra, St) ->
     Entry = exometer:info(Metric, entry),
     disable_inform(Entry, DataPoint, Extra, St).
 
-exometer_report(Metric, DataPoint, _Extra, Value, St)  ->
-    ?debug("Report metric ~p_~p = ~p~n", [Metric, DataPoint, Value]),
+exometer_report(Metric, DataPoint, _Extra, Value0, St)  ->
+    ?debug("Report metric ~p_~p = ~p~n", [Metric, DataPoint, Value0]),
     Inform = erlang:binary_to_existing_atom(inform_name(Metric, DataPoint), latin1),
     VarName = erlang:binary_to_existing_atom(metric_name(Metric, DataPoint), latin1),
+    {_, Value} = snmp_value(Metric, DataPoint, Value0),
     Varbinds = [{VarName, Value}],
     snmpa:send_notification(snmp_master_agent, Inform, no_receiver, Varbinds),
     {ok, St}.
