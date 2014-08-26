@@ -105,7 +105,7 @@ init_per_testcase(Case, Config) when
       Case == test_folsom_histogram;
       Case == test_history1_folsom;
       Case == test_history4_folsom ->
-    folsom:start(),
+    application:ensure_all_started(folsom),
     exometer:start(),
     Config;
 init_per_testcase(Case, Config) when
