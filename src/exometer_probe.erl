@@ -108,7 +108,7 @@
 %%     Will be forwarded by the probe's process to `erlang:process_flag/2'.
 %%
 %% + `{sample_interval, t}'
-%%     Specifies the interval, in milliseconds, that `erlang:process_flag/2'.
+%%     Specifies the interval, in milliseconds, that `exometer_probe:sample/1'.
 %%     should be invoked at.
 %%
 %% The `probe_init/3' implementation is invoked by `exometer:new/3',
@@ -468,7 +468,7 @@ reset(_Name, _Type, Pid) when is_pid(Pid) ->
     exometer_proc:cast(Pid, reset).
 
 sample(_Name, _Type, Pid) when is_pid(Pid) ->
-    exometer_proc:call(Pid, sample).
+    exometer_proc:cast(Pid, sample).
 
 init(Name, Type, Mod, Opts) ->
     process_flag(min_heap_size, 40000),
