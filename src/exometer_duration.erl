@@ -12,6 +12,15 @@
 -behaviour(exometer_probe).
 
 %% exometer_entry callbacks
+-export([new/3,
+	 delete/3,
+	 get_value/3,
+	 get_value/4,
+	 get_datapoints/3,
+	 setopts/4,
+	 update/4,
+	 reset/3,
+	 sample/3]).
 
 %% exometer_probe callbacks
 -export([behaviour/0,
@@ -26,59 +35,97 @@
          probe_handle_msg/2,
          probe_code_change/3]).
 
--export([count_sample/3,
-         count_transform/2]).
-
 -include("exometer.hrl").
 -import(netlink_stat, [get_value/1]).
 -record(st, {name,
-             slide = undefined, %%
-             slot_period = 1000, %% msec
-             time_span = 60000, %% msec
-             total = 0,
+	     t_start,
+	     count = 0,
+	     last = 0,
+	     histogram,
              opts = []}).
 
 
--define(DATAPOINTS, [ one, count ]).
+-define(DATAPOINTS, [count, last]).
 
 behaviour() ->
-    probe.
+    entry.
 
-probe_init(Name, _Type, Options) ->
-    St = process_opts(#st { name = Name }, [ { time_span, 60000},
-                                             { slot_period,1000 } ] ++ Options),
+%% exometer_entry callbacks
+new(Name, Type, Options) ->
+    exometer_probe:new(Name, Type, [{arg, ?MODULE}|Options]).
 
-    Slide = exometer_slot_slide:new(St#st.time_span,
-                                    St#st.slot_period,
-                                    fun count_sample/3,
-                                    fun count_transform/2, []),
-    {ok, St#st{ slide = Slide }}.
+delete(Name, Type, Ref) ->
+    exometer_probe:delete(Name, Type, Ref).
+
+get_value(Name, Type, Ref) ->
+    exometer_probe:get_value(Name, Type, Ref).
+
+get_value(Name, Type, Ref, DataPoints) ->
+    exometer_probe:get_value(Name, Type, Ref, DataPoints).
+
+get_datapoints(Name, Type, Ref) ->
+    exometer_probe:get_datapoints(Name, Type, Ref).
+
+setopts(Name, Opts, Type, Ref) ->
+    exometer_probe:setopts(Name, Opts, Type, Ref).
+
+update(Name, timer_start, Type, Ref) ->
+    exometer_probe:update(Name, {timer_start, os:timestamp()}, Type, Ref);
+update(Name, timer_end, Type, Ref) ->
+    exometer_probe:update(Name, {timer_end, os:timestamp()}, Type, Ref);
+update(_, _, _, _) ->
+    {error, badarg}.
+
+reset(Name, Type, Ref) ->
+    exometer_probe:reset(Name, Type, Ref).
+
+sample(_, _, _) ->
+    {error, unsupported}.
+
+%% exometer_probe callbacks
+
+probe_init(Name, Type, Options) ->
+    {ok, H} = exometer_histogram:probe_init(Name, Type, Options),
+    {ok, #st{histogram = H, opts = Options}}.
 
 probe_terminate(_ModSt) ->
     ok.
 
 %% Not used
-probe_get_datapoints(_St) ->
-    {ok, ?DATAPOINTS}.
+probe_get_datapoints(#st{histogram = H}) ->
+    {ok, HDPs} = exometer_histogram:probe_get_datapoints(H),
+    {ok, ?DATAPOINTS ++ HDPs}.
 
-probe_get_value(DataPoints, St) ->
-    {ok, [ get_datapoint_value(DataPoint, St) || DataPoint <- DataPoints ]}.
+probe_get_value(DataPoints, #st{histogram = H} = St) ->
+    case DataPoints -- ?DATAPOINTS of
+	[] ->
+	    {ok, fill_datapoints(DataPoints, [], St)};
+	HDPs ->
+	    {ok, HVals} = exometer_histogram:probe_get_value(HDPs, H),
+	    {ok, fill_datapoints(DataPoints, HVals, St)}
+    end.
 
 probe_setopts(_Opts, _St) ->
     ok.
 
-probe_update(Increment, St) ->
-    Slide = exometer_slot_slide:add_element(Increment, St#st.slide),
-    Total = St#st.total + Increment,
-    {ok, St#st { slide = Slide, total = Total}}.
+probe_update({timer_start, T}, St) ->
+    {ok, St#st{t_start = T}};
+probe_update({timer_end, T}, #st{histogram = H, count = C} = St) ->
+    try
+	Duration = timer:now_diff(T, St#st.t_start),
+	{ok, H1} = exometer_histogram:probe_update(Duration, H),
+	{ok, St#st{histogram = H1, count = C+1, last = Duration}}
+    catch
+	error:_ ->
+	    {ok, St}
+    end.
 
+probe_reset(#st{histogram = H} = St) ->
+    {ok, H1} = exometer_histogram:probe_reset(H),
+    {ok, St#st{histogram = H1, count = 0, t_start = undefined, last = 0}}.
 
-probe_reset(St) ->
-    { ok, St#st { total = 0, slide = exometer_slot_slide:reset(St#st.slide)} }.
-
-
-probe_sample(_St) ->
-    error(unsupported).
+probe_sample(St) ->
+    {ok, St}.
 
 probe_code_change(_From, ModSt, _Extra) ->
     {ok, ModSt}.
@@ -86,51 +133,11 @@ probe_code_change(_From, ModSt, _Extra) ->
 probe_handle_msg(_, S) ->
     {ok, S}.
 
-process_opts(St, Options) ->
-    lists:foldl(
-      fun
-          %% Sample interval.
-          ({time_span, Val}, St1) -> St1#st { time_span = Val };
-          ({slot_period, Val}, St1) -> St1#st { slot_period = Val };
-
-          %% Unknown option, pass on to State options list, replacing
-          %% any earlier versions of the same option.
-          ({Opt, Val}, St1) ->
-              St1#st{ opts = [ {Opt, Val}
-                               | lists:keydelete(Opt, 1, St1#st.opts) ] }
-      end, St, Options).
-
-%% Simple sample processor that maintains a counter.
-%% of all
-count_sample(_TS, Increment, undefined) ->
-   Increment;
-
-count_sample(_TS, Increment, Total) ->
-    Total + Increment.
-
-%% If count_sample() has not been called for the current time slot,
-%% then the provided state will still be 'undefined'
-count_transform(_TS, undefined) ->
-    0;
-
-%% Return the calculated total for the slot and return it as the
-%% element to be stored in the histogram.
-count_transform(_TS, Total) ->
-    Total. %% Return the sum of all counter increments received during this slot.
-
-
-%% sum up all elements
-sum_histogram(Slide) ->
-    exometer_slot_slide:foldl(fun({_TS, Val}, Acc) -> Acc + Val end,
-                              0, Slide).
-
-
-%% Retrieve various data points.
-get_datapoint_value(count, St) ->
-    { count, St#st.total };
-
-get_datapoint_value(one, St) ->
-    { one, sum_histogram(St#st.slide)};
-
-get_datapoint_value(Unknown, _St) ->
-    { Unknown, { error, undefined }}.
+fill_datapoints([D|DPs], [{D,_} = V|Vals], St) ->
+    [V|fill_datapoints(DPs, Vals, St)];
+fill_datapoints([count|DPs], Vals, #st{count = C} = St) ->
+    [{count, C}|fill_datapoints(DPs, Vals, St)];
+fill_datapoints([last|DPs], Vals, #st{last = Last} = St) ->
+    [{last, Last}|fill_datapoints(DPs, Vals, St)];
+fill_datapoints([], [], _) ->
+    [].
