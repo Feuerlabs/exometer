@@ -787,8 +787,9 @@ pattern({{N,T,S}, Gs, Prod}) ->
     %% dollar variables, so that we can perform substitution on them
     %% later on.
     Tail = match_tail(N,T,S),
-    {#exometer_entry{name = N, type = T, status = S, _ = '_'},
-     repl(Gs, g_subst(['$_'|Tail])), repl(Prod, p_subst(['$_'|Tail]))}.
+    {S1, Gs1} = repl_status(S, repl(Gs, g_subst(['$_'|Tail]))),
+    {#exometer_entry{name = N, type = T, status = S1, _ = '_'},
+     Gs1, repl(Prod, p_subst(['$_'|Tail]))}.
 
 %% The "named variables" are for now undocumented.
 repl('$name'       ,_) -> {element, #exometer_entry.name, '$_'};
@@ -812,6 +813,12 @@ repl([H|T], Subst) ->
     [repl(H, Subst)|repl(T, Subst)];
 repl(X, _) ->
     X.
+
+repl_status(S, Gs) when S==enabled; S==disabled ->
+    {'_', [{'=:=', status_body_pattern(), S}|Gs]};
+repl_status(S, Gs) ->
+    {S, Gs}.
+
 
 g_subst(Ks) ->
     [g_subst_(K) || K <- Ks].
