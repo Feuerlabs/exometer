@@ -1,3 +1,4 @@
+%% encoding: UTF-8
 {application,exometer}.
 {packages,[]}.
 {modules,[exometer,exometer_admin,exometer_cache,exometer_cpu,
