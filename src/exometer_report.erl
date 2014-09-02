@@ -962,7 +962,7 @@ handle_cast(_Msg, State) ->
 %%--------------------------------------------------------------------
 handle_info({start_interval, Reporter, Name}, #st{} = St) ->
     case ets:lookup(?EXOMETER_REPORTERS, Reporter) of
-	[#reporter{intervals = Ints}] ->
+	[#reporter{intervals = Ints, status = enabled}] ->
 	    case lists:keyfind(Name, #interval.name, Ints) of
 		#interval{} = I ->
 		    I1 = do_start_interval_timer(I, Reporter),
@@ -973,7 +973,7 @@ handle_info({start_interval, Reporter, Name}, #st{} = St) ->
 		false ->
 		    ok
 	    end;
-	[] ->
+	_ ->
 	    ok
     end,
     {noreply, St};
@@ -981,6 +981,8 @@ handle_info({report_batch, Reporter, Name}, #st{} = St) ->
     %% Find all entries where reporter is Reporter and interval is Name,
     %% and report them.
     case ets:lookup(?EXOMETER_REPORTERS, Reporter) of
+	[#reporter{status = disabled}] ->
+	    skip;
 	[R] ->
 	    Entries = ets:select(?EXOMETER_SUBS,
 				 [{#subscriber{key = #key{reporter = Reporter,
@@ -996,11 +998,13 @@ handle_info({report_batch, Reporter, Name}, #st{} = St) ->
 	    skip
     end,
     {noreply, St};
-handle_info({ report, #key{ metric = Metric,
-                            datapoint = DataPoint,
-                            retry_failed_metrics = RetryFailedMetrics} = Key,
+handle_info({report, #key{reporter = Reporter,
+			  metric = Metric,
+			  datapoint = DataPoint,
+			  retry_failed_metrics = RetryFailedMetrics} = Key,
 	      Interval}, #st{} = St) ->
-    case ets:member(?EXOMETER_SUBS, Key) of
+    case ets:member(?EXOMETER_SUBS, Key) andalso
+	get_reporter_status(Reporter) == enabled of
 	true ->
 	    do_report(Key, Interval),
             case {RetryFailedMetrics,  get_values(Metric, DataPoint)} of
@@ -1711,6 +1715,8 @@ do_change_reporter_status(#reporter{name = Reporter,
 	    cancel_subscr_timers(Reporter),
 	    terminate_reporter(R),
 	    ets:update_element(?EXOMETER_REPORTERS,
-			       Reporter, [{#reporter.status, disabled}])
+			       Reporter, [{#reporter.status, disabled}]);
+	{Old, Old} ->
+	    ok
     end,
     ok.
