@@ -584,7 +584,7 @@ new_entry(Entry) ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    process_flag(trap_exit, true),
+     process_flag(trap_exit, true),
     {ok, #st{}}.
 
 start_reporters() ->
@@ -646,21 +646,24 @@ get_module(R, Opts) ->
 
 -spec get_interval_opts([named_interval() | any()]) -> [#interval{}].
 get_interval_opts(Opts) ->
-    case lists:keyfind(intervals, 1, Opts) of
-	false -> [];
-	{_, Is} ->
-	    lists:map(
-	      fun({Name, Time}) when is_atom(Name),
-				     is_integer(Time), Time >= 0 ->
-		      #interval{name = Name, time = Time};
-		 ({Name, Time, Delay}) when is_atom(Name),
-					    is_integer(Time), Time >= 0,
-					    is_integer(Delay), Delay >= 0 ->
-		      #interval{name = Name, time = Time, delay = Delay};
-		 (Other) ->
-		      error({invalid_interval, Other})
-	      end, Is)
-    end.
+    Is1 = [singelton_interval(I) || {interval, I} <- Opts],
+    Is = proplists:get_value(intervals, Opts, []),
+    lists:map(
+      fun({Name, Time}) when is_atom(Name),
+			     is_integer(Time), Time >= 0 ->
+	      #interval{name = Name, time = Time};
+	 ({Name, Time, Delay}) when is_atom(Name),
+				    is_integer(Time), Time >= 0,
+				    is_integer(Delay), Delay >= 0 ->
+	      #interval{name = Name, time = Time, delay = Delay};
+	 (Other) ->
+	      error({invalid_interval, Other})
+      end, Is ++ Is1).
+
+singelton_interval({N,T}=I) when is_atom(N), is_integer(T) -> I;
+singelton_interval({N,T,D}=I) when is_atom(N),
+				   is_integer(T),
+				   is_integer(D) -> I.
 
 start_interval_timers(#reporter{name = R, intervals = Ints}) ->
     lists:map(fun(I) -> start_interval_timer(I, R) end, Ints).
@@ -771,10 +774,14 @@ handle_call({unsubscribe_all, Reporter, Metric}, _,
     {reply, ok, St};
 
 handle_call({list_metrics, Path}, _, St) ->
-    DP = lists:foldr(fun(Metric, Acc) ->
-                             retrieve_metric(Metric, Acc)
-                     end, [], exometer:find_entries(Path)),
-    {reply, {ok, DP}, St};
+    if is_list(Path) ->
+	    DP = lists:foldr(fun(Metric, Acc) ->
+				     retrieve_metric(Metric, Acc)
+			     end, [], exometer:find_entries(Path)),
+	    {reply, {ok, DP}, St};
+       true ->
+	    {reply, {error, badarg}, St}
+    end;
 
 handle_call({list_subscriptions, Reporter}, _, #st{} = St) ->
     Subs1 = lists:foldl(
@@ -989,11 +996,10 @@ handle_info({report_batch, Reporter, Name}, #st{} = St) ->
 	    skip
     end,
     {noreply, St};
-handle_info({ report, #key{ reporter = Reporter,
-                            metric = Metric,
+handle_info({ report, #key{ metric = Metric,
                             datapoint = DataPoint,
-                            retry_failed_metrics = RetryFailedMetrics,
-                            extra = Extra} = Key, Interval}, #st{} = St) ->
+                            retry_failed_metrics = RetryFailedMetrics} = Key,
+	      Interval}, #st{} = St) ->
     case ets:member(?EXOMETER_SUBS, Key) of
 	true ->
 	    do_report(Key, Interval),
@@ -1001,9 +1007,7 @@ handle_info({ report, #key{ reporter = Reporter,
                 %% We found a value, or values.
                 {_, [_|_] = Found} ->
                     %% Distribute metric value to the correct process
-                    [[report_value(Reporter, Name, DP, Extra, Val)
-		      || {DP, Val} <- Values] || {Name, Values} <- Found],
-
+		    report_values(Found, Key),
                     %% Re-arm the timer for next round
 		    restart_subscr_timer(Key, Interval),
                     {noreply, St};
@@ -1096,17 +1100,14 @@ resubscribe(#subscriber{key = #key{reporter = RName,
     ets:update_element(?EXOMETER_SUBS, Key, [{#subscriber.t_ref, TRef}]).
 
 
-do_report(#key{reporter = Reporter,
-	       metric = Metric,
+do_report(#key{metric = Metric,
 	       datapoint = DataPoint,
-	       retry_failed_metrics = RetryFailedMetrics,
-	       extra = Extra} = Key, Interval) ->
+	       retry_failed_metrics = RetryFailedMetrics} = Key, Interval) ->
     case {RetryFailedMetrics,  get_values(Metric, DataPoint)} of
 	%% We found a value, or values.
 	{_, [_|_] = Found} ->
 	    %% Distribute metric value to the correct process
-	    [[report_value(Reporter, Name, DP, Extra, Val)
-	      || {DP, Val} <- Values] || {Name, Values} <- Found],
+	    report_values(Found, Key),
 	    %% Re-arm the timer for next round
 	    restart_subscr_timer(Key, Interval);
 	%% We did not find a value, but we should try again.
@@ -1283,8 +1284,10 @@ dp_list(999)                 -> [999].
 
 get_values(Name, DataPoint) when is_list(Name) ->
     case exometer:get_value(Name, DataPoint) of
-	{ok, Values} -> [{Name, Values}];
-	_ -> []
+	{ok, Values} when is_list(Values) ->
+	    [{Name, Values}];
+	_ ->
+	    []
     end;
 get_values({How, Path}, DataPoint) ->
     Entries = case How of
@@ -1294,7 +1297,7 @@ get_values({How, Path}, DataPoint) ->
     lists:foldr(
       fun({Name, _, enabled}, Acc) ->
 	      case exometer:get_value(Name, DataPoint) of
-		  {ok, Values} ->
+		  {ok, Values} when is_list(Values) ->
 		      [{Name, Values}|Acc];
 		  _ ->
 		      Acc
@@ -1383,6 +1386,17 @@ unsubscribe_(#subscriber{key = #key{reporter = Reporter,
     ets:delete(?EXOMETER_SUBS, Key),
     ok.
 
+
+report_values(Found, #key{reporter = Reporter,
+			  metric = Metric, extra = Extra} = Key) ->
+    try
+	[[report_value(Reporter, Name, DP, Extra, Val)
+	  || {DP, Val} <- Values] || {Name, Values} <- Found]
+    catch
+	error:Reason ->
+	    lager:error("ERROR ~p~nKey = ~p~nTrace: ~p",
+			[Reason, Key, erlang:get_stacktrace()])
+    end.
 
 report_value(Reporter, Metric, DataPoint, Extra, Val) ->
     try Reporter ! {exometer_report, Metric, DataPoint, Extra, Val},
