@@ -38,10 +38,18 @@ new(Name, histogram, Opts) ->
     end;
 new(Name, meter, Opts) ->
     {folsom_metrics:new_meter(Name), opt_ref(Opts)};
+new(Name, meter_reader, Opts) ->
+    {folsom_metrics:new_meter_reader(Name), opt_ref(Opts)};
 new(Name, gauge, Opts) ->
     {folsom_metrics:new_gauge(Name), opt_ref(Opts)};
 new(Name, duration, Opts) ->
-    {folsom_metrics:new_duration(Name), opt_ref(Opts)}.
+    {folsom_metrics:new_duration(Name), opt_ref(Opts)};
+new(Name, history, Opts) ->
+    case lists:keyfind(size, 1, Opts) of
+	{_, Sz} -> {folsom_metrics:new_history(Name, Sz), opt_ref(Opts)};
+	false   -> {folsom_metrics:new_history(Name), opt_ref(Opts)}
+    end.
+
 
 opt_ref(Opts) ->
     case lists:keyfind(truncate, 1, Opts) of
@@ -56,6 +64,10 @@ delete(Name, _Type, _Ref) ->
 
 update(Name, Value, counter, _Ref) ->
     folsom_metrics:notify_existing_metric(Name, {inc, Value}, counter);
+update(Name, tick, meter_reader, _Ref) ->
+    folsom_metrics_meter_reader:tick(Name);
+update(Name, Value, meter_reader, _Ref) ->
+    folsom_metrics_meter_reader:mark(Name, Value);
 update(Name, Value, Type, _Ref) ->
     folsom_metrics:notify_existing_metric(Name, Value, Type).
 
@@ -66,6 +78,33 @@ reset(Name, gauge, _Ref) ->
 reset(_, _, _) ->
     {error, unsupported}.
 
+get_value(Name, history, _Ref, DataPoints0) ->
+    try  DataPoints = datapoints(history, DataPoints0),
+	 lists:foldr(
+	   fun(events, Acc) ->
+		   [{events, just_events(
+			       folsom_metrics_history:get_events(Name))}
+		    | Acc];
+	      (values, Acc) ->
+		   [{values, folsom_metrics_history:get_events(Name)}
+		    | Acc];
+	      (timed_events, Acc) ->
+		   [{timed_events,
+		     timed_events(
+		       folsom_metrics_history:get_events(Name))}
+		    | Acc];
+		 (Sz, Acc) when is_integer(Sz), Sz > 0 ->
+		      [{Sz, just_events(
+			      folsom_metrics_history:get_events(Name, Sz))}
+		       | Acc];
+		 (info, Acc) ->
+		      [{info, folsom_metrics_history:get_value(Name)}
+		       | Acc];
+		 (_, Acc) -> Acc
+	      end, [], DataPoints)
+    catch
+	error:_ -> unavailable
+    end;
 get_value(Name, Type, Ref, DataPoints) ->
     Trunc = get_trunc_opt(Ref),
     Vals = get_value_(Name, Type, Ref),
@@ -87,6 +126,8 @@ datapoints(_, L) when is_list(L) -> L.
 
 datapoints(counter) ->
     [value];
+datapoints(gauge) ->
+    [value];
 datapoints(histogram) ->
     stats_datapoints();
 datapoints(duration) ->
@@ -94,7 +135,10 @@ datapoints(duration) ->
 datapoints(spiral) ->
     [one, count];
 datapoints(meter) ->
-    [count,one,five,fifteen,day,mean,acceleration].
+    [count,one,five,fifteen,day,mean,acceleration];
+datapoints(history) ->
+    [events, info].
+
 
 filter_dp(Mean, DPs, Trunc) when Mean==mean; Mean==arithmetic_mean ->
     case lists:keyfind(mean, 1, DPs) of
@@ -162,3 +206,23 @@ calc_stats(Values) ->
     exometer_util:get_statistics(L,
                                  lists:sum(Values),
                                  lists:sort(Values)).
+
+just_events([{I, Events}|T]) when is_integer(I) ->
+    just_events1(Events, T);
+just_events([]) ->
+    [].
+
+just_events1([{event, E}|Es], T) ->
+    [E|just_events1(Es, T)];
+just_events1([], T) ->
+    just_events(T).
+
+timed_events([{I, Events}|T]) when is_integer(I) ->
+    timed_events(Events, I, T);
+timed_events([]) ->
+    [].
+
+timed_events([{event, E}|Es], I, T) ->
+    [{I, E}|timed_events(Es, I, T)];
+timed_events([], _, T) ->
+    timed_events(T).
