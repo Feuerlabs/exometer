@@ -4,7 +4,7 @@
 
 Copyright (c) 2014 Basho Technologies, Inc.  All Rights Reserved.
 
-__Version:__ Sep 2 2014 17:06:56
+__Version:__ Sep 3 2014 22:31:18
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -934,6 +934,7 @@ Please see @see exometer_report documentation for details.
 
 
 <table width="100%" border="0" summary="list of modules">
+<tr><td><a href="exo_montest.md" class="module">exo_montest</a></td></tr>
 <tr><td><a href="exometer.md" class="module">exometer</a></td></tr>
 <tr><td><a href="exometer_admin.md" class="module">exometer_admin</a></td></tr>
 <tr><td><a href="exometer_cache.md" class="module">exometer_cache</a></td></tr>
@@ -941,6 +942,7 @@ Please see @see exometer_report documentation for details.
 <tr><td><a href="exometer_duration.md" class="module">exometer_duration</a></td></tr>
 <tr><td><a href="exometer_entry.md" class="module">exometer_entry</a></td></tr>
 <tr><td><a href="exometer_folsom.md" class="module">exometer_folsom</a></td></tr>
+<tr><td><a href="exometer_folsom_monitor.md" class="module">exometer_folsom_monitor</a></td></tr>
 <tr><td><a href="exometer_function.md" class="module">exometer_function</a></td></tr>
 <tr><td><a href="exometer_histogram.md" class="module">exometer_histogram</a></td></tr>
 <tr><td><a href="exometer_igor.md" class="module">exometer_igor</a></td></tr>

@@ -92,6 +92,6 @@ This module simply<a name="index"></a>
 
 ### update/4 ###
 
-`update(X1, Value, X3, X4) -> any()`
+`update(X1, Value, Type, X4) -> any()`
 
 

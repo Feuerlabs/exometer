@@ -96,6 +96,9 @@ behaviour() ->
 %% The return value of the above call will be processed according to `Type':
 %% <ul>
 %%   <li>If `Type==value', the return value is returned as-is</li>
+%%   <li>If `Type==histogram', the return value is a list of integers, which
+%%       will be compiled into a histogram (see {@link exometer_histogram}).
+%%      </li>
 %%   <li>If `Type==proplist', the current data point or list of data points
 %%       will be picked out of the returned proplist.</li>
 %%   <li>If `Type==tagged', the return value is assumed to be either
@@ -220,14 +223,14 @@ get_value(_, function, {M, F, once, ArgsP, match, Pat}, DataPoints0) ->
             {error, unavailable}
     end;
 get_value(_, _, {M, F, once, ArgsP, Type, DPs}, DataPoints0) ->
-    DataPoints = actual_datapoints(DataPoints0, DPs),
+    DataPoints = actual_datapoints(DataPoints0, DPs, Type),
     try call_once(M, F, ArgsP, Type, DataPoints)
     catch
         error:_ ->
             {error, unavailable}
     end;
 get_value(_, _, {eval, Exprs, DataPoints}, DataPoints0) ->
-    DataPoints = actual_datapoints(DataPoints0, DataPoints),
+    DataPoints = actual_datapoints(DataPoints0, DataPoints, eval),
     return_eval(eval_expr(Exprs, undefined, DataPoints), DataPoints);
 get_value(_, _, {M, F}, DataPoints) ->
     if DataPoints == default ->
@@ -237,9 +240,13 @@ get_value(_, _, {M, F}, DataPoints) ->
                   lists:member(K, DataPoints)]
     end.
 
-actual_datapoints(default, DPs) ->
+actual_datapoints(default, default, histogram) ->
+    exometer_histogram:datapoints();
+actual_datapoints(DPs, default, histogram) ->
+    actual_datapoints(DPs, exometer_histogram:datapoints(), histogram);
+actual_datapoints(default, DPs, _) ->
     DPs;
-actual_datapoints(DPs0, DPs) ->
+actual_datapoints(DPs0, DPs, _) ->
     [D || D <- datapoints(DPs0, DPs),
           lists:member(D, DPs)].
 
@@ -361,6 +368,8 @@ return_dps({DP, V}, tagged, DPs) ->
     [{D, if D==DP -> V; true -> undefined end} || D <- DPs];
 return_dps(L, proplist, DPs) ->
     [get_dp(D, L) || D <- DPs];
+return_dps(L, histogram, DPs) ->
+    exometer_util:histogram(L, DPs);
 return_dps(Val, eval, {Expr, DPs}) ->
     try return_eval(eval_expr(Expr, Val, DPs), DPs)
     catch

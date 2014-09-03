@@ -572,6 +572,9 @@ The return value of the above call will be processed according to `Type`:
 
 * If `Type==value`, the return value is returned as-is
 
+* If `Type==histogram`, the return value is a list of integers, which
+will be compiled into a histogram (see [`exometer_histogram`](exometer_histogram.md)).
+
 * If `Type==proplist`, the current data point or list of data points
 will be picked out of the returned proplist.
 

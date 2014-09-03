@@ -172,7 +172,7 @@ test_gauge(_Config) ->
     ok = exometer:update(C, 5),
     {ok, [{value, 5}]} = exometer:get_value(C, [value]),
     ok = exometer:reset(C),
-    {ok, [{value, 0}, {ms_since_reset,0}]} = exometer:get_value(C),
+    {ok, [{value, 0}, {ms_since_reset,_}]} = exometer:get_value(C),
     ok = exometer:delete(C),
     {error, not_found} = exometer:get_value(C, [value]),
     ok.

@@ -62,6 +62,7 @@
 	 probe_handle_msg/2]).
 
 -compile(inline).
+-export([datapoints/0]).
 -export([average_sample/3,
 	 average_transform/2]).
 
@@ -107,7 +108,10 @@ probe_get_value(DataPoints, St) ->
     {ok, get_value_int(St, DataPoints)}.
 
 probe_get_datapoints(_St) ->
-    {ok, ?DATAPOINTS}.
+    {ok, datapoints()}.
+
+datapoints() ->
+    ?DATAPOINTS.
 
 
 get_value_int(St, default) ->
