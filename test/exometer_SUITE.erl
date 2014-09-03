@@ -26,6 +26,7 @@
     test_update_or_create/1,
     test_update_or_create2/1,
     test_std_histogram/1,
+    test_std_duration/1,
     test_folsom_histogram/1,
     test_aggregate/1,
     test_history1_slide/1,
@@ -75,6 +76,7 @@ groups() ->
      {test_histogram, [shuffle],
       [
        test_std_histogram,
+       test_std_duration,
        test_folsom_histogram,
        test_aggregate,
        test_history1_slide,
@@ -168,7 +170,7 @@ test_gauge(_Config) ->
     ok = exometer:update(C, 1),
     timer:sleep(10),
     {ok, [{value, 1}]} = exometer:get_value(C, [value]),
-    {ok, [{value, 1}, {ms_since_reset,TS1}]} = exometer:get_value(C),
+    {ok, [{value, 1}, {ms_since_reset,_}]} = exometer:get_value(C),
     ok = exometer:update(C, 5),
     {ok, [{value, 5}]} = exometer:get_value(C, [value]),
     ok = exometer:reset(C),
@@ -214,6 +216,23 @@ test_std_histogram(_Config) ->
     [{n,134},{mean,2126866},{min,1},{max,9},{median,2},
      {50,2},{75,3},{90,4},{95,5},{99,8},{999,9}] = scale_mean(DPs),
     ok.
+
+test_std_duration(_Config) ->
+    C = [?MODULE, dur, ?LINE],
+    ok = exometer:new(C, duration, []),
+    [ok = update_duration(C, V) || V <- vals()],
+    {_, {ok,DPs}} = timer:tc(exometer, get_value, [C]),
+    [{count,134},{last,_},{n,_},{mean,_},{min,_},{max,_},
+     {median,_},{50,_},{75,_},{90,_},{95,_},{99,_},{999,_}] = DPs,
+    {ok,[{count,134},{last,_}]} = exometer:get_value(C, [count,last]),
+    {ok,[{mean,_},{count,_},{max,_}]} =
+	exometer:get_value(C, [mean,count,max]),
+    ok.
+
+update_duration(C, V) ->
+    exometer:update(C, timer_start),
+    timer:sleep(V),
+    exometer:update(C, timer_end).
 
 test_folsom_histogram(_Config) ->
     ok = exometer:new(
