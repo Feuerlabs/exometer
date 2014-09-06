@@ -328,6 +328,18 @@ reporter_name() = atom()
 
 
 
+### <a name="type-retry">retry()</a> ###
+
+
+
+<pre><code>
+retry() = boolean()
+</code></pre>
+
+
+
+
+
 ### <a name="type-time_ms">time_ms()</a> ###
 
 
@@ -343,7 +355,9 @@ time_ms() = pos_integer()
 
 
 <table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#add_reporter-2">add_reporter/2</a></td><td>Add a reporter.</td></tr><tr><td valign="top"><a href="#call_reporter-2">call_reporter/2</a></td><td>Send a custom (synchronous) call to <code>Reporter</code>.</td></tr><tr><td valign="top"><a href="#cast_reporter-2">cast_reporter/2</a></td><td>Send a custom (asynchronous) cast to <code>Reporter</code>.</td></tr><tr><td valign="top"><a href="#delete_interval-2">delete_interval/2</a></td><td>Delete a named interval.</td></tr><tr><td valign="top"><a href="#disable_me-2">disable_me/2</a></td><td>Used by a reporter to disable itself.</td></tr><tr><td valign="top"><a href="#disable_reporter-1">disable_reporter/1</a></td><td>Disable <code>Reporter</code>.</td></tr><tr><td valign="top"><a href="#enable_reporter-1">enable_reporter/1</a></td><td>Enable <code>Reporter</code>.</td></tr><tr><td valign="top"><a href="#get_intervals-1">get_intervals/1</a></td><td>List the named intervals for <code>Reporter</code>.</td></tr><tr><td valign="top"><a href="#list_metrics-0">list_metrics/0</a></td><td>Equivalent to <a href="#list_metrics-1"><tt>list_metrics([])</tt></a>.</td></tr><tr><td valign="top"><a href="#list_metrics-1">list_metrics/1</a></td><td>List all metrics matching <code>Path</code>, together with subscription status.</td></tr><tr><td valign="top"><a href="#list_reporters-0">list_reporters/0</a></td><td>List the name and pid of each known reporter.</td></tr><tr><td valign="top"><a href="#list_subscriptions-1">list_subscriptions/1</a></td><td>List all subscriptions for <code>Reporter</code>.</td></tr><tr><td valign="top"><a href="#new_entry-1">new_entry/1</a></td><td>Called by exometer whenever a new entry is created.</td></tr><tr><td valign="top"><a href="#remove_reporter-1">remove_reporter/1</a></td><td>Remove reporter and all its subscriptions.</td></tr><tr><td valign="top"><a href="#remove_reporter-2">remove_reporter/2</a></td><td>Remove <code>Reporter</code> (non-blocking call).</td></tr><tr><td valign="top"><a href="#restart_intervals-1">restart_intervals/1</a></td><td>Restart all named intervals, respecting specified delays.</td></tr><tr><td valign="top"><a href="#set_interval-3">set_interval/3</a></td><td>Specify a named interval.</td></tr><tr><td valign="top"><a href="#setopts-3">setopts/3</a></td><td>Called by exometer when options of a metric entry are changed.</td></tr><tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td>Starts the server
---------------------------------------------------------------------.</td></tr><tr><td valign="top"><a href="#start_reporters-0">start_reporters/0</a></td><td></td></tr><tr><td valign="top"><a href="#subscribe-4">subscribe/4</a></td><td>Equivalent to <a href="#subscribe-5"><tt>subscribe(Reporter, Metric, DataPoint, Interval, [])</tt></a>.</td></tr><tr><td valign="top"><a href="#subscribe-5">subscribe/5</a></td><td>Add a subscription to an existing reporter.</td></tr><tr><td valign="top"><a href="#terminate_reporter-1">terminate_reporter/1</a></td><td></td></tr><tr><td valign="top"><a href="#unsubscribe-3">unsubscribe/3</a></td><td>Equivalent to <a href="#unsubscribe-4"><tt>unsubscribe(Reporter, Metric, DataPoint, [])</tt></a>.</td></tr><tr><td valign="top"><a href="#unsubscribe-4">unsubscribe/4</a></td><td>Removes a subscription.</td></tr><tr><td valign="top"><a href="#unsubscribe_all-2">unsubscribe_all/2</a></td><td>Removes all subscriptions related to Metric in Reporter.</td></tr></table>
+--------------------------------------------------------------------.</td></tr><tr><td valign="top"><a href="#start_reporters-0">start_reporters/0</a></td><td></td></tr><tr><td valign="top"><a href="#subscribe-4">subscribe/4</a></td><td>Equivalent to <a href="#subscribe-6"><tt>subscribe(Reporter, Metric, DataPoint, Interval, [],
+false)</tt></a>.</td></tr><tr><td valign="top"><a href="#subscribe-5">subscribe/5</a></td><td>Equivalent to <a href="#subscribe-6"><tt>subscribe(Reporter, Metric, DataPoint, Interval, Extra,
+false)</tt></a>.</td></tr><tr><td valign="top"><a href="#subscribe-6">subscribe/6</a></td><td>Add a subscription to an existing reporter.</td></tr><tr><td valign="top"><a href="#terminate_reporter-1">terminate_reporter/1</a></td><td></td></tr><tr><td valign="top"><a href="#unsubscribe-3">unsubscribe/3</a></td><td>Equivalent to <a href="#unsubscribe-4"><tt>unsubscribe(Reporter, Metric, DataPoint, [])</tt></a>.</td></tr><tr><td valign="top"><a href="#unsubscribe-4">unsubscribe/4</a></td><td>Removes a subscription.</td></tr><tr><td valign="top"><a href="#unsubscribe_all-2">unsubscribe_all/2</a></td><td>Removes all subscriptions related to Metric in Reporter.</td></tr></table>
 
 
 <a name="functions"></a>
@@ -680,18 +694,29 @@ Starts the server
 
 
 <pre><code>
-subscribe(Reporter::module(), Metric::<a href="#type-metric">metric()</a>, DataPoint::<a href="#type-datapoint">datapoint()</a> | [<a href="#type-datapoint">datapoint()</a>], Interval::<a href="#type-interval">interval()</a>) -&gt; ok | not_found | unknown_reporter
+subscribe(Reporter::module(), Metric::<a href="#type-metric">metric()</a>, DataPoint::<a href="#type-datapoint">datapoint()</a> | [<a href="#type-datapoint">datapoint()</a>], Interval::<a href="#type-interval">interval()</a>) -&gt; ok | not_found | unknown_reporter | error
 </code></pre>
 <br />
 
-Equivalent to [`subscribe(Reporter, Metric, DataPoint, Interval, [])`](#subscribe-5).
+Equivalent to [`subscribe(Reporter, Metric, DataPoint, Interval, [],false)`](#subscribe-6).
 <a name="subscribe-5"></a>
 
 ### subscribe/5 ###
 
 
 <pre><code>
-subscribe(Reporter::module(), Metric::<a href="#type-metric">metric()</a>, DataPoint::<a href="#type-datapoint">datapoint()</a>, Interval::<a href="#type-interval">interval()</a>, Extra::<a href="#type-extra">extra()</a>) -&gt; ok | not_found | unknown_reporter
+subscribe(Reporter::module(), Metric::<a href="#type-metric">metric()</a>, DataPoint::<a href="#type-datapoint">datapoint()</a>, Interval::<a href="#type-interval">interval()</a>, Extra::<a href="#type-extra">extra()</a>) -&gt; ok | not_found | unknown_reporter | error
+</code></pre>
+<br />
+
+Equivalent to [`subscribe(Reporter, Metric, DataPoint, Interval, Extra,false)`](#subscribe-6).
+<a name="subscribe-6"></a>
+
+### subscribe/6 ###
+
+
+<pre><code>
+subscribe(Reporter::module(), Metric::<a href="#type-metric">metric()</a>, DataPoint::<a href="#type-datapoint">datapoint()</a>, Interval::<a href="#type-interval">interval()</a>, Extra::<a href="#type-extra">extra()</a>, Retry::<a href="#type-retry">retry()</a>) -&gt; ok | not_found | unknown_reporter | error
 </code></pre>
 <br />
 
@@ -712,10 +737,15 @@ interval need not be defined yet in the reporter (the subscription will
 not trigger until it _is_ defined.)
 
 
+
 `Extra` can be anything that the chosen reporter understands (default: `[]`).
 If the reporter uses [`exometer_util:report_type/3`](exometer_util.md#report_type-3), `Extra` should be
 a proplist, and the option `{report_type, T}` can control which type (e.g.
 for collectd or statsd) that the value corresponds to.
+
+
+`Retry`: boolean(). If true, retry the subscription at the next interval,
+even if the metric cannot be read.
 <a name="terminate_reporter-1"></a>
 
 ### terminate_reporter/1 ###

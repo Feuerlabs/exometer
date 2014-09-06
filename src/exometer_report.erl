@@ -150,7 +150,7 @@
 -export(
    [
     start_link/0,
-    subscribe/4, subscribe/5,
+    subscribe/4, subscribe/5, subscribe/6,
     unsubscribe/3, unsubscribe/4,
     unsubscribe_all/2,
     list_metrics/0, list_metrics/1,
@@ -202,6 +202,7 @@
 			 | {atom(), time_ms(), delay()}.
 -type callback_result() :: {ok, mod_state()} | any().
 -type extra()           :: any().
+-type retry()           :: boolean().
 -type reporter_name()   :: atom().
 %% Restart specification
 -type maxR()            :: pos_integer().
@@ -299,13 +300,23 @@ start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE,  [], []).
 
 -spec subscribe(module(), metric(), datapoint() | [datapoint()], interval()) ->
-    ok | not_found | unknown_reporter.
-%% @equiv subscribe(Reporter, Metric, DataPoint, Interval, [])
+    ok | not_found | unknown_reporter | error.
+%% @equiv subscribe(Reporter, Metric, DataPoint, Interval, [], false)
 subscribe(Reporter, Metric, DataPoint, Interval) ->
     subscribe(Reporter, Metric, DataPoint, Interval, []).
 
 -spec subscribe(module(), metric(), datapoint(), interval(), extra()) ->
-    ok | not_found | unknown_reporter.
+    ok | not_found | unknown_reporter | error.
+%% @equiv subscribe(Reporter, Metric, DataPoint, Interval, Extra, false)
+subscribe(Reporter, Metric, DataPoint, Interval, Extra) ->
+    call({subscribe, #key{reporter = Reporter,
+                          metric = Metric,
+                          datapoint = DataPoint,
+                          retry_failed_metrics = false,
+                          extra = Extra}, Interval}).
+
+-spec subscribe(module(), metric(), datapoint(), interval(), extra(), retry()) ->
+    ok | not_found | unknown_reporter | error.
 %% @doc Add a subscription to an existing reporter.
 %%
 %% The reporter must first be started using {@link add_reporter/2}, or through
@@ -321,13 +332,17 @@ subscribe(Reporter, Metric, DataPoint, Interval) ->
 %% If the reporter uses {@link exometer_util:report_type/3}, `Extra' should be
 %% a proplist, and the option `{report_type, T}' can control which type (e.g.
 %% for collectd or statsd) that the value corresponds to.
+%%
+%% `Retry': boolean(). If true, retry the subscription at the next interval,
+%% even if the metric cannot be read.
 %% @end
-subscribe(Reporter, Metric, DataPoint, Interval, Extra) ->
+subscribe(Reporter, Metric, DataPoint, Interval, Extra, Retry)
+  when is_boolean(Retry) ->
     call({subscribe, #key{reporter = Reporter,
-                          metric = Metric,
-                          datapoint = DataPoint,
-                          retry_failed_metrics = false,
-                          extra = Extra}, Interval}).
+			  metric = Metric,
+			  datapoint = DataPoint,
+			  retry_failed_metrics = Retry,
+			  extra = Extra}, Interval}).
 
 -spec unsubscribe(module(), metric(), datapoint()) ->
     ok | not_found.
@@ -750,7 +765,17 @@ handle_call({subscribe,
 			       Extra, Status),
                     {reply, ok, St};
                 %% Nope - Not found.
-                false -> {reply, not_found, St }
+		false ->
+		    case RetryFailedMetrics of
+			true ->
+			    subscribe_(Reporter, Metric, DataPoint,
+				       Interval, RetryFailedMetrics,
+				       Extra, Status),
+			    {reply, ok, St};
+			false ->
+			    {reply, not_found, St}
+		    end;
+                error -> {reply, error, St}
             end;
         [] ->
             {reply, unknown_reporter, St}
@@ -998,42 +1023,15 @@ handle_info({report_batch, Reporter, Name}, #st{} = St) ->
 	    skip
     end,
     {noreply, St};
-handle_info({report, #key{reporter = Reporter,
-			  metric = Metric,
-			  datapoint = DataPoint,
-			  retry_failed_metrics = RetryFailedMetrics} = Key,
-	      Interval}, #st{} = St) ->
+handle_info({report, #key{reporter = Reporter} = Key, Interval}, #st{} = St) ->
     case ets:member(?EXOMETER_SUBS, Key) andalso
 	get_reporter_status(Reporter) == enabled of
 	true ->
-	    do_report(Key, Interval),
-            case {RetryFailedMetrics,  get_values(Metric, DataPoint)} of
-                %% We found a value, or values.
-                {_, [_|_] = Found} ->
-                    %% Distribute metric value to the correct process
-		    report_values(Found, Key),
-                    %% Re-arm the timer for next round
-		    restart_subscr_timer(Key, Interval),
-                    {noreply, St};
-
-                %% We did not find a value, but we should try again.
-                {true, _ } ->
-		    if is_list(Metric) ->
-			    ?debug("Metric(~p) Datapoint(~p) not found."
-				   " Will try again in ~p msec~n",
-				   [Metric, DataPoint, Interval]);
-		       true -> ok
-		    end,
-                    %% Re-arm the timer for next round
-		    restart_subscr_timer(Key, Interval),
-		    {noreply, St};
-                %% We did not find a value, and we should not retry.
-                _ ->
-                    %% Entry removed while timer in progress.
-                    ?warning("Metric(~p) Datapoint(~p) not found. Will not try again~n",
-                           [Metric, DataPoint]),
-                    {noreply, St}
-            end;
+	    case do_report(Key, Interval) of
+		true  -> restart_subscr_timer(Key, Interval);
+		false -> ok
+	    end,
+	    {noreply, St};
         false ->
             %% Possibly an unsubscribe removed the subscriber
             ?error("No such subscriber (Key=~p)~n", [Key]),
@@ -1112,25 +1110,23 @@ do_report(#key{metric = Metric,
 	{_, [_|_] = Found} ->
 	    %% Distribute metric value to the correct process
 	    report_values(Found, Key),
-	    %% Re-arm the timer for next round
-	    restart_subscr_timer(Key, Interval);
+	    true;
 	%% We did not find a value, but we should try again.
 	{true, _ } ->
 	    if is_list(Metric) ->
 		    ?debug("Metric(~p) Datapoint(~p) not found."
 			   " Will try again in ~p msec~n",
-			   [Metric, DataPoint, Interval]);
-	       true -> ok
-	    end,
-	    %% Re-arm the timer for next round
-	    restart_subscr_timer(Key, Interval);
+			   [Metric, DataPoint, Interval]),
+		    true;
+	       true -> false
+	    end;
 	%% We did not find a value, and we should not retry.
 	_ ->
 	    %% Entry removed while timer in progress.
 	    ?warning("Metric(~p) Datapoint(~p) not found. Will not try again~n",
-		     [Metric, DataPoint])
-    end,
-    ok.
+		     [Metric, DataPoint]),
+	    false
+    end.
 
 
 cancel_subscr_timers(Reporter) ->
@@ -1254,7 +1250,7 @@ is_valid_metric({find, Name}, _DataPoint) when is_list(Name) ->
 is_valid_metric({select, Name}, _DataPoint) when is_list(Name) ->
     try ets:match_spec_compile(Name), true
     catch
-	error:_ -> false
+	error:_ -> error
     end;
 is_valid_metric(Name, default) when is_list(Name) ->
     case exometer:info(Name, type) of
@@ -1263,7 +1259,7 @@ is_valid_metric(Name, default) when is_list(Name) ->
     end;
 is_valid_metric(Name, DataPoint) when is_list(Name) ->
     case dp_list(DataPoint) of
-	[] -> false;
+	[] -> error;
 	[_|_] = DataPoints ->
 	    case exometer:info(Name, datapoints) of
 		undefined -> false;
@@ -1391,8 +1387,7 @@ unsubscribe_(#subscriber{key = #key{reporter = Reporter,
     ok.
 
 
-report_values(Found, #key{reporter = Reporter,
-			  metric = Metric, extra = Extra} = Key) ->
+report_values(Found, #key{reporter = Reporter, extra = Extra} = Key) ->
     try
 	[[report_value(Reporter, Name, DP, Extra, Val)
 	  || {DP, Val} <- Values] || {Name, Values} <- Found]
