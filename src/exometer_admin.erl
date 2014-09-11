@@ -323,7 +323,7 @@ handle_info({'DOWN', Ref, _, Pid, _}, S) ->
         Name when is_list(Name) ->
             erase(Ref),
             erase(Pid),
-            try exometer:delete(Name) catch error:_ -> ok end,
+            try delete_entry_(Name) catch error:_ -> ok end,
             {noreply, S}
     end;
 handle_info(_, S) ->
