@@ -38,6 +38,7 @@
           ref
          }).
 
+-spec behaviour() -> exometer:behaviour().
 behaviour() ->
     probe.
 

@@ -414,7 +414,7 @@
 			 | {ok, mod_state()}
 			 | {error, any()}.
 
--callback behaviour() -> probe.
+-callback behaviour() -> exometer:behaviour().
 -callback probe_init(name(), type(), options()) -> probe_noreply().
 -callback probe_terminate(mod_state()) -> probe_noreply().
 -callback probe_setopts(options(), mod_state()) -> probe_reply().
@@ -443,7 +443,7 @@ new(Name, Type, Options) ->
 
 %% Should never be called directly for exometer_probe.
 behaviour() ->
-    undefined.
+    entry.
 
 delete(_Name, _Type, Pid) when is_pid(Pid) ->
     exometer_proc:cast(Pid, delete).

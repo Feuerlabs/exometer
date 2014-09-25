@@ -55,7 +55,8 @@ timestamp() ->
     {MS,S,US} = os:timestamp(),
     (MS-1258)*1000000000 + S*1000 + US div 1000.
 
--spec timestamp_to_datetime(timestamp()) -> calendar:datetime().
+-spec timestamp_to_datetime(timestamp()) ->
+				   {calendar:datetime(), non_neg_integer()}.
 %% @doc Convert timestamp to a regular datetime.
 %%
 %% The timestamp is expected

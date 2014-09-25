@@ -48,6 +48,7 @@
 
 -define(DATAPOINTS, [ count, one ]).
 
+-spec behaviour() -> exometer:behaviour().
 behaviour()->
     probe.
 
@@ -62,7 +63,7 @@ probe_init(Name, _Type, Options) ->
     process_flag(min_heap_size, 40000),
     {ok, St#st{slide = Slide}}.
 
-probe_terminate(_St) -> 
+probe_terminate(_St) ->
    ok.
 
 probe_get_value(DataPoints, St) ->
@@ -78,7 +79,7 @@ probe_update(Increment, #st{slide = Slide, total = Total} = St) ->
     {ok, St#st{
 	   slide = exometer_slot_slide:add_element(Increment, Slide),
 	   total = Total + Increment}}.
-    
+
 probe_reset(#st{slide = Slide} = St) ->
     {ok, St#st{total = 0, slide = exometer_slot_slide:reset(Slide)}}.
 
@@ -89,7 +90,7 @@ probe_sample(_St) ->
 probe_handle_msg(_, S) ->
     {ok, S}.
 
-probe_code_change(_, S, _) -> 
+probe_code_change(_, S, _) ->
     {ok, S}.
 
 process_opts(St, Options) ->
@@ -132,4 +133,3 @@ get_single_value(St, one) ->
                                            0, St#st.slide) };
 get_single_value(_St, Unsupported) ->
     {Unsupported, {error, unsupported}}.
-

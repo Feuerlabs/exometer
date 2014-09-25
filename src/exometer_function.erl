@@ -46,13 +46,18 @@
 -type int_extended() :: {function, mod_name(), fun_name(), each | once,
                          arg_spec(), res_type(), datapoints()}.
 -type fun_spec()     :: simple_fun() | extended_fun().
--type fun_rep()      :: simple_fun() | int_extended().
+-type fun_rep()      :: {mod_name(), fun_name()}
+		      | {mod_name(), fun_name(), each | once,
+			 arg_spec(), res_type(), datapoints()}
+		      | {mod_name(), fun_name(), each | once,
+			 arg_spec(), match, any()}
+		      | {eval, [expr()], datapoints()}.
 
--spec behaviour() -> atom().
+-spec behaviour() -> exometer:behaviour().
 behaviour() ->
     entry.
 
--spec new(exometer:name(), 'function' | fun_spec(),
+-spec new(exometer:name(), 'function',
           exometer:options()) -> {ok, fun_rep()}.
 %% @doc Callback for creating an exometer `function' entry.
 %%
@@ -525,20 +530,14 @@ eval_expr(Expr, Value, DPs) ->
 %% relationship between sublists is 'or'. This is the same as in Erlang.
 %% @end
 eval_exprs([E|Es], Bs) ->
-    case eval_(E, Bs) of
-        {value, Val, Bs1} ->
-            eval_exprs(Es, Val, Bs1);
-        O -> error(O)
-    end.
+    {value, Val, Bs1} = eval_(E, Bs),
+    eval_exprs(Es, Val, Bs1).
 
 eval_exprs([], Val, Bs) ->
     {value, Val, Bs};
 eval_exprs([E|Es], _, Bs) ->
-    case eval_(E, Bs) of
-        {value, Val, Bs1} ->
-            eval_exprs(Es, Val, Bs1);
-        O -> error(O)
-    end.
+    {value, Val, Bs1} = eval_(E, Bs),
+    eval_exprs(Es, Val, Bs1).
 
 eval_({erl, Exprs}, Bs) ->
     erl_eval:exprs(Exprs, Bs);

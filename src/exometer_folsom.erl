@@ -21,6 +21,7 @@
          sample/3,
          setopts/4]).
 
+-spec behaviour() -> exometer:behaviour().
 behaviour() -> entry.
 
 new(Name, counter, _Opts) ->

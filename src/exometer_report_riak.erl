@@ -406,7 +406,7 @@
     exometer_report/5,
     exometer_subscribe/5,
     exometer_unsubscribe/4,
-    exometer_newentry/2,
+    exometer_newentry/4,
     exometer_setopts/4,
     exometer_terminate/2
    ]).
@@ -482,7 +482,7 @@ exometer_report(Metric, DataPoint, Extra, Value, St)  ->
     case find_subscription(Metric, DataPoint, Extra) of
         #subscription {} = Sub ->
             %% Report the value and setup a new refresh timer.
-            report_to_outbound_connection(Sub, Value, self()),
+            report_to_outbound_connection(Sub, Value, ?MODULE),
             {ok , St};
 
          false ->
@@ -516,7 +516,7 @@ exometer_info(Other, St) ->
     ?warning("Got unknown info: ~p~n", [ Other ]),
     {ok, St }.
 
-exometer_newentry(_Entry, St) ->
+exometer_newentry(_Entry, _Type, _Opts, St) ->
     {ok, St}.
 
 exometer_setopts(_Metric, _Options, _Status, St) ->
@@ -622,7 +622,7 @@ setup_outbound_subscription(MasterProc, Metric, DataPoint,
                     add_subscription_entry(Metric, DataPoint, SocketPath, HostID),
                     update_outbound_connection_counter(SocketPath, 1),
                     ok;
-                _ -> 
+                _ ->
                     unknown_metric %% Not found.
             end
     end.
@@ -722,19 +722,29 @@ find_subscription(Metric, DataPoint, SocketPath) ->
     end.
 
 find_subscriptions_by_socket_path(SocketPath) ->
-    RawMatch = ets:match(?SUBSCRIPTION_TABLE, 
-                         #subscription {
-                            socket_path = SocketPath,
-                            key = '_',
-                            hostid = '$0',
-                            metric = '$1',
-                            datapoint = '$2'}),
+    RawMatch = ets:match(?SUBSCRIPTION_TABLE,
+			 match_pat(SocketPath)),
+                         %% #subscription {
+                         %%    socket_path = SocketPath,
+                         %%    key = '_',
+                         %%    hostid = '$0',
+                         %%    metric = '$1',
+                         %%    datapoint = '$2'}),
     %% convert to #subscription records
     [ #subscription {
          hostid = HostID,
          metric = Metric,
          datapoint = DataPoint
          } || [ HostID, Metric, DataPoint ] <- RawMatch].
+
+-define(set(P,V,T), setelement(#subscription.P, T, V)).
+match_pat(SocketPath) ->
+    Sz = size(#subscription{}),
+    ?set(datapoint, '$2',
+	 ?set(metric, '$1',
+	      ?set(hostid, '$0',
+		   ?set(socket_path, SocketPath,
+			erlang:make_tuple(Sz, '_'))))).
 
 create_outbound_connection_counter(SocketPath, Socket) ->
     ets:insert_new(?CONNECTION_TABLE,

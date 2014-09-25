@@ -86,6 +86,7 @@
 -define(DATAPOINTS,
         [n, mean, min, max, median, 50, 75, 90, 95, 99, 999 ]).
 
+-spec behaviour() -> exometer:behaviour().
 behaviour() ->
     probe.
 
