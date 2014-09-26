@@ -59,6 +59,30 @@ For more information, see [`exometer_admin:set_default/3`](exometer_admin.md#set
 
 
 
+### <a name="type-behaviour">behaviour()</a> ###
+
+
+
+<pre><code>
+behaviour() = probe | entry
+</code></pre>
+
+
+
+
+
+### <a name="type-entry">entry()</a> ###
+
+
+
+<pre><code>
+entry() = #exometer_entry{}
+</code></pre>
+
+
+
+
+
 ### <a name="type-error">error()</a> ###
 
 
@@ -76,7 +100,7 @@ error() = {error, any()}
 
 
 <pre><code>
-info() = name | type | module | value | cache | status | timestamp | options | ref | datapoints
+info() = name | type | module | value | cache | status | timestamp | options | ref | datapoints | entry
 </code></pre>
 
 
@@ -112,7 +136,7 @@ options() = [{atom(), any()}]
 
 
 <pre><code>
-status() = enabled | disabled | non_neg_integer()
+status() = enabled | disabled
 </code></pre>
 
 
@@ -158,7 +182,7 @@ value() = any()
 
 
 <pre><code>
-aggregate(Pattern::<a href="ets.md#type-match_spec">ets:match_spec()</a>, DataPoints::[atom()]) -&gt; [{atom(), integer()}]
+aggregate(Pattern::<a href="ets.md#type-match_spec">ets:match_spec()</a>, DataPoints::[atom()]) -&gt; list()
 </code></pre>
 <br />
 
@@ -503,7 +527,7 @@ operation likely has no effect, and will return `ok`.
 
 
 <pre><code>
-select(Pattern::<a href="ets.md#type-match_spec">ets:match_spec()</a>) -&gt; [{<a href="#type-name">name()</a>, <a href="#type-type">type()</a>, <a href="#type-status">status()</a>}]
+select(Pattern::<a href="ets.md#type-match_spec">ets:match_spec()</a>) -&gt; list()
 </code></pre>
 <br />
 
@@ -520,7 +544,7 @@ metrics is `{Name, Type, Status}`.
 
 
 <pre><code>
-select(Pattern::<a href="ets.md#type-match_spec">ets:match_spec()</a>, Limit::pos_integer() | infinity) -&gt; {[{<a href="#type-name">name()</a>, <a href="#type-type">type()</a>, <a href="#type-status">status()</a>}], _Cont}
+select(Pattern::<a href="ets.md#type-match_spec">ets:match_spec()</a>, Limit::pos_integer() | infinity) -&gt; {list(), _Cont}
 </code></pre>
 <br />
 

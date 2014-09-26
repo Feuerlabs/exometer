@@ -302,5 +302,5 @@
 -callback get_datapoints(name(), type(), ref()) ->
     datapoints().
 
--callback setopts(name(), options(), type(), ref()) ->
+-callback setopts(exometer:entry(), options(), exometer:status()) ->
     ok | error().

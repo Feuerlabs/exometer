@@ -15,7 +15,7 @@
 -export([behaviour/0,
 	 probe_init/3,
 	 probe_terminate/1,
-	 probe_setopts/2,
+	 probe_setopts/3,
 	 probe_update/2,
 	 probe_get_value/2,
 	 probe_get_datapoints/1,
@@ -72,7 +72,7 @@ probe_get_value(DataPoints, St) ->
 probe_get_datapoints(_St) ->
     {ok, ?DATAPOINTS}.
 
-probe_setopts(_Options, _St)  ->
+probe_setopts(_Entry, _Options, _St)  ->
     ok.
 
 probe_update(Increment, #st{slide = Slide, total = Total} = St) ->

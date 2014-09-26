@@ -21,7 +21,7 @@
          sample/3,
          delete/3,
          preprocess_setopts/5,
-         setopts/4]).
+         setopts/3]).
 
 -export([empty/0]).
 -export([test_mem_info/1]).
@@ -289,7 +289,7 @@ preprocess_setopts(_Name, Opts, _Type, _Ref, _OldOpts) ->
             Opts
     end.
 
-setopts(_, _, _, _) ->
+setopts(_, _, _) ->
     ok.
 
 delete(_, _, _) ->

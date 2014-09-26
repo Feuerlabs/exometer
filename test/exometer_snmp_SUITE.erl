@@ -150,7 +150,7 @@ test_mib_modification(Config) ->
     ok = exometer:new([test, app, five], counter, [{snmp, [{value, 1000}]},
                                                    {snmp_syntax,
                                                     [{value,<<"Counter64">>}]}]),
-    ok = wait_for_mib_version(10, 10, 10000),
+    ok = wait_for_mib_version(10, 10, 20000),
 
     {ok, ModifiedMib} = file:read_file(?config(mib_file, Config) ++ ".mib"),
     ct:log("Modified MIB: ~s", [binary_to_list(ModifiedMib)]),
@@ -261,13 +261,11 @@ test_counter_reports(Config) ->
           end,
 
     [ok = Fun(Fun, FunReceive, Counter) || Counter <- Counters],
-
     % disable SNMP export and ensure no more reports are received
     ok = exometer:setopts([test, counter, one], [{snmp, []}]),
     ok = exometer:setopts([test, counter, two], [{snmp, disabled}]),
     ok = exometer:setopts([test, counter, three], [{status, disabled}]),
     ok = exometer:delete([test, counter, four]),
-
     FunReceive2 = fun(_) ->
                           receive
                               {snmp_msg, handle_inform, [_, {noError, 0, _}, _]} = Msg->

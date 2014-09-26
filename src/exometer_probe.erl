@@ -150,28 +150,35 @@
 %% implementation.
 %%
 %%
-%% === probe_setopts/2 ===
+%% === probe_setopts/3 ===
 %% The `probe_setopts/2' function is invoked as follows:
 %%
 %% <pre lang="erlang">
-%%      probe_setopts(Opts, State)</pre>
+%%      probe_setopts(Entry, Opts, State)</pre>
 %%
-%% The `probe_setopts/2' implementation is invoked by `exometer:setopts/2', which
-%% calls `exometer_probe:setopts/4', which invokes the probe
-%% implementation.
+%% The `probe_setopts/4' implementation is invoked by
+%% `exometer:setopts/3', which calls `exometer_probe:setopts/3',
+%% which invokes the probe implementation.
 %%
 %% The implementation of this function shall modify the options of a
-%% probe. The `setopts/4' function, which will process standard
-%% options before invoking `probe_setopts/2' with the remaining
+%% probe. The `setopts/3' function, which will process standard
+%% options before invoking `probe_setopts/4' with the remaining
 %% options. See the documentation for `probe_init/3' for details.
 %%
 %% The arguments are as follows:
 %%
+%% + `Entry'
+%%     The (opaque) exometer entry record. See {@link exometer_info} for
+%%     information on how to inspect the data structure.
+%%
 %% + `Opts'
 %%     The probe-specific options to be processed.
 %%
+%% + `Status'
+%%     The new status of the entry.
+%%
 %% + `State'
-%%     The probe state, originally returned by `probe_init/3' and subsequentially
+%%     The probe state, originally returned by `probe_init/3' and subsequently
 %%     modified by other probe implementation calls.
 %%
 %% This function shall return `{ok, NewState}' where `NewState' is
@@ -385,7 +392,7 @@
     update/4,
     reset/3,
     sample/3,
-    setopts/4
+    setopts/3
    ]).
 
 -include_lib("exometer/include/exometer.hrl").
@@ -417,7 +424,8 @@
 -callback behaviour() -> exometer:behaviour().
 -callback probe_init(name(), type(), options()) -> probe_noreply().
 -callback probe_terminate(mod_state()) -> probe_noreply().
--callback probe_setopts(options(), mod_state()) -> probe_reply().
+-callback probe_setopts(exometer:entry(), options(), mod_state()) ->
+    probe_reply().
 -callback probe_update(any(), mod_state()) -> probe_noreply().
 -callback probe_get_value(data_points(), mod_state()) -> probe_reply().
 -callback probe_get_datapoints(mod_state()) -> {ok, data_points()}.
@@ -458,8 +466,8 @@ get_value(_Name, _Type, Pid, DataPoints) when is_pid(Pid) ->
 get_datapoints(_Name, _Type, Pid) when is_pid(Pid) ->
     exometer_proc:call(Pid, get_datapoints).
 
-setopts(_Name, Options, _Type, Pid) when is_pid(Pid), is_list(Options) ->
-    exometer_proc:call(Pid, {setopts, Options}).
+setopts(#exometer_entry{ref = Pid} = E, Opts, Status) when is_pid(Pid) ->
+    exometer_proc:cast(Pid, {setopts, E, Opts, Status}).
 
 update(_Name, Value, _Type, Pid) when is_pid(Pid) ->
     exometer_proc:cast(Pid, {update, Value}).
@@ -540,12 +548,13 @@ handle_msg(Msg, St) ->
         {exometer_proc, sample } ->
             process_probe_noreply(St, Module:probe_sample(St#st.mod_state));
 
-        {exometer_proc, {From, Ref}, {setopts, Options }} ->
+        {exometer_proc, {From, Ref}, {setopts, Entry, Options}} ->
             %% Extract probe-level options (sample_interval)
             {NSt, Opts1} = process_opts(Options, St),
 
             {Reply, NSt1} = %% Call module setopts for remainder of opts
-            process_probe_reply(NSt,  Module:probe_setopts(Opts1, NSt#st.mod_state)),
+            process_probe_reply(
+	      NSt, Module:probe_setopts(Entry, Opts1, NSt#st.mod_state)),
 
             From ! {Ref, Reply },
             %% Return state with options and any non-duplicate original opts.

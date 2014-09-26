@@ -25,7 +25,7 @@
     exometer_subscribe/5,
     exometer_unsubscribe/4,
     exometer_terminate/2,
-    exometer_newentry/4,
+    exometer_newentry/2,
     exometer_setopts/4
    ]).
 
@@ -143,41 +143,32 @@ exometer_info(Unknown, St) ->
     ?info("Unknown info: ~p", [Unknown]),
     {ok, St}.
 
-exometer_newentry(Name, _Type, _Options, St) ->
-    case exometer:info(Name, entry) of
-	#exometer_entry{status = disabled} ->
+exometer_newentry(E, St) ->
+    case exometer_info:status(E) of
+	disabled ->
 	    {ok, St};
-	#exometer_entry{} = E ->
+	enabled ->
 	    newentry(E, St)
     end.
 
-exometer_setopts(Metric, _Options, disabled, St0) ->
-    case exometer:info(Metric, entry) of
-	#exometer_entry{} = E ->
-	    update_subscriptions(Metric, []),
+exometer_setopts(#exometer_entry{name = Name} = E, _Options, disabled, St0) ->
+    update_subscriptions(Name, []),
+    disable_metric(E, St0);
+exometer_setopts(#exometer_entry{name = Name} = E, Options, _, St0) ->
+    case lists:keyfind(snmp, 1, Options) of
+	false ->
+	    ok;
+	{_, disabled} ->
+	    update_subscriptions(Name, []),
 	    disable_metric(E, St0);
-	undefined ->
-	    {ok, St0}
-    end;
-exometer_setopts(Metric, Options, _, St0) ->
-    case exometer:info(Metric, entry) of
-	#exometer_entry{} = E ->
-	    case lists:keyfind(snmp, 1, Options) of
-		false ->
-		    ok;
-		{_, disabled} ->
-		    update_subscriptions(Metric, []),
-		    disable_metric(E, St0);
-		{_, Subs} when is_list(Subs) ->
-		    ok = update_subscriptions(Metric, Subs),
-		    {ok, St0};
-		{_, Err} ->
-		    ?error("Option ~p has incorrect value ~p", [snmp, Err]),
-		    {error, improper_option}
-	    end;
-	_ ->
-	    {ok, St0}
+	{_, Subs} when is_list(Subs) ->
+	    ok = update_subscriptions(Name, Subs),
+	    {ok, St0};
+	{_, Err} ->
+	    ?error("Option ~p has incorrect value ~p", [snmp, Err]),
+	    {error, improper_option}
     end.
+
 
 exometer_terminate(_, #st{mib_file_path=MibPath0}) ->
     MibPath1 = filename:rootname(MibPath0),

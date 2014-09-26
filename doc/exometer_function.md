@@ -333,7 +333,7 @@ fun_name() = atom()
 
 
 <pre><code>
-fun_rep() = <a href="#type-simple_fun">simple_fun()</a> | <a href="#type-int_extended">int_extended()</a>
+fun_rep() = {<a href="#type-mod_name">mod_name()</a>, <a href="#type-fun_name">fun_name()</a>} | {<a href="#type-mod_name">mod_name()</a>, <a href="#type-fun_name">fun_name()</a>, each | once, <a href="#type-arg_spec">arg_spec()</a>, <a href="#type-res_type">res_type()</a>, <a href="#type-datapoints">datapoints()</a>} | {<a href="#type-mod_name">mod_name()</a>, <a href="#type-fun_name">fun_name()</a>, each | once, <a href="#type-arg_spec">arg_spec()</a>, match, any()} | {eval, [<a href="#type-expr">expr()</a>], <a href="#type-datapoints">datapoints()</a>}
 </code></pre>
 
 
@@ -346,18 +346,6 @@ fun_rep() = <a href="#type-simple_fun">simple_fun()</a> | <a href="#type-int_ext
 
 <pre><code>
 fun_spec() = <a href="#type-simple_fun">simple_fun()</a> | <a href="#type-extended_fun">extended_fun()</a>
-</code></pre>
-
-
-
-
-
-### <a name="type-int_extended">int_extended()</a> ###
-
-
-
-<pre><code>
-int_extended() = {function, <a href="#type-mod_name">mod_name()</a>, <a href="#type-fun_name">fun_name()</a>, each | once, <a href="#type-arg_spec">arg_spec()</a>, <a href="#type-res_type">res_type()</a>, <a href="#type-datapoints">datapoints()</a>}
 </code></pre>
 
 
@@ -402,7 +390,7 @@ simple_fun() = {function, <a href="#type-mod_name">mod_name()</a>, <a href="#typ
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#behaviour-0">behaviour/0</a></td><td></td></tr><tr><td valign="top"><a href="#delete-3">delete/3</a></td><td></td></tr><tr><td valign="top"><a href="#empty-0">empty/0</a></td><td></td></tr><tr><td valign="top"><a href="#eval_exprs-2">eval_exprs/2</a></td><td>Evaluate a list of abstract expressions.</td></tr><tr><td valign="top"><a href="#get_datapoints-3">get_datapoints/3</a></td><td></td></tr><tr><td valign="top"><a href="#get_value-4">get_value/4</a></td><td></td></tr><tr><td valign="top"><a href="#new-3">new/3</a></td><td>Callback for creating an exometer <code>function</code> entry.</td></tr><tr><td valign="top"><a href="#preprocess_setopts-5">preprocess_setopts/5</a></td><td></td></tr><tr><td valign="top"><a href="#reset-3">reset/3</a></td><td></td></tr><tr><td valign="top"><a href="#sample-3">sample/3</a></td><td></td></tr><tr><td valign="top"><a href="#setopts-4">setopts/4</a></td><td></td></tr><tr><td valign="top"><a href="#test_mem_info-1">test_mem_info/1</a></td><td></td></tr><tr><td valign="top"><a href="#update-4">update/4</a></td><td></td></tr></table>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#behaviour-0">behaviour/0</a></td><td></td></tr><tr><td valign="top"><a href="#delete-3">delete/3</a></td><td></td></tr><tr><td valign="top"><a href="#empty-0">empty/0</a></td><td></td></tr><tr><td valign="top"><a href="#eval_exprs-2">eval_exprs/2</a></td><td>Evaluate a list of abstract expressions.</td></tr><tr><td valign="top"><a href="#get_datapoints-3">get_datapoints/3</a></td><td></td></tr><tr><td valign="top"><a href="#get_value-4">get_value/4</a></td><td></td></tr><tr><td valign="top"><a href="#new-3">new/3</a></td><td>Callback for creating an exometer <code>function</code> entry.</td></tr><tr><td valign="top"><a href="#preprocess_setopts-5">preprocess_setopts/5</a></td><td></td></tr><tr><td valign="top"><a href="#reset-3">reset/3</a></td><td></td></tr><tr><td valign="top"><a href="#sample-3">sample/3</a></td><td></td></tr><tr><td valign="top"><a href="#setopts-3">setopts/3</a></td><td></td></tr><tr><td valign="top"><a href="#test_mem_info-1">test_mem_info/1</a></td><td></td></tr><tr><td valign="top"><a href="#update-4">update/4</a></td><td></td></tr></table>
 
 
 <a name="functions"></a>
@@ -415,7 +403,7 @@ simple_fun() = {function, <a href="#type-mod_name">mod_name()</a>, <a href="#typ
 
 
 <pre><code>
-behaviour() -&gt; atom()
+behaviour() -&gt; <a href="exometer.md#type-behaviour">exometer:behaviour()</a>
 </code></pre>
 <br />
 
@@ -510,7 +498,7 @@ relationship between sublists is 'or'. This is the same as in Erlang.
 
 
 <pre><code>
-new(Name::<a href="exometer.md#type-name">exometer:name()</a>, X2::function | <a href="#type-fun_spec">fun_spec()</a>, Opts::<a href="exometer.md#type-options">exometer:options()</a>) -&gt; {ok, <a href="#type-fun_rep">fun_rep()</a>}
+new(Name::<a href="exometer.md#type-name">exometer:name()</a>, X2::function, Opts::<a href="exometer.md#type-options">exometer:options()</a>) -&gt; {ok, <a href="#type-fun_rep">fun_rep()</a>}
 </code></pre>
 <br />
 
@@ -708,11 +696,11 @@ An entry that simply builds a list of datapoints, using the abstract syntax.
 `sample(X1, X2, X3) -> any()`
 
 
-<a name="setopts-4"></a>
+<a name="setopts-3"></a>
 
-### setopts/4 ###
+### setopts/3 ###
 
-`setopts(X1, X2, X3, X4) -> any()`
+`setopts(X1, X2, X3) -> any()`
 
 
 <a name="test_mem_info-1"></a>

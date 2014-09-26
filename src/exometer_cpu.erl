@@ -23,7 +23,7 @@
     probe_update/2,
     probe_reset/1,
     probe_sample/1,
-    probe_setopts/2,
+    probe_setopts/3,
     probe_handle_msg/2,
     probe_code_change/3
    ]).
@@ -78,7 +78,7 @@ probe_sample(#st{datapoints = DPs} = S) ->
                     end),
     {ok, S#st{ref = Ref}}.
 
-probe_setopts(Opts, S) ->
+probe_setopts(_Entry, Opts, S) ->
     DPs = proplists:get_value(datapoints, Opts, S#st.datapoints),
     {ok, S#st{datapoints = DPs}}.
 

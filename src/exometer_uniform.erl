@@ -21,7 +21,7 @@
          probe_update/2,
          probe_reset/1,
          probe_sample/1,
-         probe_setopts/2,
+         probe_setopts/3,
          probe_handle_msg/2,
          probe_code_change/3]).
 
@@ -90,7 +90,7 @@ get_dp(L, D) ->
 probe_get_datapoints(_St) ->
     { ok, ?DATAPOINTS }.
 
-probe_setopts(_Opts, _St) ->
+probe_setopts(_Entry, _Opts, _St) ->
     ok.
 
 probe_update(Value, St) when St#st.cur_sz < St#st.size ->

@@ -168,7 +168,7 @@
     call_reporter/2,
     cast_reporter/2,
     setopts/3,
-    new_entry/3
+    new_entry/1
    ]).
 
 %% Start phase function
@@ -239,12 +239,11 @@
 -callback exometer_terminate(any(), mod_state()) ->
     any().
 
--callback exometer_setopts(metric(), options(), exometer:status(), mod_state()) ->
+-callback exometer_setopts(exometer:entry(), options(),
+			   exometer:status(), mod_state()) ->
     callback_result().
 
--callback exometer_newentry(metric(),
-			    exometer:type(),
-			    exometer:options(), mod_state()) ->
+-callback exometer_newentry(exometer:entry(), mod_state()) ->
     callback_result().
 
 -record(key, {
@@ -566,7 +565,7 @@ cast_reporter(Reporter, Msg) ->
 remove_reporter(Reporter, Reason) ->
     cast({remove_reporter, Reporter, Reason}).
 
--spec setopts(exometer:name(), options(), enabled | disabled) -> ok.
+-spec setopts(exometer:entry(), options(), exometer:status()) -> ok.
 %% @doc Called by exometer when options of a metric entry are changed.
 %%
 %% Reporters subscribing to the metric get a chance to process the options
@@ -575,7 +574,7 @@ remove_reporter(Reporter, Reason) ->
 setopts(Metric, Options, Status) ->
     call({setopts, Metric, Options, Status}).
 
--spec new_entry(exometer:name(), exometer:type(), exometer:options()) -> ok.
+-spec new_entry(exometer:entry()) -> ok.
 %% @doc Called by exometer whenever a new entry is created.
 %%
 %% This function is called whenever a new metric is created, giving each
@@ -584,8 +583,8 @@ setopts(Metric, Options, Status) ->
 %% is no risk of deadlock. The callback function triggered by this call is
 %% `Mod:exometer_newentry(Entry, St)'.
 %% @end
-new_entry(Name, Type, Options) ->
-    cast({new_entry, Name, Type, Options}).
+new_entry(Entry) ->
+    cast({new_entry, Entry}).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -799,7 +798,8 @@ handle_call({unsubscribe_all, Reporter, Metric}, _,
             #st{}=St) ->
     Subs = ets:select(?EXOMETER_SUBS,
 		      [{#subscriber{key = #key{reporter = Reporter,
-					       metric = Metric},
+					       metric = Metric,
+					       _ = '_'},
 				    _ = '_'}, [], ['$_']}]),
     lists:foreach(fun unsubscribe_/1, Subs),
     {reply, ok, St};
@@ -957,11 +957,11 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_cast({new_entry, Name, Type, Options}, #st{} = St) ->
-    [try erlang:send(Pid, {exometer_newentry, Name, Type, Options})
+handle_cast({new_entry, Entry}, #st{} = St) ->
+    [try erlang:send(Pid, {exometer_newentry, Entry})
      catch error:_ -> ok end
      || Pid <- reporter_pids()],
-    maybe_enable_subscriptions(Name),
+    maybe_enable_subscriptions(Entry),
     {noreply, St};
 
 handle_cast({remove_reporter, Reporter, Reason}, St) ->
@@ -1067,7 +1067,7 @@ restart_reporter(#reporter{name = Name, opts = Opts, restart = Restart}) ->
     ok.
 
 %% If there are already subscriptions, enable them.
-maybe_enable_subscriptions(Metric) ->
+maybe_enable_subscriptions(#exometer_entry{name = Metric}) ->
     lists:foreach(
       fun(#subscriber{key = #key{reporter = RName}} = S) ->
 	      case get_reporter_status(RName) of
@@ -1519,8 +1519,8 @@ reporter_loop(Module, St) ->
                       {ok, St1} -> {ok, St1};
                       _ -> {ok, St}
                   end;
-              {exometer_newentry, Name, Type, Options} ->
-                  case Module:exometer_newentry(Name, Type, Options, St) of
+              {exometer_newentry, Entry} ->
+                  case Module:exometer_newentry(Entry, St) of
                       {ok, St1} -> {ok, St1};
                       _ -> {ok, St}
                   end;

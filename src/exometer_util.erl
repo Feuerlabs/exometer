@@ -27,6 +27,7 @@
     report_type/3,
     get_datapoints/1,
     set_call_count/2, set_call_count/3,
+    get_status/1,
     set_status/2,
     set_event_flag/2,
     clear_event_flag/2,
@@ -298,6 +299,14 @@ set_call_count({M, F}, Bool) ->
 set_call_count(M, F, Bool) when is_atom(M), is_atom(F), is_boolean(Bool) ->
     erlang:trace_pattern({M, F, 0}, Bool, [call_count]).
 
+get_status(enabled) -> enabled;
+get_status(disabled) -> disabled;
+get_status(St) when is_integer(St) ->
+    if St band 2#1 == 1 ->
+	    enabled;
+       true ->
+	    disabled
+    end.
 
 set_status(enabled , enabled ) -> 1;
 set_status(enabled , disabled) -> 1;

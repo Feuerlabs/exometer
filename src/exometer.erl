@@ -63,7 +63,8 @@
 %% Convenience function for testing
 -export([start/0, stop/0]).
 
--export_type([name/0, type/0, options/0, status/0, behaviour/0]).
+-export_type([name/0, type/0, options/0, status/0, behaviour/0,
+	      entry/0]).
 
 -compile(inline).
 
@@ -72,11 +73,12 @@
 
 -type name()        :: list().
 -type type()        :: atom().
--type status()      :: enabled | disabled | non_neg_integer().
+-type status()      :: enabled | disabled.
 -type options()     :: [{atom(), any()}].
 -type value()       :: any().
 -type error()       :: {error, any()}.
 -type behaviour()   :: probe | entry.
+-type entry()       :: #exometer_entry{}.
 
 -define(IS_ENABLED(St), St==enabled orelse St band 2#1 == 1).
 -define(IS_DISABLED(St), St==disabled orelse St band 2#1 =/= 1).
@@ -459,7 +461,7 @@ setopts(Name, Options) when is_list(Name), is_list(Options) ->
 				counter      -> setopts_ctr(E, Options);
 				gauge        -> setopts_gauge(E, Options)
                             end,
-                            reporter_setopts(Name, Options, enabled);
+                            reporter_setopts(E, Options, enabled);
                         _ ->
                             {error, disabled}
                     end;
@@ -468,14 +470,14 @@ setopts(Name, Options) when is_list(Name), is_list(Options) ->
                         {_, disabled} ->
                             {_, Elems} = process_setopts(E, Options),
                             update_entry_elems(Name, Elems),
-                            reporter_setopts(Name, Options, disabled);
+                            reporter_setopts(E, Options, disabled);
                         R when R==false; R=={status,disabled} ->
 			    case Type of
 				fast_counter -> setopts_fctr(E, Options);
 				counter      -> setopts_ctr(E, Options);
 				gauge        -> setopts_gauge(E, Options)
                             end,
-                            reporter_setopts(Name, Options, enabled)
+                            reporter_setopts(E, Options, enabled)
                     end
             end;
         [#exometer_entry{status = Status} = E] when ?IS_ENABLED(Status) ->
@@ -497,34 +499,28 @@ setopts(Name, Options) when is_list(Name), is_list(Options) ->
             {error, not_found}
     end.
 
-module_setopts(#exometer_entry{behaviour = probe,
-			       name=N,
-			       type=T,
-			       ref = Pid}=E, Options, NewStatus) ->
-    reporter_setopts(N, Options, NewStatus),
-    exometer_probe:setopts(N, Options, T, Pid);
+module_setopts(#exometer_entry{behaviour = probe}=E, Options, NewStatus) ->
+    reporter_setopts(E, Options, NewStatus),
+    exometer_probe:setopts(E, Options, NewStatus);
 
 module_setopts(#exometer_entry{behaviour = entry,
-			       name=Name,
-			       module=M,
-			       type=Type,
-			       ref=Ref}=E, Options, NewStatus) ->
+			       module=M} = E, Options, NewStatus) ->
     case [O || {K, _} = O <- Options,
                not lists:member(K, [status, cache, ref])] of
         [] ->
             ok;
         [_|_] = UserOpts ->
-            case M:setopts(Name, UserOpts, Type, Ref) of
+            case M:setopts(E, UserOpts, NewStatus) of
                 ok ->
-                    reporter_setopts(Name, Options, NewStatus),
+                    reporter_setopts(E, Options, NewStatus),
                     ok;
                 E ->
                     E
             end
     end.
 
-reporter_setopts(Name, Options, Status) ->
-    exometer_report:setopts(Name, Options, Status).
+reporter_setopts(#exometer_entry{} = E, Options, Status) ->
+    exometer_report:setopts(E, Options, Status).
 
 setopts_fctr(#exometer_entry{name = Name,
                              ref = OldRef,

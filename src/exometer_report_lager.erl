@@ -57,7 +57,7 @@
     exometer_report/5,
     exometer_subscribe/5,
     exometer_unsubscribe/4,
-    exometer_newentry/4,
+    exometer_newentry/2,
     exometer_setopts/4,
     exometer_terminate/2
    ]).
@@ -110,7 +110,7 @@ exometer_info(Unknown, St) ->
     ?info("Unknown info: ~p", [Unknown]),
     {ok, St}.
 
-exometer_newentry(_Entry, _Type, _Opts, St) ->
+exometer_newentry(_Entry, St) ->
     {ok, St}.
 
 exometer_setopts(_Metric, _Options, _Status, St) ->

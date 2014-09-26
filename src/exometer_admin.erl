@@ -177,9 +177,8 @@ new_entry(Name, Type, Opts) ->
             ok
     end.
 
-report_new_entry(#exometer_entry{name = Name, type = Type,
-				 options = Opts}) ->
-    exometer_report:new_entry(Name, Type, Opts).
+report_new_entry(#exometer_entry{} = E) ->
+    exometer_report:new_entry(E).
 
 re_register_entry(Name, Type, Opts) ->
     {Type1, Opts1} = check_type_arg(Type, Opts),
@@ -262,8 +261,7 @@ handle_call({new_entry, Name, Type, Opts, AllowExisting}, _From, S) ->
             _ ->
                 E1 = process_opts(E0, OptsTemplate ++ Opts),
                 Res = exometer:create_entry(E1),
-                exometer_report:new_entry(Name, E1#exometer_entry.type,
-					  E1#exometer_entry.options),
+                exometer_report:new_entry(E1),
                 {reply, Res, S}
         end
     catch
