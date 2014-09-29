@@ -43,8 +43,6 @@
 -type simple_fun()   :: {function, mod_name(), fun_name()}.
 -type extended_fun() :: {function, mod_name(), fun_name(),
                          arg_spec(), res_type(), datapoints()}.
--type int_extended() :: {function, mod_name(), fun_name(), each | once,
-                         arg_spec(), res_type(), datapoints()}.
 -type fun_spec()     :: simple_fun() | extended_fun().
 -type fun_rep()      :: {mod_name(), fun_name()}
 		      | {mod_name(), fun_name(), each | once,

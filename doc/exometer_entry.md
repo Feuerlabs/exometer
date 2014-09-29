@@ -392,7 +392,7 @@ the exometer entry implementation. The returned data points shall
 be supported by the module's `get_value()` function.
 
 
-#### <a name="setopts/4">setopts/4</a> ####
+#### <a name="setopts/3">setopts/3</a> ####
 
 
 
@@ -402,13 +402,14 @@ The `setopts()` function is invoked as follows:
 
 ```erlang
 
-       setopts(Name, Options, Type, Ref)
+       setopts(Entry, Options, Type, Ref)
 ```
 
 
 
-+ `Name`
-<br />Specifies the name of the metric to return available datapoints for.
++ `Entry`
+The (opaque) exometer entry record. See [`exometer_info`](exometer_info.md) for
+information on how to inspect the data structure.
 
 
 
