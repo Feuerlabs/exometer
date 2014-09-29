@@ -234,15 +234,16 @@
 %% be supported by the module's `get_value()' function.
 %%
 %%
-%% === setopts/4 ===
+%% === setopts/3 ===
 %%
 %% The `setopts()' function is invoked as follows:
 %%
 %% <pre lang="erlang">
-%%      setopts(Name, Options, Type, Ref)</pre>
+%%      setopts(Entry, Options, Type, Ref)</pre>
 %%
-%% + `Name'
-%%     <br/>Specifies the name of the metric to return available datapoints for.
+%% + `Entry'
+%%     The (opaque) exometer entry record. See {@link exometer_info} for
+%%     information on how to inspect the data structure.
 %%
 %% + `Options'
 %%     <br/>Specifies an option list that contains additional setup directives to
