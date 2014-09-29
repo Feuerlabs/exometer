@@ -50,7 +50,7 @@ following messages:
 
 
 <pre><code>
-call(Pid::pid(), Req::any()) -&gt; any()
+call(Pid::pid() | atom(), Req::any()) -&gt; any()
 </code></pre>
 <br />
 
@@ -78,7 +78,7 @@ Note that the receiving process must explicitly handle the message in a
 
 
 <pre><code>
-cast(Pid::pid(), Msg::any()) -&gt; ok
+cast(Pid::pid() | atom(), Msg::any()) -&gt; ok
 </code></pre>
 <br />
 

@@ -9,7 +9,7 @@
 Interface library for managing probes.
 __Behaviours:__ [`exometer_entry`](exometer_entry.md).
 
-__This module defines the `exometer_probe` behaviour.__<br /> Required callback functions: `behaviour/0`, `probe_init/3`, `probe_terminate/1`, `probe_setopts/2`, `probe_update/2`, `probe_get_value/2`, `probe_get_datapoints/1`, `probe_reset/1`, `probe_sample/1`, `probe_handle_msg/2`, `probe_code_change/3`.
+__This module defines the `exometer_probe` behaviour.__<br /> Required callback functions: `behaviour/0`, `probe_init/3`, `probe_terminate/1`, `probe_setopts/3`, `probe_update/2`, `probe_get_value/2`, `probe_get_datapoints/1`, `probe_reset/1`, `probe_sample/1`, `probe_handle_msg/2`, `probe_code_change/3`.
 <a name="description"></a>
 
 ## Description ##
@@ -235,7 +235,7 @@ calls `exometer_probe:delete/3`, which invokes the probe
 implementation.
 
 
-#### <a name="probe_setopts/2">probe_setopts/2</a> ####
+#### <a name="probe_setopts/3">probe_setopts/3</a> ####
 
 
 The `probe_setopts/2` function is invoked as follows:
@@ -244,20 +244,20 @@ The `probe_setopts/2` function is invoked as follows:
 
 ```erlang
 
-       probe_setopts(Opts, State)
+       probe_setopts(Entry, Opts, State)
 ```
 
 
 
-The `probe_setopts/2` implementation is invoked by `exometer:setopts/2`, which
-calls `exometer_probe:setopts/4`, which invokes the probe
-implementation.
+The `probe_setopts/4` implementation is invoked by
+`exometer:setopts/3`, which calls `exometer_probe:setopts/3`,
+which invokes the probe implementation.
 
 
 
 The implementation of this function shall modify the options of a
-probe. The `setopts/4` function, which will process standard
-options before invoking `probe_setopts/2` with the remaining
+probe. The `setopts/3` function, which will process standard
+options before invoking `probe_setopts/4` with the remaining
 options. See the documentation for `probe_init/3` for details.
 
 
@@ -266,13 +266,24 @@ The arguments are as follows:
 
 
 
++ `Entry`
+The (opaque) exometer entry record. See [`exometer_info`](exometer_info.md) for
+information on how to inspect the data structure.
+
+
+
 + `Opts`
 The probe-specific options to be processed.
 
 
 
++ `Status`
+The new status of the entry.
+
+
+
 + `State`
-The probe state, originally returned by `probe_init/3` and subsequentially
+The probe state, originally returned by `probe_init/3` and subsequently
 modified by other probe implementation calls.
 
 
@@ -600,7 +611,7 @@ that reflects the processed message.
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#behaviour-0">behaviour/0</a></td><td></td></tr><tr><td valign="top"><a href="#delete-3">delete/3</a></td><td></td></tr><tr><td valign="top"><a href="#get_datapoints-3">get_datapoints/3</a></td><td></td></tr><tr><td valign="top"><a href="#get_value-3">get_value/3</a></td><td></td></tr><tr><td valign="top"><a href="#get_value-4">get_value/4</a></td><td></td></tr><tr><td valign="top"><a href="#new-3">new/3</a></td><td></td></tr><tr><td valign="top"><a href="#reset-3">reset/3</a></td><td></td></tr><tr><td valign="top"><a href="#sample-3">sample/3</a></td><td></td></tr><tr><td valign="top"><a href="#setopts-4">setopts/4</a></td><td></td></tr><tr><td valign="top"><a href="#update-4">update/4</a></td><td></td></tr></table>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#behaviour-0">behaviour/0</a></td><td></td></tr><tr><td valign="top"><a href="#delete-3">delete/3</a></td><td></td></tr><tr><td valign="top"><a href="#get_datapoints-3">get_datapoints/3</a></td><td></td></tr><tr><td valign="top"><a href="#get_value-3">get_value/3</a></td><td></td></tr><tr><td valign="top"><a href="#get_value-4">get_value/4</a></td><td></td></tr><tr><td valign="top"><a href="#new-3">new/3</a></td><td></td></tr><tr><td valign="top"><a href="#reset-3">reset/3</a></td><td></td></tr><tr><td valign="top"><a href="#sample-3">sample/3</a></td><td></td></tr><tr><td valign="top"><a href="#setopts-3">setopts/3</a></td><td></td></tr><tr><td valign="top"><a href="#update-4">update/4</a></td><td></td></tr></table>
 
 
 <a name="functions"></a>
@@ -663,11 +674,11 @@ that reflects the processed message.
 `sample(Name, Type, Pid) -> any()`
 
 
-<a name="setopts-4"></a>
+<a name="setopts-3"></a>
 
-### setopts/4 ###
+### setopts/3 ###
 
-`setopts(Name, Options, Type, Pid) -> any()`
+`setopts(Exometer_entry, Opts, Status) -> any()`
 
 
 <a name="update-4"></a>

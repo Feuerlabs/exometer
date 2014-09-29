@@ -48,11 +48,11 @@
 -module(exometer_histogram).
 -behaviour(exometer_probe).
 
-%% exometer_entry callbacks
+%% exometer_probe callbacks
 -export([behaviour/0,
 	 probe_init/3,
 	 probe_terminate/1,
-	 probe_setopts/2,
+	 probe_setopts/3,
 	 probe_update/2,
 	 probe_get_value/2,
 	 probe_get_datapoints/1,
@@ -86,6 +86,7 @@
 -define(DATAPOINTS,
         [n, mean, min, max, median, 50, 75, 90, 95, 99, 999 ]).
 
+-spec behaviour() -> exometer:behaviour().
 behaviour() ->
     probe.
 
@@ -191,7 +192,7 @@ get_dp(K, L, Trunc) ->
             opt_trunc(Trunc, DP)
     end.
 
-probe_setopts(_Opts, St)  ->
+probe_setopts(_Entry, _Opts, _St)  ->
     ok.
 
 probe_update(Value, #st{slide = Slide,

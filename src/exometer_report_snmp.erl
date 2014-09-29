@@ -57,7 +57,7 @@
 
 -record(st, {
           mib_version = 0       :: integer(),
-          mib_file              :: string(),
+          mib_file              :: binary(),
           mib_file_path         :: string(),
           mib_domain            :: binary(),
           mib_funcs_file_path   :: string()
@@ -143,28 +143,32 @@ exometer_info(Unknown, St) ->
     ?info("Unknown info: ~p", [Unknown]),
     {ok, St}.
 
-exometer_newentry(#exometer_entry{status=disabled}, St) ->
-    {ok, St};
-exometer_newentry(#exometer_entry{} = E, St) ->
-    newentry(E, St).
-
-exometer_setopts(#exometer_entry{name=Metric} = E, _Options, disabled, St0) ->
-    update_subscriptions(Metric, []),
-    disable_metric(E, St0);
-exometer_setopts(#exometer_entry{name=Metric} = E, Options, _, St0) ->
-    case lists:keyfind(snmp, 1, Options) of
-        false ->
-            ok;
-        {_, disabled} ->
-            update_subscriptions(Metric, []),
-            disable_metric(E, St0);
-        {_, Subs} when is_list(Subs) ->
-            ok = update_subscriptions(Metric, Subs),
-            {ok, St0};
-        {_, Err} ->
-            ?error("Option ~p has incorrect value ~p", [snmp, Err]),
-            {error, improper_option}
+exometer_newentry(E, St) ->
+    case exometer_info:status(E) of
+	disabled ->
+	    {ok, St};
+	enabled ->
+	    newentry(E, St)
     end.
+
+exometer_setopts(#exometer_entry{name = Name} = E, _Options, disabled, St0) ->
+    update_subscriptions(Name, []),
+    disable_metric(E, St0);
+exometer_setopts(#exometer_entry{name = Name} = E, Options, _, St0) ->
+    case lists:keyfind(snmp, 1, Options) of
+	false ->
+	    ok;
+	{_, disabled} ->
+	    update_subscriptions(Name, []),
+	    disable_metric(E, St0);
+	{_, Subs} when is_list(Subs) ->
+	    ok = update_subscriptions(Name, Subs),
+	    {ok, St0};
+	{_, Err} ->
+	    ?error("Option ~p has incorrect value ~p", [snmp, Err]),
+	    {error, improper_option}
+    end.
+
 
 exometer_terminate(_, #st{mib_file_path=MibPath0}) ->
     MibPath1 = filename:rootname(MibPath0),
@@ -308,9 +312,13 @@ sync_mib(State0) ->
     State1 = lists:foldl(
       fun
           ({Metric, _Type, enabled}, St0) ->
-              Entry = exometer:info(Metric, entry),
-              {ok, St1} = newentry(Entry, St0),
-              St1;
+              case exometer:info(Metric, entry) of
+		  #exometer_entry{} = E ->
+		      {ok, St1} = newentry(E, St0),
+		      St1;
+		  _ ->
+		      St0
+	      end;
           (_, St) ->
               St
       end, State0, Metrics),
@@ -700,15 +708,15 @@ snmp_syntax_opt(Dp, Opts, Default) ->
 
 newentry(#exometer_entry{name = Name, options = Options} = E, St0) ->
     case lists:keyfind(snmp, 1, Options) of
-        false ->
-            {ok, St0};
-        {_, disabled} ->
-            {ok, St0};
-        {_, Subs} when is_list(Subs) ->
-            {ok, St1} = enable_metric(E, St0),
-            ok = update_subscriptions(Name, Subs),
-            {ok, St1};
-        {_, E} ->
-            ?error("Option ~p has incorrect value ~p", [snmp, E]),
-            {error, improper_option}
+	false ->
+	    {ok, St0};
+	{_, disabled} ->
+	    {ok, St0};
+	{_, Subs} when is_list(Subs) ->
+	    {ok, St1} = enable_metric(E, St0),
+	    ok = update_subscriptions(Name, Subs),
+	    {ok, St1};
+	{_, Other} ->
+	    ?error("Option ~p has incorrect value ~p", [snmp, Other]),
+	    {error, improper_option}
     end.

@@ -76,7 +76,7 @@ exometer_report(Metric, DataPoint, Extra, Value, St)  ->
            end,
     Str = [?MODULE_STRING, ": ", name(Metric, DataPoint), $\s,
            timestamp(), ":", value(Value), io_lib:format(" (~w)", [Type]), $\n],
-    io:format(Str, []),
+    io:put_chars(lists:flatten(Str)),
     {ok, St}.
 
 exometer_call(Unknown, From, St) ->

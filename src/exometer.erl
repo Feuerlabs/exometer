@@ -63,7 +63,8 @@
 %% Convenience function for testing
 -export([start/0, stop/0]).
 
--export_type([name/0, type/0, options/0, status/0]).
+-export_type([name/0, type/0, options/0, status/0, behaviour/0,
+	      entry/0]).
 
 -compile(inline).
 
@@ -72,10 +73,12 @@
 
 -type name()        :: list().
 -type type()        :: atom().
--type status()      :: enabled | disabled | non_neg_integer().
+-type status()      :: enabled | disabled.
 -type options()     :: [{atom(), any()}].
 -type value()       :: any().
 -type error()       :: {error, any()}.
+-type behaviour()   :: probe | entry.
+-type entry()       :: #exometer_entry{}.
 
 -define(IS_ENABLED(St), St==enabled orelse St band 2#1 == 1).
 -define(IS_DISABLED(St), St==disabled orelse St band 2#1 =/= 1).
@@ -496,24 +499,18 @@ setopts(Name, Options) when is_list(Name), is_list(Options) ->
             {error, not_found}
     end.
 
-module_setopts(#exometer_entry{behaviour = probe,
-			       name=N,
-			       type=T,
-			       ref = Pid}=E, Options, NewStatus) ->
+module_setopts(#exometer_entry{behaviour = probe}=E, Options, NewStatus) ->
     reporter_setopts(E, Options, NewStatus),
-    exometer_probe:setopts(N, Options, T, Pid);
+    exometer_probe:setopts(E, Options, NewStatus);
 
 module_setopts(#exometer_entry{behaviour = entry,
-			       name=Name,
-			       module=M,
-			       type=Type,
-			       ref=Ref}=E, Options, NewStatus) ->
+			       module=M} = E, Options, NewStatus) ->
     case [O || {K, _} = O <- Options,
                not lists:member(K, [status, cache, ref])] of
         [] ->
             ok;
         [_|_] = UserOpts ->
-            case M:setopts(Name, UserOpts, Type, Ref) of
+            case M:setopts(E, UserOpts, NewStatus) of
                 ok ->
                     reporter_setopts(E, Options, NewStatus),
                     ok;
@@ -522,7 +519,7 @@ module_setopts(#exometer_entry{behaviour = entry,
             end
     end.
 
-reporter_setopts(E, Options, Status) ->
+reporter_setopts(#exometer_entry{} = E, Options, Status) ->
     exometer_report:setopts(E, Options, Status).
 
 setopts_fctr(#exometer_entry{name = Name,
@@ -570,7 +567,7 @@ update_entry_elems(Name, Elems) ->
     ok.
 
 -type info() :: name | type | module | value | cache
-              | status | timestamp | options | ref | datapoints.
+              | status | timestamp | options | ref | datapoints | entry.
 -spec info(name(), info()) -> any().
 %% @doc Retrieves information about a metric.
 %%
@@ -680,7 +677,7 @@ get_values(Path) ->
               end
       end, [], Entries).
 
--spec select(ets:match_spec()) -> [{name(), type(), status()}].
+-spec select(ets:match_spec()) -> list().
 %% @doc Perform an `ets:select()' on the set of metrics.
 %%
 %% This function operates on a virtual structure representing the metrics,
@@ -696,7 +693,7 @@ select(Pattern) ->
 select_count(Pattern) ->
     ets:select_count(?EXOMETER_ENTRIES, [pattern(P) || P <- Pattern]).
 
--spec select(ets:match_spec(), pos_integer() | infinity) -> {[{name(), type(), status()}], _Cont}.
+-spec select(ets:match_spec(), pos_integer() | infinity) -> {list(), _Cont}.
 %% @doc Perform an `ets:select()' with a Limit on the set of metrics.
 %%
 %% This function is equivalent to {@link select/1}, but also takes a limit.
@@ -715,7 +712,7 @@ select_cont('$end_of_table') -> '$end_of_table';
 select_cont(Cont) ->
     ets:select(Cont).
 
--spec aggregate(ets:match_spec(), [atom()]) -> [{atom(), integer()}].
+-spec aggregate(ets:match_spec(), [atom()]) -> list().
 %% @doc Aggregate datapoints of matching entries.
 %%
 %% This function selects metric entries based on the given match spec, and
@@ -755,7 +752,7 @@ aggregate(Pattern, DataPoints) ->
 aggr_select(Pattern) ->
     select([setelement(3,P,[{element,1,'$_'}]) || P <- Pattern]).
 
-aggregate([N|Ns], DPs, Acc) ->
+aggregate([N|Ns], DPs, Acc) when is_list(N) ->
     case get_value(N, DPs) of
 	{ok, Vals} ->
 	    aggregate(Ns, DPs, aggr_acc(Vals, Acc));
@@ -766,9 +763,13 @@ aggregate([], _, Acc) ->
     Acc.
 
 aggr_acc([{D,V}|T], Acc) ->
-    aggr_acc(T, orddict:update(D, fun(Val) ->
-					  Val + V
-				  end, V, Acc));
+    if is_integer(V) ->
+	    aggr_acc(T, orddict:update(D, fun(Val) ->
+						  Val + V
+					  end, V, Acc));
+       true ->
+	    aggr_acc(T, Acc)
+    end;
 aggr_acc([], Acc) ->
     Acc.
 

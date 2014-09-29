@@ -235,7 +235,19 @@ generate an error log message by exometer.
 
 
 <pre><code>
-datapoint() = atom()
+datapoint() = atom() | pos_integer()
+</code></pre>
+
+
+
+
+
+### <a name="type-datapoints">datapoints()</a> ###
+
+
+
+<pre><code>
+datapoints() = <a href="#type-datapoint">datapoint()</a> | [<a href="#type-datapoint">datapoint()</a>]
 </code></pre>
 
 
@@ -573,7 +585,7 @@ List all subscriptions for `Reporter`.
 
 
 <pre><code>
-new_entry(Entry::<a href="exometer.md#type-name">exometer:name()</a>) -&gt; ok
+new_entry(Entry::<a href="exometer.md#type-entry">exometer:entry()</a>) -&gt; ok
 </code></pre>
 <br />
 
@@ -659,7 +671,7 @@ all intervals to be restarted/resynched with corresponding relative delays.
 
 
 <pre><code>
-setopts(Metric::<a href="exometer.md#type-name">exometer:name()</a>, Options::<a href="#type-options">options()</a>, Status::enabled | disabled) -&gt; ok
+setopts(Metric::<a href="exometer.md#type-entry">exometer:entry()</a>, Options::<a href="#type-options">options()</a>, Status::<a href="exometer.md#type-status">exometer:status()</a>) -&gt; ok
 </code></pre>
 <br />
 
@@ -694,7 +706,7 @@ Starts the server
 
 
 <pre><code>
-subscribe(Reporter::module(), Metric::<a href="#type-metric">metric()</a>, DataPoint::<a href="#type-datapoint">datapoint()</a> | [<a href="#type-datapoint">datapoint()</a>], Interval::<a href="#type-interval">interval()</a>) -&gt; ok | not_found | unknown_reporter | error
+subscribe(Reporter::<a href="#type-reporter_name">reporter_name()</a>, Metric::<a href="#type-metric">metric()</a>, DataPoint::<a href="#type-datapoints">datapoints()</a>, Interval::<a href="#type-interval">interval()</a>) -&gt; ok | not_found | unknown_reporter | error
 </code></pre>
 <br />
 
@@ -705,7 +717,7 @@ Equivalent to [`subscribe(Reporter, Metric, DataPoint, Interval, [],false)`](#su
 
 
 <pre><code>
-subscribe(Reporter::module(), Metric::<a href="#type-metric">metric()</a>, DataPoint::<a href="#type-datapoint">datapoint()</a>, Interval::<a href="#type-interval">interval()</a>, Extra::<a href="#type-extra">extra()</a>) -&gt; ok | not_found | unknown_reporter | error
+subscribe(Reporter::<a href="#type-reporter_name">reporter_name()</a>, Metric::<a href="#type-metric">metric()</a>, DataPoint::<a href="#type-datapoints">datapoints()</a>, Interval::<a href="#type-interval">interval()</a>, Extra::<a href="#type-extra">extra()</a>) -&gt; ok | not_found | unknown_reporter | error
 </code></pre>
 <br />
 
@@ -716,7 +728,7 @@ Equivalent to [`subscribe(Reporter, Metric, DataPoint, Interval, Extra,false)`](
 
 
 <pre><code>
-subscribe(Reporter::module(), Metric::<a href="#type-metric">metric()</a>, DataPoint::<a href="#type-datapoint">datapoint()</a>, Interval::<a href="#type-interval">interval()</a>, Extra::<a href="#type-extra">extra()</a>, Retry::<a href="#type-retry">retry()</a>) -&gt; ok | not_found | unknown_reporter | error
+subscribe(Reporter::<a href="#type-reporter_name">reporter_name()</a>, Metric::<a href="#type-metric">metric()</a>, DataPoint::<a href="#type-datapoints">datapoints()</a>, Interval::<a href="#type-interval">interval()</a>, Extra::<a href="#type-extra">extra()</a>, Retry::<a href="#type-retry">retry()</a>) -&gt; ok | not_found | unknown_reporter | error
 </code></pre>
 <br />
 

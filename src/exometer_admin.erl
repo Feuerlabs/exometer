@@ -177,6 +177,9 @@ new_entry(Name, Type, Opts) ->
             ok
     end.
 
+report_new_entry(#exometer_entry{} = E) ->
+    exometer_report:new_entry(E).
+
 re_register_entry(Name, Type, Opts) ->
     {Type1, Opts1} = check_type_arg(Type, Opts),
     case gen_server:call(?MODULE, {new_entry, Name, Type1, Opts1, true}) of
@@ -278,7 +281,7 @@ handle_call({ensure, Name, Type, Opts}, _From, S) ->
 		lookup_definition(Name, Type, Opts),
 	    E1 = process_opts(E0, OptsTemplate ++ Opts),
 	    Res = exometer:create_entry(E1),
-	    exometer_report:new_entry(E1),
+	    report_new_entry(E1),
 	    {reply, Res, S}
     end;
 handle_call({auto_create, Name}, _From, S) ->
@@ -288,7 +291,7 @@ handle_call({auto_create, Name}, _From, S) ->
 	#exometer_entry{options = Opts} = E ->
 	    E1 = process_opts(E#exometer_entry{name = Name}, Opts),
 	    Res = exometer:create_entry(E1),
-	    exometer_report:new_entry(E1),
+	    report_new_entry(E1),
 	    {reply, Res, S}
     end;
 handle_call(_, _, S) ->

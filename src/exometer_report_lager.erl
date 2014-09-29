@@ -95,7 +95,7 @@ exometer_report(Metric, DataPoint, _Extra, Value, #st{level = Level} = St)  ->
     %% Report the value and setup a new refresh timer.
     Str = [?MODULE_STRING, ": ", name(Metric, DataPoint),
            ":", value(Value), $\n],
-    log(Level, Str),
+    log(Level, lists:flatten(Str)),
     {ok, St}.
 
 exometer_call(Unknown, From, St) ->

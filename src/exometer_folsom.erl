@@ -19,8 +19,9 @@
          update/4,
          reset/3,
          sample/3,
-         setopts/4]).
+         setopts/3]).
 
+-spec behaviour() -> exometer:behaviour().
 behaviour() -> entry.
 
 new(Name, counter, _Opts) ->
@@ -180,7 +181,7 @@ zero(false) -> 0.0.
 stats_datapoints() ->
     [n,mean,min,max,median,50,75,90,95,99,999].
 
-setopts(_Name, _Options, _Type, _Ref)  ->
+setopts(_Entry, _Options, _Status)  ->
     ok.
 
 sample(_Name, _Type, _Ref) ->

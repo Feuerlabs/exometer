@@ -10,7 +10,7 @@
 
 ### <a name="Creating_custom_exometer_entries">Creating custom exometer entries</a> ###
 .
-__This module defines the `exometer_entry` behaviour.__<br /> Required callback functions: `behaviour/0`, `new/3`, `delete/3`, `get_value/4`, `update/4`, `reset/3`, `sample/3`, `get_datapoints/3`, `setopts/4`.
+__This module defines the `exometer_entry` behaviour.__<br /> Required callback functions: `behaviour/0`, `new/3`, `delete/3`, `get_value/4`, `update/4`, `reset/3`, `sample/3`, `get_datapoints/3`, `setopts/3`.
 <a name="description"></a>
 
 ## Description ##

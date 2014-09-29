@@ -1,9 +1,11 @@
 .PHONY: all clean clean_plt deps compile test doc dialyzer xref devnode_snmp_agent devnode_snmp_manager compile_examples ci
 
 EXOMETER_PLT=exometer.plt
-DIALYZER_OPTS = -Wunderspecs
-DIALYZER_APPS = erts kernel stdlib syntax_tools snmp \
-		lager afunix netlink folsom exo
+DIALYZER_OPTS = # -Wunderspecs
+DIALYZER_APPS = erts kernel stdlib compiler syntax_tools snmp ssl ssh \
+		crypto public_key test_server webtool xmerl common_test \
+		lager goldrush afunix netlink folsom exo mnesia parse_trans \
+		setup
 
 all: deps compile xref test
 

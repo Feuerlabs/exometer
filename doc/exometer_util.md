@@ -32,7 +32,7 @@ timestamp() = non_neg_integer()
 
 
 <table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#clear_event_flag-2">clear_event_flag/2</a></td><td></td></tr><tr><td valign="top"><a href="#drop_duplicates-1">drop_duplicates/1</a></td><td>
-<code>drop_duplicates/1</code> will drop all duplicate elements from a list of tuples identified by their first element.</td></tr><tr><td valign="top"><a href="#get_datapoints-1">get_datapoints/1</a></td><td></td></tr><tr><td valign="top"><a href="#get_env-2">get_env/2</a></td><td></td></tr><tr><td valign="top"><a href="#get_opt-3">get_opt/3</a></td><td></td></tr><tr><td valign="top"><a href="#get_statistics-3">get_statistics/3</a></td><td>Calculate statistics from a sorted list of values.</td></tr><tr><td valign="top"><a href="#get_statistics2-4">get_statistics2/4</a></td><td></td></tr><tr><td valign="top"><a href="#histogram-1">histogram/1</a></td><td></td></tr><tr><td valign="top"><a href="#histogram-2">histogram/2</a></td><td></td></tr><tr><td valign="top"><a href="#report_type-3">report_type/3</a></td><td></td></tr><tr><td valign="top"><a href="#set_call_count-2">set_call_count/2</a></td><td></td></tr><tr><td valign="top"><a href="#set_call_count-3">set_call_count/3</a></td><td></td></tr><tr><td valign="top"><a href="#set_event_flag-2">set_event_flag/2</a></td><td></td></tr><tr><td valign="top"><a href="#set_status-2">set_status/2</a></td><td></td></tr><tr><td valign="top"><a href="#table-0">table/0</a></td><td></td></tr><tr><td valign="top"><a href="#tables-0">tables/0</a></td><td></td></tr><tr><td valign="top"><a href="#test_event_flag-2">test_event_flag/2</a></td><td></td></tr><tr><td valign="top"><a href="#timestamp-0">timestamp/0</a></td><td>Generate a millisecond-resolution timestamp.</td></tr><tr><td valign="top"><a href="#timestamp_to_datetime-1">timestamp_to_datetime/1</a></td><td>Convert timestamp to a regular datetime.</td></tr></table>
+<code>drop_duplicates/1</code> will drop all duplicate elements from a list of tuples identified by their first element.</td></tr><tr><td valign="top"><a href="#get_datapoints-1">get_datapoints/1</a></td><td></td></tr><tr><td valign="top"><a href="#get_env-2">get_env/2</a></td><td></td></tr><tr><td valign="top"><a href="#get_opt-3">get_opt/3</a></td><td></td></tr><tr><td valign="top"><a href="#get_statistics-3">get_statistics/3</a></td><td>Calculate statistics from a sorted list of values.</td></tr><tr><td valign="top"><a href="#get_statistics2-4">get_statistics2/4</a></td><td></td></tr><tr><td valign="top"><a href="#get_status-1">get_status/1</a></td><td></td></tr><tr><td valign="top"><a href="#histogram-1">histogram/1</a></td><td></td></tr><tr><td valign="top"><a href="#histogram-2">histogram/2</a></td><td></td></tr><tr><td valign="top"><a href="#report_type-3">report_type/3</a></td><td></td></tr><tr><td valign="top"><a href="#set_call_count-2">set_call_count/2</a></td><td></td></tr><tr><td valign="top"><a href="#set_call_count-3">set_call_count/3</a></td><td></td></tr><tr><td valign="top"><a href="#set_event_flag-2">set_event_flag/2</a></td><td></td></tr><tr><td valign="top"><a href="#set_status-2">set_status/2</a></td><td></td></tr><tr><td valign="top"><a href="#table-0">table/0</a></td><td></td></tr><tr><td valign="top"><a href="#tables-0">tables/0</a></td><td></td></tr><tr><td valign="top"><a href="#test_event_flag-2">test_event_flag/2</a></td><td></td></tr><tr><td valign="top"><a href="#timestamp-0">timestamp/0</a></td><td>Generate a millisecond-resolution timestamp.</td></tr><tr><td valign="top"><a href="#timestamp_to_datetime-1">timestamp_to_datetime/1</a></td><td>Convert timestamp to a regular datetime.</td></tr></table>
 
 
 <a name="functions"></a>
@@ -117,6 +117,13 @@ Fulpatchad med min/max av Magnus Feuer.
 ### get_statistics2/4 ###
 
 `get_statistics2(L, Sorted, Total, Mean) -> any()`
+
+
+<a name="get_status-1"></a>
+
+### get_status/1 ###
+
+`get_status(St) -> any()`
 
 
 <a name="histogram-1"></a>
@@ -211,7 +218,7 @@ This timestamp format is used e.g. by the `exometer_slide` and
 
 
 <pre><code>
-timestamp_to_datetime(TS::<a href="#type-timestamp">timestamp()</a>) -&gt; <a href="calendar.md#type-datetime">calendar:datetime()</a>
+timestamp_to_datetime(TS::<a href="#type-timestamp">timestamp()</a>) -&gt; {<a href="calendar.md#type-datetime">calendar:datetime()</a>, non_neg_integer()}
 </code></pre>
 <br />
 

@@ -56,7 +56,7 @@ spawn_process(Name, F) when is_function(F,0) ->
                            F()
                    end).
 
--spec cast(pid(), Msg::any()) -> ok.
+-spec cast(pid() | atom(), Msg::any()) -> ok.
 %% @doc Send an asynchronous message to an `exometer_proc' process.
 %%
 %% This function sends a message on the form `{exometer_proc, Msg}' to the
@@ -66,7 +66,7 @@ cast(Pid, Msg) ->
     Pid ! {exometer_proc, Msg},
     ok.
 
--spec call(pid(), any()) -> any().
+-spec call(pid() | atom(), any()) -> any().
 %% @doc Make a synchronous call to an `exometer_proc' process.
 %%
 %% Note that the receiving process must explicitly handle the message in a

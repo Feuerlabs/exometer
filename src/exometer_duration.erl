@@ -17,7 +17,7 @@
 	 get_value/3,
 	 get_value/4,
 	 get_datapoints/3,
-	 setopts/4,
+	 setopts/3,
 	 update/4,
 	 reset/3,
 	 sample/3]).
@@ -30,7 +30,7 @@
          probe_update/2,
          probe_reset/1,
          probe_sample/1,
-         probe_setopts/2,
+         probe_setopts/3,
          probe_get_datapoints/1,
          probe_handle_msg/2,
          probe_code_change/3]).
@@ -66,8 +66,8 @@ get_value(Name, Type, Ref, DataPoints) ->
 get_datapoints(Name, Type, Ref) ->
     exometer_probe:get_datapoints(Name, Type, Ref).
 
-setopts(Name, Opts, Type, Ref) ->
-    exometer_probe:setopts(Name, Opts, Type, Ref).
+setopts(Entry, Opts, Status) ->
+    exometer_probe:setopts(Entry, Opts, Status).
 
 update(Name, timer_start, Type, Ref) ->
     exometer_probe:update(Name, {timer_start, os:timestamp()}, Type, Ref);
@@ -105,7 +105,7 @@ probe_get_value(DataPoints, #st{histogram = H} = St) ->
 	    {ok, fill_datapoints(DataPoints, HVals, St)}
     end.
 
-probe_setopts(_Opts, _St) ->
+probe_setopts(_Entry, _Opts, _St) ->
     ok.
 
 probe_update({timer_start, T}, St) ->

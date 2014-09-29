@@ -86,7 +86,7 @@ Callback function used by the SNMP master agent upon operations performed by a m
 
 ### exometer_newentry/2 ###
 
-`exometer_newentry(Exometer_entry, St) -> any()`
+`exometer_newentry(E, St) -> any()`
 
 
 <a name="exometer_report-5"></a>

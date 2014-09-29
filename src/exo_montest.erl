@@ -24,7 +24,7 @@
 	 new/3,
 	 reset/3,
 	 sample/3,
-	 setopts/4,
+	 setopts/3,
 	 update/4]).
 
 behaviour() ->
@@ -56,7 +56,7 @@ get_value(_, Type, {_, Name}, DPs) ->
 sample(_, _, _) ->
     {error, unsupported}.
 
-setopts(_, _, _, _) ->
+setopts(_, _, _) ->
     ok.
 
 delete(_, _, _) ->
