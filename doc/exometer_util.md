@@ -32,7 +32,7 @@ timestamp() = non_neg_integer()
 
 
 <table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#clear_event_flag-2">clear_event_flag/2</a></td><td></td></tr><tr><td valign="top"><a href="#drop_duplicates-1">drop_duplicates/1</a></td><td>
-<code>drop_duplicates/1</code> will drop all duplicate elements from a list of tuples identified by their first element.</td></tr><tr><td valign="top"><a href="#get_datapoints-1">get_datapoints/1</a></td><td></td></tr><tr><td valign="top"><a href="#get_env-2">get_env/2</a></td><td></td></tr><tr><td valign="top"><a href="#get_opt-3">get_opt/3</a></td><td></td></tr><tr><td valign="top"><a href="#get_statistics-3">get_statistics/3</a></td><td>Calculate statistics from a sorted list of values.</td></tr><tr><td valign="top"><a href="#get_statistics2-4">get_statistics2/4</a></td><td></td></tr><tr><td valign="top"><a href="#get_status-1">get_status/1</a></td><td></td></tr><tr><td valign="top"><a href="#histogram-1">histogram/1</a></td><td></td></tr><tr><td valign="top"><a href="#histogram-2">histogram/2</a></td><td></td></tr><tr><td valign="top"><a href="#report_type-3">report_type/3</a></td><td></td></tr><tr><td valign="top"><a href="#set_call_count-2">set_call_count/2</a></td><td></td></tr><tr><td valign="top"><a href="#set_call_count-3">set_call_count/3</a></td><td></td></tr><tr><td valign="top"><a href="#set_event_flag-2">set_event_flag/2</a></td><td></td></tr><tr><td valign="top"><a href="#set_status-2">set_status/2</a></td><td></td></tr><tr><td valign="top"><a href="#table-0">table/0</a></td><td></td></tr><tr><td valign="top"><a href="#tables-0">tables/0</a></td><td></td></tr><tr><td valign="top"><a href="#test_event_flag-2">test_event_flag/2</a></td><td></td></tr><tr><td valign="top"><a href="#timestamp-0">timestamp/0</a></td><td>Generate a millisecond-resolution timestamp.</td></tr><tr><td valign="top"><a href="#timestamp_to_datetime-1">timestamp_to_datetime/1</a></td><td>Convert timestamp to a regular datetime.</td></tr></table>
+<code>drop_duplicates/1</code> will drop all duplicate elements from a list of tuples identified by their first element.</td></tr><tr><td valign="top"><a href="#get_datapoints-1">get_datapoints/1</a></td><td></td></tr><tr><td valign="top"><a href="#get_env-2">get_env/2</a></td><td></td></tr><tr><td valign="top"><a href="#get_opt-3">get_opt/3</a></td><td></td></tr><tr><td valign="top"><a href="#get_statistics-3">get_statistics/3</a></td><td>Calculate statistics from a sorted list of values.</td></tr><tr><td valign="top"><a href="#get_statistics2-4">get_statistics2/4</a></td><td></td></tr><tr><td valign="top"><a href="#get_status-1">get_status/1</a></td><td></td></tr><tr><td valign="top"><a href="#histogram-1">histogram/1</a></td><td></td></tr><tr><td valign="top"><a href="#histogram-2">histogram/2</a></td><td></td></tr><tr><td valign="top"><a href="#pick_items-2">pick_items/2</a></td><td>Pick values from specified positions in a sorted list of numbers.</td></tr><tr><td valign="top"><a href="#report_type-3">report_type/3</a></td><td></td></tr><tr><td valign="top"><a href="#set_call_count-2">set_call_count/2</a></td><td></td></tr><tr><td valign="top"><a href="#set_call_count-3">set_call_count/3</a></td><td></td></tr><tr><td valign="top"><a href="#set_event_flag-2">set_event_flag/2</a></td><td></td></tr><tr><td valign="top"><a href="#set_status-2">set_status/2</a></td><td></td></tr><tr><td valign="top"><a href="#table-0">table/0</a></td><td></td></tr><tr><td valign="top"><a href="#tables-0">tables/0</a></td><td></td></tr><tr><td valign="top"><a href="#test_event_flag-2">test_event_flag/2</a></td><td></td></tr><tr><td valign="top"><a href="#timestamp-0">timestamp/0</a></td><td>Generate a millisecond-resolution timestamp.</td></tr><tr><td valign="top"><a href="#timestamp_to_datetime-1">timestamp_to_datetime/1</a></td><td>Convert timestamp to a regular datetime.</td></tr></table>
 
 
 <a name="functions"></a>
@@ -140,6 +140,23 @@ Fulpatchad med min/max av Magnus Feuer.
 `histogram(Values, DataPoints) -> any()`
 
 
+<a name="pick_items-2"></a>
+
+### pick_items/2 ###
+
+
+<pre><code>
+pick_items(Vals::[number()], Items::[{atom() | integer(), integer()}]) -&gt; number()
+</code></pre>
+<br />
+
+
+Pick values from specified positions in a sorted list of numbers.
+
+
+This function is used to extract datapoints (usually percentiles) from
+a sorted list of values. `Items` is a list of `{Datapoint, Position}`
+entries.
 <a name="report_type-3"></a>
 
 ### report_type/3 ###
