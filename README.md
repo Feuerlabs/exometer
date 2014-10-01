@@ -4,7 +4,7 @@
 
 Copyright (c) 2014 Basho Technologies, Inc.  All Rights Reserved.
 
-__Version:__ Sep 29 2014 22:21:42
+__Version:__ Oct 1 2014 20:38:13
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -410,16 +410,17 @@ The system using Exometer must start the `exometer` application prior to using i
 
 ```erlang
 
+application:start(lager),
 application:start(exometer).
 ```
 
-Once started, the default mapping between metrics and the entries
-is loaded from the configuration data:
+Note that dependent applications need to be started first. On newer OTP versions
+(R61B or later), you can use `application:ensure_all_started(exometer)`.
 
-```erlang
+For testing, you can also use [`exometer:start/0`](https://github.com/Feuerlabs/exometer/blob/master/doc/exometer.md#start-0).
 
-exometer_admin:preset_defaults().
-```
+If you make use of e.g. folsom metrics, you also need to start `folsom`. Exometer
+will not do that automatically, nor does it contain an application dependency for it.
 
 See [Configuring Exometer](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_Exometer) for details on configuration data
 format.
@@ -958,7 +959,6 @@ Please see @see exometer_report documentation for details.
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_snmp.md" class="module">exometer_report_snmp</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_statsd.md" class="module">exometer_report_statsd</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_tty.md" class="module">exometer_report_tty</a></td></tr>
-<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_shallowtree.md" class="module">exometer_shallowtree</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_slide.md" class="module">exometer_slide</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_slot_slide.md" class="module">exometer_slot_slide</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_spiral.md" class="module">exometer_spiral</a></td></tr>

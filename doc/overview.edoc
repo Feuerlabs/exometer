@@ -399,13 +399,16 @@ use metrics reporting.
 The system using Exometer must start the `exometer' application prior to using it:
 
 <pre lang="erlang">
+application:start(lager),
 application:start(exometer).</pre>
 
-Once started, the default mapping between metrics and the entries
-is loaded from the configuration data:
+Note that dependent applications need to be started first. On newer OTP versions
+(R61B or later), you can use `application:ensure_all_started(exometer)'.
 
-<pre lang="erlang">
-exometer_admin:preset_defaults().</pre>
+For testing, you can also use {@link exometer:start/0}.
+
+If you make use of e.g. folsom metrics, you also need to start `folsom'. Exometer
+will not do that automatically, nor does it contain an application dependency for it.
 
 See {@section Configuring Exometer} for details on configuration data
 format.

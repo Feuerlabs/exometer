@@ -85,10 +85,12 @@
 
 -define(EVENT_ENABLED(St), St band 2#10 == 2#10).
 
+%% @doc Start exometer and dependent apps (for testing).
 start() ->
     lager:start(),
     application:start(exometer).
 
+%% @doc Stop exometer and dependent apps (for testing).
 stop() ->
     application:stop(exometer),
     application:stop(lager).
