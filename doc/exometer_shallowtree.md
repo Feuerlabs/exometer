@@ -43,7 +43,7 @@ tree() = #t{}
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#fill-1">fill/1</a></td><td></td></tr><tr><td valign="top"><a href="#fill1-2">fill1/2</a></td><td></td></tr><tr><td valign="top"><a href="#insert-2">insert/2</a></td><td>Insert value <code>V</code> into tree <code>T</code>.</td></tr><tr><td valign="top"><a href="#new-1">new/1</a></td><td>Create an empty tree limited to <code>Size</code>.</td></tr><tr><td valign="top"><a href="#size-1">size/1</a></td><td>Returns the number of values stored in the given tree.</td></tr><tr><td valign="top"><a href="#take_min-1">take_min/1</a></td><td>Extract the smallest value from the tree <code>T</code>.</td></tr><tr><td valign="top"><a href="#to_list-1">to_list/1</a></td><td>Converts a tree to a list.</td></tr></table>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#fill-1">fill/1</a></td><td></td></tr><tr><td valign="top"><a href="#fill1-2">fill1/2</a></td><td></td></tr><tr><td valign="top"><a href="#filter-2">filter/2</a></td><td></td></tr><tr><td valign="top"><a href="#insert-3">insert/3</a></td><td>Insert value <code>V</code> into tree <code>T</code>.</td></tr><tr><td valign="top"><a href="#limit-1">limit/1</a></td><td>Returns the maximum number of values for the given tree.</td></tr><tr><td valign="top"><a href="#new-1">new/1</a></td><td>Create an empty tree limited to <code>Size</code>.</td></tr><tr><td valign="top"><a href="#size-1">size/1</a></td><td>Returns the number of values stored in the given tree.</td></tr><tr><td valign="top"><a href="#take_min-1">take_min/1</a></td><td>Extract the smallest value from the tree <code>T</code>.</td></tr><tr><td valign="top"><a href="#to_list-1">to_list/1</a></td><td>Converts a tree to a list.</td></tr></table>
 
 
 <a name="functions"></a>
@@ -64,13 +64,20 @@ tree() = #t{}
 `fill1(T, Tree) -> any()`
 
 
-<a name="insert-2"></a>
+<a name="filter-2"></a>
 
-### insert/2 ###
+### filter/2 ###
+
+`filter(F, T) -> any()`
+
+
+<a name="insert-3"></a>
+
+### insert/3 ###
 
 
 <pre><code>
-insert(V::number(), T::<a href="#type-tree">tree()</a>) -&gt; <a href="#type-tree">tree()</a>
+insert(K::number(), V::any(), T::<a href="#type-tree">tree()</a>) -&gt; <a href="#type-tree">tree()</a>
 </code></pre>
 <br />
 
@@ -80,6 +87,17 @@ Insert value `V` into tree `T`.
 
 If the tree is full and `V` is smaller than the minimum, this function
 will return immediately, leaving the tree unchanged.
+<a name="limit-1"></a>
+
+### limit/1 ###
+
+
+<pre><code>
+limit(T::<a href="#type-tree">tree()</a>) -&gt; non_neg_integer()
+</code></pre>
+<br />
+
+Returns the maximum number of values for the given tree.
 <a name="new-1"></a>
 
 ### new/1 ###
@@ -108,7 +126,7 @@ Returns the number of values stored in the given tree.
 
 
 <pre><code>
-take_min(T::<a href="#type-tree">tree()</a>) -&gt; {number(), <a href="#type-tree">tree()</a>} | error
+take_min(T::<a href="#type-tree">tree()</a>) -&gt; {number(), any(), <a href="#type-tree">tree()</a>} | error
 </code></pre>
 <br />
 
@@ -123,7 +141,7 @@ If the tree is empty, `error` is returned, otherwise `{Minimum, NewTree}`.
 
 
 <pre><code>
-to_list(T::<a href="#type-tree">tree()</a>) -&gt; [number()]
+to_list(T::<a href="#type-tree">tree()</a>) -&gt; [{number(), any()}]
 </code></pre>
 <br />
 

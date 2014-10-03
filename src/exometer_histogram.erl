@@ -124,7 +124,8 @@ init_state(Name, Options) ->
 		       false ->
 			   undefined;
 		       {_, N} when is_integer(N), N > 0 ->
-			   exometer_shallowtree:new(N);
+			   T = exometer_shallowtree:new(N),
+			   {T, T};
 		       {_, 0} ->
 			   undefined
 		   end;
@@ -161,19 +162,22 @@ get_value_int(St, DataPoints) ->
 
 get_value_int_(#st{truncate = Trunc,
                    histogram_module = Module,
+		   time_span = TimeSpan,
 		   heap = Heap} = St, DataPoints) ->
     %% We need element count and sum of all elements to get mean value.
     Tot0 = case Trunc of true -> 0; false -> 0.0 end,
+    TS = exometer_util:timestamp(),
     {Length, FullLength, Total, Min0, Max, Lst0, Xtra} =
         Module:foldl(
+	  TS,
           fun
-              ({_TS, {Val, Cnt, NMin, NMax, X}},
+              ({_TS1, {Val, Cnt, NMin, NMax, X}},
                {Length, FullLen, Total, OMin, OMax, List, Xs}) ->
                   {Length + 1, FullLen + Cnt, Total + Val,
 		   min(OMin, NMin), max(OMax, NMax),
                    [Val|List], [X|Xs]};
 
-              ({_TS, Val}, {Length, _, Total, Min, Max, List, Xs}) ->
+              ({_TS1, Val}, {Length, _, Total, Min, Max, List, Xs}) ->
 		  L1 = Length+1,
                   {L1, L1, Total + Val, min(Val, Min), max(Val, Max),
                    [Val|List], Xs}
@@ -192,15 +196,16 @@ get_value_int_(#st{truncate = Trunc,
            true ->
                 {Length, lists:sort(Lst0)}
         end,
-    TopPercentiles = get_from_heap(Heap, FullLength, DataPoints),
+    TopPercentiles = get_from_heap(Heap, TS, TimeSpan, FullLength, DataPoints),
     Results = exometer_util:get_statistics2(Len, List, Total, Mean),
     CombinedResults = TopPercentiles ++ Results,
     [get_dp(K, CombinedResults, Trunc) || K <- DataPoints].
 
-get_from_heap(undefined, _, _) ->
+get_from_heap(undefined, _, _, _, _) ->
     [];
-get_from_heap(H, N, DPs) ->
-    Sz = exometer_shallowtree:size(H),
+get_from_heap({New,Old}, TS, TSpan, N, DPs) ->
+    Sz = exometer_shallowtree:size(New)
+	+ exometer_shallowtree:size(Old),
     MinPerc = 100 - ((Sz*100) div N),
     MinPerc10 = MinPerc * 10,
     GetDPs = lists:foldl(
@@ -211,13 +216,26 @@ get_from_heap(H, N, DPs) ->
 		  (_, Acc) ->
 		       Acc
 	       end, [], DPs),
-    pick_heap_vals(GetDPs, H).
+    pick_heap_vals(GetDPs, New, Old, TS, TSpan).
 
-pick_heap_vals([], _) ->
+pick_heap_vals([], _, _, _, _) ->
     [];
-pick_heap_vals(DPs, H) ->
-    Vals = lists:reverse(lists:sort(exometer_shallowtree:to_list(H))),
+pick_heap_vals(DPs, New, Old, TS, TSpan) ->
+    TS0 = TS - TSpan,
+    NewVals = exometer_shallowtree:filter(fun(V,_) -> {true,V} end, New),
+    OldVals = exometer_shallowtree:filter(
+		fun(V,T) ->
+			if T >= TS0 ->
+				{true, V};
+			   true ->
+				false
+			end
+		end, Old),
+    Vals = revsort(OldVals ++ NewVals),
     exometer_util:pick_items(Vals, DPs).
+
+revsort(L) ->
+    lists:sort(fun erlang:'>'/2, L).
 
 p(50, N) -> perc(0.5, N);
 p(75, N) -> perc(0.25, N);
@@ -279,13 +297,17 @@ probe_update(Value, St) ->
 update_int(Timestamp, Value, #st{slide = Slide,
 				 histogram_module = Module,
 				 heap = Heap} = St) ->
-    St#st{slide = Module:add_element(Timestamp, Value, Slide),
-	  heap = into_heap(Value, Heap)}.
+    {Wrapped, Slide1} = Module:add_element(Timestamp, Value, Slide, true),
+    St#st{slide = Slide1, heap = into_heap(Wrapped, Value, Timestamp, Heap)}.
 
-into_heap(_Val, undefined) ->
+into_heap(_, _Val, _TS, undefined) ->
     undefined;
-into_heap(Val, H) ->
-    exometer_shallowtree:insert(Val, H).
+into_heap(false, Val, TS, {New,Old}) ->
+    {exometer_shallowtree:insert(Val, TS, New), Old};
+into_heap(true, Val, TS, {New,_}) ->
+    Limit = exometer_shallowtree:limit(New),
+    {exometer_shallowtree:insert(
+       Val, TS, exometer_shallowtree:new(Limit)), New}.
 
 probe_reset(?OLDSTATE = St) ->
     probe_reset(convert(St));

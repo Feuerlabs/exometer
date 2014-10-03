@@ -146,7 +146,7 @@ Fulpatchad med min/max av Magnus Feuer.
 
 
 <pre><code>
-pick_items(Vals::[number()], Items::[{atom() | integer(), integer()}]) -&gt; number()
+pick_items(Vals::[number()], Items::[{atom() | integer(), integer()}]) -&gt; [{atom(), number()}]
 </code></pre>
 <br />
 
