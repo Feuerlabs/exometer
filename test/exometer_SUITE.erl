@@ -25,6 +25,7 @@
     test_fast_counter/1,
     test_update_or_create/1,
     test_update_or_create2/1,
+    test_default_override/1,
     test_std_histogram/1,
     test_std_duration/1,
     test_folsom_histogram/1,
@@ -71,7 +72,8 @@ groups() ->
      {test_defaults, [shuffle],
       [
        test_update_or_create,
-       test_update_or_create2
+       test_update_or_create2,
+       test_default_override
       ]},
      {test_histogram, [shuffle],
       [
@@ -197,6 +199,27 @@ test_update_or_create(_Config) ->
     exometer_admin:set_default([a,'_',d], histogram, []),
     histogram = exometer:info(exometer_admin:find_auto_template([a,b,d]), type),
     counter = exometer:info(exometer_admin:find_auto_template([a,b,c]), type),
+    ok.
+
+test_default_override(_Config) ->
+    E = [d,e,f],
+    E1 = [d,e,f,1],
+    E2 = [d,e,f,2],
+    undefined = exometer:info(E, status),
+    exometer_admin:set_default(E, histogram, [{options,
+					       [{histogram_module,
+						 exometer_slot_slide},
+						{keep_high, 100}]}]),
+    exometer:new(E1, histogram, []),
+    [{histogram_module, exometer_slot_slide},
+     {keep_high, 100}] = exometer:info(E1, options),
+    exometer:new(E2, histogram, [{keep_high, 300}]),
+    [{histogram_module, exometer_slot_slide},
+     {keep_high, 300}] = exometer:info(E2, options),
+    exometer:new(E, histogram, [{histogram_module, exometer_slide},
+				{'--', [keep_high]}]),
+    [{histogram_module, exometer_slide}] =
+	exometer:info(E, options),
     ok.
 
 test_update_or_create2(_Config) ->

@@ -44,6 +44,7 @@
    [
     new/2, new/3,
     re_register/3, ensure/3,
+    propose/3,
     update/2, update_or_create/2, update_or_create/4,
     get_value/1, get_value/2, get_values/1,
     sample/1,
@@ -127,6 +128,11 @@ new(Name, Type) ->
 %% SNMP type for a given data point. `SYNTAX' needs to be a binary or a string,
 %% and corresponds to the SYNTAX definition in the generated SNMP MIB.
 %%
+%% * <code>{'--', Keys}</code> removes option keys from the applied template.
+%% This can be used to clean up the options list when overriding the defaults
+%% for a given namespace (if the default definition contains options that are
+%% not applicable, or would even cause problems with the current entry.)
+%%
 %% For example, the default value for an exometer counter is `"Counter32"', which
 %% expands to `SYNTAX Counter32' in the corresponding MIB object definition. If
 %% a 64-bit counter (not supported by SNMPv1) is desired instead, the option
@@ -137,6 +143,17 @@ new(Name, Type) ->
 %% @end
 new(Name, Type, Opts) when is_list(Name), is_list(Opts) ->
     exometer_admin:new_entry(Name, Type, Opts).
+
+-spec propose(name(), type(), options()) -> exometer_info:pp() | error().
+%% @doc Propose a new exometer entry (no entry actually created).
+%%
+%% This function analyzes a proposed entry definition, applying templates
+%% and processing options in the same way as {@link new/3}, but not actually
+%% creating the entry. The return value, if successful, corresponds to
+%% `exometer_info:pp(Entry)'.
+%% @end
+propose(Name, Type, Opts) when is_list(Name), is_list(Opts) ->
+    exometer_admin:propose(Name, Type, Opts).
 
 -spec re_register(name(), type(), options()) -> ok.
 %% @doc Create a new metrics entry, overwrite any old entry.

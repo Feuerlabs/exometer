@@ -11,7 +11,7 @@ __Behaviours:__ [`gen_server`](gen_server.md).
 
 
 <table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#auto_create_entry-1">auto_create_entry/1</a></td><td></td></tr><tr><td valign="top"><a href="#code_change-3">code_change/3</a></td><td></td></tr><tr><td valign="top"><a href="#delete_entry-1">delete_entry/1</a></td><td></td></tr><tr><td valign="top"><a href="#demonitor-1">demonitor/1</a></td><td></td></tr><tr><td valign="top"><a href="#ensure-3">ensure/3</a></td><td></td></tr><tr><td valign="top"><a href="#find_auto_template-1">find_auto_template/1</a></td><td>Convenience function for testing which template will apply to
-<code>Name</code>.</td></tr><tr><td valign="top"><a href="#handle_call-3">handle_call/3</a></td><td></td></tr><tr><td valign="top"><a href="#handle_cast-2">handle_cast/2</a></td><td></td></tr><tr><td valign="top"><a href="#handle_info-2">handle_info/2</a></td><td></td></tr><tr><td valign="top"><a href="#init-1">init/1</a></td><td></td></tr><tr><td valign="top"><a href="#load_defaults-0">load_defaults/0</a></td><td></td></tr><tr><td valign="top"><a href="#load_predefined-0">load_predefined/0</a></td><td></td></tr><tr><td valign="top"><a href="#make_patterns-2">make_patterns/2</a></td><td></td></tr><tr><td valign="top"><a href="#monitor-2">monitor/2</a></td><td></td></tr><tr><td valign="top"><a href="#new_entry-3">new_entry/3</a></td><td></td></tr><tr><td valign="top"><a href="#normalize_name-1">normalize_name/1</a></td><td></td></tr><tr><td valign="top"><a href="#prefixes-1">prefixes/1</a></td><td></td></tr><tr><td valign="top"><a href="#preset_defaults-0">preset_defaults/0</a></td><td></td></tr><tr><td valign="top"><a href="#re_register_entry-3">re_register_entry/3</a></td><td></td></tr><tr><td valign="top"><a href="#register_application-1">register_application/1</a></td><td></td></tr><tr><td valign="top"><a href="#set_default-3">set_default/3</a></td><td>Sets a default definition for a metric type, possibly using wildcards.</td></tr><tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td></td></tr><tr><td valign="top"><a href="#terminate-2">terminate/2</a></td><td></td></tr></table>
+<code>Name</code>.</td></tr><tr><td valign="top"><a href="#handle_call-3">handle_call/3</a></td><td></td></tr><tr><td valign="top"><a href="#handle_cast-2">handle_cast/2</a></td><td></td></tr><tr><td valign="top"><a href="#handle_info-2">handle_info/2</a></td><td></td></tr><tr><td valign="top"><a href="#init-1">init/1</a></td><td></td></tr><tr><td valign="top"><a href="#load_defaults-0">load_defaults/0</a></td><td></td></tr><tr><td valign="top"><a href="#load_predefined-0">load_predefined/0</a></td><td></td></tr><tr><td valign="top"><a href="#make_patterns-2">make_patterns/2</a></td><td></td></tr><tr><td valign="top"><a href="#monitor-2">monitor/2</a></td><td></td></tr><tr><td valign="top"><a href="#new_entry-3">new_entry/3</a></td><td></td></tr><tr><td valign="top"><a href="#normalize_name-1">normalize_name/1</a></td><td></td></tr><tr><td valign="top"><a href="#prefixes-1">prefixes/1</a></td><td></td></tr><tr><td valign="top"><a href="#preset_defaults-0">preset_defaults/0</a></td><td></td></tr><tr><td valign="top"><a href="#propose-3">propose/3</a></td><td></td></tr><tr><td valign="top"><a href="#re_register_entry-3">re_register_entry/3</a></td><td></td></tr><tr><td valign="top"><a href="#register_application-1">register_application/1</a></td><td></td></tr><tr><td valign="top"><a href="#set_default-3">set_default/3</a></td><td>Sets a default definition for a metric type, possibly using wildcards.</td></tr><tr><td valign="top"><a href="#start_link-0">start_link/0</a></td><td></td></tr><tr><td valign="top"><a href="#terminate-2">terminate/2</a></td><td></td></tr></table>
 
 
 <a name="functions"></a>
@@ -147,6 +147,13 @@ Convenience function for testing which template will apply to
 ### preset_defaults/0 ###
 
 `preset_defaults() -> any()`
+
+
+<a name="propose-3"></a>
+
+### propose/3 ###
+
+`propose(Name, Type, Opts) -> any()`
 
 
 <a name="re_register_entry-3"></a>
