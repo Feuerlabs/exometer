@@ -38,6 +38,9 @@
          foldl/3,
          foldl/4]).
 
+-compile(inline).
+-compile(inline_list_funcs).
+
 -import(lists, [reverse/1]).
 -import(exometer_util, [timestamp/0]).
 

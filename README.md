@@ -4,7 +4,7 @@
 
 Copyright (c) 2014 Basho Technologies, Inc.  All Rights Reserved.
 
-__Version:__ Oct 1 2014 20:38:13
+__Version:__ Oct 6 2014 17:32:30
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -959,6 +959,7 @@ Please see @see exometer_report documentation for details.
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_snmp.md" class="module">exometer_report_snmp</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_statsd.md" class="module">exometer_report_statsd</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_tty.md" class="module">exometer_report_tty</a></td></tr>
+<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_shallowtree.md" class="module">exometer_shallowtree</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_slide.md" class="module">exometer_slide</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_slot_slide.md" class="module">exometer_slot_slide</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_spiral.md" class="module">exometer_spiral</a></td></tr>

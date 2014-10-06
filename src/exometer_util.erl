@@ -21,6 +21,7 @@
     table/0,
     get_statistics/3,
     get_statistics2/4,
+    pick_items/2,
     histogram/1,
     histogram/2,
     drop_duplicates/1,
@@ -236,6 +237,17 @@ get_statistics2(L, Sorted, Total, Mean) ->
              {90, perc(0.9,L)}, {95, perc(0.95,L)}, {99, perc(0.99,L)},
              {999, perc(0.999,L)}, {max,L}],
     [{n,L}, {mean, Mean}, {total, Total} | pick_items(Sorted, 1, Items)].
+
+-spec pick_items([number()], [{atom() | integer(), integer()}]) ->
+			[{atom(), number()}].
+%% @doc Pick values from specified positions in a sorted list of numbers.
+%%
+%% This function is used to extract datapoints (usually percentiles) from
+%% a sorted list of values. `Items' is a list of `{Datapoint, Position}'
+%% entries.
+%% @end
+pick_items(Vals, Items) ->
+    pick_items(Vals, 1, Items).
 
 pick_items([H|_] = L, P, [{Tag,P}|Ps]) ->
     [{Tag,H} | pick_items(L, P, Ps)];

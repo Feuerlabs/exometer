@@ -43,6 +43,14 @@
 %% * `slot_period' (default: `1000') size of the time slots in milliseconds.
 %% * `histogram_module' (default: `exometer_slot_slide').
 %% * `truncate' (default: `true') whether to truncate the datapoint values.
+%% * `keep_high' (default: `0') number of top values to actually keep.
+%%
+%% The `keep_high' option can be used to get better precision for the higher
+%% percentiles. A bounded buffer (see {@link exometer_shallowtree}) is used
+%% to store the highest values, and these values are used to calculate the
+%% exact higher percentiles, as far as they go. For example, if the window
+%% saw 10,000 values, and the 1000 highest values are kept, these can be used
+%% to determine the percentiles `90' and up.
 %%
 %% @end
 -module(exometer_histogram).
@@ -62,9 +70,13 @@
 	 probe_handle_msg/2]).
 
 -compile(inline).
+-compile(inline_list_funcs).
 -export([datapoints/0]).
 -export([average_sample/3,
 	 average_transform/2]).
+
+-export([test_run/1, test_run/2,
+	 test_series/0]).
 
 %% -compile({parse_transform, exometer_igor}).
 %% -compile({igor, [{files, ["src/exometer_util.erl"
@@ -81,7 +93,11 @@
              time_span = 60000, %% msec
              truncate = true,
              histogram_module = exometer_slot_slide,
+	     heap,
              opts = []}).
+
+%% for auto-conversion
+-define(OLDSTATE, {st,_,_,_,_,_,_,_}).
 
 -define(DATAPOINTS,
         [n, mean, min, max, median, 50, 75, 90, 95, 99, 999 ]).
@@ -91,20 +107,38 @@ behaviour() ->
     probe.
 
 probe_init(Name, _Type, Options) ->
-     St = process_opts(#st{name = Name}, [{histogram_module, exometer_slot_slide},
-					  {time_span, 60000},
-					  {slot_period, 10}] ++ Options),
-     Slide = (St#st.histogram_module):new(St#st.time_span,
-					  St#st.slot_period,
-					  fun average_sample/3,
-					  fun average_transform/2,
-					  Options),
-     {ok, St#st{slide = Slide } }.
+     {ok, init_state(Name, Options)}.
+
+init_state(Name, Options) ->
+    St = process_opts(#st{name = Name},
+		      [{histogram_module, exometer_slot_slide},
+		       {time_span, 60000},
+		       {slot_period, 10}] ++ Options),
+    Slide = (St#st.histogram_module):new(St#st.time_span,
+					 St#st.slot_period,
+					 fun average_sample/3,
+					 fun average_transform/2,
+					 Options),
+    Heap = if St#st.histogram_module == exometer_slot_slide ->
+		   case lists:keyfind(keep_high, 1, Options) of
+		       false ->
+			   undefined;
+		       {_, N} when is_integer(N), N > 0 ->
+			   T = exometer_shallowtree:new(N),
+			   {T, T};
+		       {_, 0} ->
+			   undefined
+		   end;
+	      true -> undefined
+	   end,
+    St#st{slide = Slide, heap = Heap}.
 
 
 probe_terminate(_St) ->
     ok.
 
+probe_get_value(DPs, ?OLDSTATE = St) ->
+    probe_get_value(DPs, convert(St));
 probe_get_value(DataPoints, St) ->
     {ok, get_value_int(St, DataPoints)}.
 
@@ -121,26 +155,34 @@ get_value_int(St, default) ->
 get_value_int(_, []) ->
     [];
 
+get_value_int(?OLDSTATE = St, DPs) ->
+    get_value_int(convert(St), DPs);
 get_value_int(St, DataPoints) ->
     get_value_int_(St, DataPoints).
 
 get_value_int_(#st{truncate = Trunc,
-                   histogram_module = Module} = St, DataPoints) ->
+                   histogram_module = Module,
+		   time_span = TimeSpan,
+		   heap = Heap} = St, DataPoints) ->
     %% We need element count and sum of all elements to get mean value.
     Tot0 = case Trunc of true -> 0; false -> 0.0 end,
-    {Length, Total, Min0, Max, Lst0, Xtra} =
+    TS = exometer_util:timestamp(),
+    {Length, FullLength, Total, Min0, Max, Lst0, Xtra} =
         Module:foldl(
+	  TS,
           fun
-              ({_TS, {Val, NMin, NMax, X}},
-               {Length, Total, OMin, OMax, List, Xs}) ->
-                  {Length + 1, Total + Val, min(OMin, NMin), max(OMax, NMax),
+              ({_TS1, {Val, Cnt, NMin, NMax, X}},
+               {Length, FullLen, Total, OMin, OMax, List, Xs}) ->
+                  {Length + 1, FullLen + Cnt, Total + Val,
+		   min(OMin, NMin), max(OMax, NMax),
                    [Val|List], [X|Xs]};
 
-              ({_TS, Val}, {Length, Total, Min, Max, List, Xs}) ->
-                  {Length + 1, Total + Val, min(Val, Min), max(Val, Max),
+              ({_TS1, Val}, {Length, _, Total, Min, Max, List, Xs}) ->
+		  L1 = Length+1,
+                  {L1, L1, Total + Val, min(Val, Min), max(Val, Max),
                    [Val|List], Xs}
           end,
-          {0,  Tot0, infinity, 0, [], []}, St#st.slide),
+          {0,  0, Tot0, infinity, 0, [], []}, St#st.slide),
     Min = if Min0 == infinity -> 0; true -> Min0 end,
     Mean = case Length of
                0 -> 0.0;
@@ -154,8 +196,60 @@ get_value_int_(#st{truncate = Trunc,
            true ->
                 {Length, lists:sort(Lst0)}
         end,
+    TopPercentiles = get_from_heap(Heap, TS, TimeSpan, FullLength, DataPoints),
     Results = exometer_util:get_statistics2(Len, List, Total, Mean),
-    [get_dp(K, Results, Trunc) || K <- DataPoints].
+    CombinedResults = TopPercentiles ++ Results,
+    [get_dp(K, CombinedResults, Trunc) || K <- DataPoints].
+
+get_from_heap(undefined, _, _, _, _) ->
+    [];
+get_from_heap({New,Old}, TS, TSpan, N, DPs) ->
+    Sz = exometer_shallowtree:size(New)
+	+ exometer_shallowtree:size(Old),
+    MinPerc = 100 - ((Sz*100) div N),
+    MinPerc10 = MinPerc * 10,
+    GetDPs = lists:foldl(
+	       fun(D, Acc) when is_integer(D), D < 100, D >= MinPerc ->
+		       [{D, p(D, N)}|Acc];
+		  (D, Acc) when is_integer(D), D > 100, D >= MinPerc10 ->
+		       [{D, p(D, N)}|Acc];
+		  (_, Acc) ->
+		       Acc
+	       end, [], DPs),
+    pick_heap_vals(GetDPs, New, Old, TS, TSpan).
+
+pick_heap_vals([], _, _, _, _) ->
+    [];
+pick_heap_vals(DPs, New, Old, TS, TSpan) ->
+    TS0 = TS - TSpan,
+    NewVals = exometer_shallowtree:filter(fun(V,_) -> {true,V} end, New),
+    OldVals = exometer_shallowtree:filter(
+		fun(V,T) ->
+			if T >= TS0 ->
+				{true, V};
+			   true ->
+				false
+			end
+		end, Old),
+    Vals = revsort(OldVals ++ NewVals),
+    exometer_util:pick_items(Vals, DPs).
+
+revsort(L) ->
+    lists:sort(fun erlang:'>'/2, L).
+
+p(50, N) -> perc(0.5, N);
+p(75, N) -> perc(0.25, N);
+p(90, N) -> perc(0.1, N);
+p(95, N) -> perc(0.05, N);
+p(99, N) -> perc(0.01, N);
+p(999,N) -> perc(0.001, N).
+
+perc(P, Len) when P > 1.0 ->
+    round((P / 10) * Len) + 1;
+perc(P, Len) ->
+    round(P * Len) + 1.
+
+
 
 add_extra(Length, L, []) ->
     {Length, L};
@@ -195,11 +289,28 @@ get_dp(K, L, Trunc) ->
 probe_setopts(_Entry, _Opts, _St)  ->
     ok.
 
-probe_update(Value, #st{slide = Slide,
-			histogram_module = Module} = St) ->
-    {ok, St#st{ slide = Module:add_element( exometer_util:timestamp(), Value, Slide)}}.
+probe_update(Value, ?OLDSTATE = St) ->
+    probe_update(Value, convert(St));
+probe_update(Value, St) ->
+    {ok, update_int(exometer_util:timestamp(), Value, St)}.
 
+update_int(Timestamp, Value, #st{slide = Slide,
+				 histogram_module = Module,
+				 heap = Heap} = St) ->
+    {Wrapped, Slide1} = Module:add_element(Timestamp, Value, Slide, true),
+    St#st{slide = Slide1, heap = into_heap(Wrapped, Value, Timestamp, Heap)}.
 
+into_heap(_, _Val, _TS, undefined) ->
+    undefined;
+into_heap(false, Val, TS, {New,Old}) ->
+    {exometer_shallowtree:insert(Val, TS, New), Old};
+into_heap(true, Val, TS, {New,_}) ->
+    Limit = exometer_shallowtree:limit(New),
+    {exometer_shallowtree:insert(
+       Val, TS, exometer_shallowtree:new(Limit)), New}.
+
+probe_reset(?OLDSTATE = St) ->
+    probe_reset(convert(St));
 probe_reset(#st{slide = Slide,
 		histogram_module = Module} = St) ->
     {ok, St#st{slide = Module:reset(Slide)}}.
@@ -210,8 +321,16 @@ probe_sample(_St) ->
 probe_handle_msg(_, S) ->
     {ok, S}.
 
+probe_code_change(_, ?OLDSTATE = S, _) ->
+    {ok, convert(S)};
 probe_code_change(_, S, _) ->
     {ok, S}.
+
+convert({st, Name, Slide, Slot_period, Time_span,
+	 Truncate, Histogram_module, Opts}) ->
+    #st{name = Name, slide = Slide, slot_period = Slot_period,
+	time_span = Time_span, truncate = Truncate,
+	histogram_module = Histogram_module, opts = Opts}.
 
 process_opts(St, Options) ->
     exometer_proc:process_options(Options),
@@ -265,10 +384,121 @@ average_transform(_TS, #sample{count = Count,
                                min = Min,
                                max = Max, extra = X}) ->
     %% Return the sum of all counter increments received during this slot
-    {Total / Count, Min, Max, X}.
+    {Total / Count, Count, Min, Max, X}.
 
 
 opt_trunc(true, {K,V}) when is_float(V) ->
     {K, trunc(V)};
 opt_trunc(_, V) ->
     V.
+
+
+test_new(Opts) ->
+    init_state(test, Opts).
+
+%% @equiv test_run(Module, 1)
+test_run(Module) ->
+    test_run(Module, 1).
+
+%% @doc Test the performance and accuracy of a histogram callback module.
+%%
+%% This function uses a test set ({@link test_series/0}) and initializes
+%% and updates a histogram using the callback module `Module'.
+%%
+%% The `Module' argument can either be the module name, or `{ModName, Opts}'
+%% where `Opts' are options passed on to the histogram module.
+%%
+%% `Interval' is the gap in milliseconds between the inserts. The test run
+%% will not actually wait, but instead manipulate the timestamp.
+%%
+%% Return value: `[Result1, Result2]', where the results are
+%% `{Time1, Time2, Datapoints}'. `Time1' is the time (in microsecs) it took to
+%% insert the values. `Time2' is the time it took to calculate all default
+%% datapoints. The data set is shuffled between the two runs.
+%%
+%% To assess the accuracy of the reported percentiles, use e.g.
+%% `bear:get_statistics(exometer_histogram:test_series())' as a reference.
+%% @end
+test_run(Module, Interval) ->
+    Series = test_series(),
+    [test_run(Module, Interval, Series),
+     test_run(Module, Interval, shuffle(Series))].
+
+test_run(Module, Int, Series) ->
+    St = test_new(test_opts(Module)),
+    {T1, St1} = tc(fun() ->
+			   test_update(
+			     Series, Int,
+			     exometer_util:timestamp(), St)
+		   end),
+    {T2, Result} = tc(fun() ->
+			      get_value_int(St1, default)
+		      end),
+    erlang:garbage_collect(), erlang:yield(),
+    {T1, T2, Result}.
+
+test_opts(M) when is_atom(M) ->
+    [{histogram_module, M}];
+test_opts({M, Opts}) ->
+    [{histogram_module, M}|Opts].
+
+
+test_update([H|T], Int, TS, St) ->
+    test_update(T, Int, TS+Int, update_int(TS, H, St));
+test_update([], _, _, St) ->
+    St.
+
+tc(F) ->
+    T1 = os:timestamp(),
+    Res = F(),
+    T2 = os:timestamp(),
+    {timer:now_diff(T2, T1), Res}.
+
+-spec test_series() -> [integer()].
+%% @doc Create a series of values for histogram testing.
+%%
+%% These are the properties of the current test set:
+%% <pre lang="erlang">
+%% 1&gt; rp(bear:get_statistics(exometer_histogram:test_series())).
+%% [{min,3},
+%%  {max,100},
+%%  {arithmetic_mean,6.696},
+%%  {geometric_mean,5.546722009408586},
+%%  {harmonic_mean,5.033909932832006},
+%%  {median,5},
+%%  {variance,63.92468674297564},
+%%  {standard_deviation,7.995291535833802},
+%%  {skewness,7.22743137858698},
+%%  {kurtosis,59.15674033499604},
+%%  {percentile,[{50,5},{75,7},{90,8},{95,9},{99,50},{999,83}]},
+%%  {histogram,[{4,2700},
+%%              {5,1800},
+%%              {6,900},
+%%              {7,1800},
+%%              {8,900},
+%%              {9,720},
+%%              {53,135},
+%%              {83,36},
+%%              {103,9}]},
+%%  {n,9000}]
+%% </pre>
+%% @end
+test_series() ->
+    S = lists:flatten(
+	  [dupl(200,3),
+	   dupl(100,4),
+	   dupl(200,5),
+	   dupl(100,6),
+	   dupl(200,7),
+	   dupl(100,8),
+	   dupl(80,9),
+	   dupl(15,50), 80,81,82,83,100]),
+    shuffle(S ++ S ++ S ++ S ++ S ++ S ++ S ++ S ++ S).
+
+dupl(N,V) ->
+    lists:duplicate(N, V).
+
+shuffle(List) ->
+    random:seed(random:seed0()),
+    Randomized = lists:keysort(1, [{random:uniform(), Item} || Item <- List]),
+    [Value || {_, Value} <- Randomized].
