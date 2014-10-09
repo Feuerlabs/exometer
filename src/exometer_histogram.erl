@@ -43,6 +43,8 @@
 %% * `slot_period' (default: `1000') size of the time slots in milliseconds.
 %% * `histogram_module' (default: `exometer_slot_slide').
 %% * `truncate' (default: `true') whether to truncate the datapoint values.
+%%     Supported values: `true | false | round', where `round' means to round
+%%     the value rather than truncating it.
 %% * `keep_high' (default: `0') number of top values to actually keep.
 %%
 %% The `keep_high' option can be used to get better precision for the higher
@@ -165,7 +167,7 @@ get_value_int_(#st{truncate = Trunc,
 		   time_span = TimeSpan,
 		   heap = Heap} = St, DataPoints) ->
     %% We need element count and sum of all elements to get mean value.
-    Tot0 = case Trunc of true -> 0; false -> 0.0 end,
+    Tot0 = case Trunc of true -> 0; round -> 0; false -> 0.0 end,
     TS = exometer_util:timestamp(),
     {Length, FullLength, Total, Min0, Max, Lst0, Xtra} =
         Module:foldl(
@@ -201,22 +203,28 @@ get_value_int_(#st{truncate = Trunc,
     CombinedResults = TopPercentiles ++ Results,
     [get_dp(K, CombinedResults, Trunc) || K <- DataPoints].
 
-get_from_heap(undefined, _, _, _, _) ->
-    [];
-get_from_heap({New,Old}, TS, TSpan, N, DPs) ->
+get_from_heap({New,Old}, TS, TSpan, N, DPs) when N > 0 ->
     Sz = exometer_shallowtree:size(New)
 	+ exometer_shallowtree:size(Old),
-    MinPerc = 100 - ((Sz*100) div N),
-    MinPerc10 = MinPerc * 10,
-    GetDPs = lists:foldl(
-	       fun(D, Acc) when is_integer(D), D < 100, D >= MinPerc ->
-		       [{D, p(D, N)}|Acc];
-		  (D, Acc) when is_integer(D), D > 100, D >= MinPerc10 ->
-		       [{D, p(D, N)}|Acc];
-		  (_, Acc) ->
-		       Acc
-	       end, [], DPs),
-    pick_heap_vals(GetDPs, New, Old, TS, TSpan).
+    if Sz > 0 ->
+	    MinPerc = 100 - ((Sz*100) div N),
+	    MinPerc10 = MinPerc * 10,
+	    GetDPs = lists:foldl(
+		       fun(D, Acc) when is_integer(D),
+					D < 100, D >= MinPerc ->
+			       [{D, p(D, N)}|Acc];
+			  (D, Acc) when is_integer(D),
+					D > 100, D >= MinPerc10 ->
+			       [{D, p(D, N)}|Acc];
+			  (_, Acc) ->
+			       Acc
+		       end, [], DPs),
+	    pick_heap_vals(GetDPs, New, Old, TS, TSpan);
+       true ->
+	    []
+    end;
+get_from_heap(_, _, _, _, _) ->
+    [].
 
 pick_heap_vals([], _, _, _, _) ->
     [];
@@ -276,7 +284,7 @@ pick_extra([], _, _, L, Length) ->
 get_dp(K, L, Trunc) ->
     case lists:keyfind(K, 1, L) of
         false ->
-            {K, if Trunc -> 0; true -> 0.0 end};
+            {K, if Trunc -> 0; Trunc==round -> 0; true -> 0.0 end};
         {median, F} when is_float(F) ->
             %% always truncate median
             {median, trunc(F)};
@@ -340,7 +348,7 @@ process_opts(St, Options) ->
           ( {time_span, Val}, St1) -> St1#st {time_span = Val};
           ( {slot_period, Val}, St1) -> St1#st {slot_period = Val};
           ( {histogram_module, Val}, St1) -> St1#st {histogram_module = Val};
-          ( {truncate, Val}, St1) when is_boolean(Val) ->
+          ( {truncate, Val}, St1) when is_boolean(Val); Val == round ->
               St1#st{truncate = Val};
           %% Unknown option, pass on to State options list, replacing
           %% any earlier versions of the same option.
@@ -389,9 +397,13 @@ average_transform(_TS, #sample{count = Count,
 
 opt_trunc(true, {K,V}) when is_float(V) ->
     {K, trunc(V)};
+opt_trunc(round, {K,V}) when is_float(V) ->
+    {K, round(V)};
 opt_trunc(_, V) ->
     V.
 
+do_trunc(round, V) -> round(V);
+do_trunc(_, V) -> trunc(V).
 
 test_new(Opts) ->
     init_state(test, Opts).

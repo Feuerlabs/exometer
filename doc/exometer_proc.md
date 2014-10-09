@@ -37,7 +37,7 @@ following messages:
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#call-2">call/2</a></td><td>Make a synchronous call to an <code>exometer_proc</code> process.</td></tr><tr><td valign="top"><a href="#cast-2">cast/2</a></td><td>Send an asynchronous message to an <code>exometer_proc</code> process.</td></tr><tr><td valign="top"><a href="#process_options-1">process_options/1</a></td><td>Apply process_flag-specific options.</td></tr><tr><td valign="top"><a href="#spawn_process-2">spawn_process/2</a></td><td>Spawn an <code>exometer_proc</code> process.</td></tr><tr><td valign="top"><a href="#stop-0">stop/0</a></td><td>Terminate probe process in an orderly way.</td></tr></table>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#call-2">call/2</a></td><td>Make a synchronous call to an <code>exometer_proc</code> process.</td></tr><tr><td valign="top"><a href="#cast-2">cast/2</a></td><td>Send an asynchronous message to an <code>exometer_proc</code> process.</td></tr><tr><td valign="top"><a href="#format_status-2">format_status/2</a></td><td></td></tr><tr><td valign="top"><a href="#handle_system_msg-4">handle_system_msg/4</a></td><td></td></tr><tr><td valign="top"><a href="#process_options-1">process_options/1</a></td><td>Apply process_flag-specific options.</td></tr><tr><td valign="top"><a href="#spawn_process-2">spawn_process/2</a></td><td>Spawn an <code>exometer_proc</code> process.</td></tr><tr><td valign="top"><a href="#stop-0">stop/0</a></td><td>Terminate probe process in an orderly way.</td></tr><tr><td valign="top"><a href="#system_code_change-4">system_code_change/4</a></td><td></td></tr><tr><td valign="top"><a href="#system_continue-3">system_continue/3</a></td><td></td></tr><tr><td valign="top"><a href="#system_terminate-4">system_terminate/4</a></td><td></td></tr></table>
 
 
 <a name="functions"></a>
@@ -88,6 +88,20 @@ Send an asynchronous message to an `exometer_proc` process.
 
 This function sends a message on the form `{exometer_proc, Msg}` to the
 given process.
+<a name="format_status-2"></a>
+
+### format_status/2 ###
+
+`format_status(Opt, StatusData) -> any()`
+
+
+<a name="handle_system_msg-4"></a>
+
+### handle_system_msg/4 ###
+
+`handle_system_msg(Req, From, State, Cont) -> any()`
+
+
 <a name="process_options-1"></a>
 
 ### process_options/1 ###
@@ -131,3 +145,24 @@ Terminate probe process in an orderly way.
 
 
 This function doesn't return.
+<a name="system_code_change-4"></a>
+
+### system_code_change/4 ###
+
+`system_code_change(IntState, Module, OldVsn, Extra) -> any()`
+
+
+<a name="system_continue-3"></a>
+
+### system_continue/3 ###
+
+`system_continue(Parent, Debug, IntState) -> any()`
+
+
+<a name="system_terminate-4"></a>
+
+### system_terminate/4 ###
+
+`system_terminate(Reason, Parent, Debug, State) -> any()`
+
+

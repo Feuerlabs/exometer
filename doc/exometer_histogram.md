@@ -59,6 +59,8 @@ Supported options:
 * `slot_period` (default: `1000`) size of the time slots in milliseconds.
 * `histogram_module` (default: `exometer_slot_slide`).
 * `truncate` (default: `true`) whether to truncate the datapoint values.
+Supported values: `true | false | round`, where `round` means to round
+the value rather than truncating it.
 * `keep_high` (default: `0`) number of top values to actually keep.
 
 

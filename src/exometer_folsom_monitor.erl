@@ -77,15 +77,20 @@ start_link() ->
 
 %% @private
 init(_) ->
-    Mon =
-	lists:foldl(
-	  fun({Mf, Mc}, D) ->
-		  orddict:append(Mf, Mc, D)
-	  end, orddict:new(),
-	  [M || {_,_} = M <- setup:find_env_vars(exometer_folsom_monitor)
-		    ++ get_env(folsom_monitor, [])]),
+    Mon = lists:foldl(
+	    fun({Mf, Mc}, D) ->
+		    orddict:append(Mf, Mc, D)
+	    end, orddict:new(), find_env()),
     init_monitor(Mon),
     {ok, #st{mon = Mon}}.
+
+find_env() ->
+    E1 = [E || {_, E} <- setup:find_env_vars(exometer_folsom_monitor)],
+    E2 = get_env(folsom_monitor, []),
+    lists:flatmap(
+      fun({_,_} = M) -> [M];
+	 (L) when is_list(L) -> L
+      end, E1 ++ E2).
 
 %% @private
 handle_call({monitor, Mod, CB}, _, #st{mon = Mon} = S)
