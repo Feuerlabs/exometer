@@ -72,16 +72,40 @@
 {mapping, "exometer.reporter.opt.collectd.hostname", "exometer.reporters",
  [{datatype, string}, {default, "auto"}]}.
 
-{mapping, "exometer.reporter.map.collectd.$map", "exometer.reporters",
- [{datatype, string},
-  {default, "riak.riak_kv.node.puts.one"},
-  %% {commented, "riak.riak_kv.node.puts.one"},
-  {include_default, "puts_one"}]}.
-{mapping, "exometer.reporter.type.collectd.$type", "exometer.reporters",
- [{datatype, string},
-  {default, "counter"},
-  %% {commented, "counter"},
-  {include_default, "puts_one"}]}.
+{
+	mapping, 
+	"exometer.reporter.opentsdb",
+	"exometer.reporters",
+	[{datatype, atom}, {default, exometer_report_opentsdb}]
+}.
+{
+	mapping, 
+	"exometer.reporter.opt.opentsdb.module", 
+	"exometer.reporters",
+	[{datatype, atom}, {default, exometer_report_opentsdb}]
+}.
+
+{
+	mapping, 
+	"exometer.reporter.opt.opentsdb.connect_timeout", 
+	"exometer.reporters",
+ 	[{datatype, {duration, ms}}, {default, "5s"}]
+}.
+
+{
+	mapping,
+	"exometer.reporter.opt.opentsdb.host",
+	"exometer.reporters",
+	[{datatype, ip}, {default, {"127.0.0.1",4242}]
+}.
+
+{
+  mapping, 
+  "exometer.reporter.opt.opentsdb.reconnect_interval", 
+  "exometer.reporters",
+  [{datatype, {duration, s}}, {default, "30s"}]
+}.
+
 
 {mapping, "exometer.reporter.$name", "exometer.reporters", [{datatype, atom}]}.
 {mapping, "exometer.reporter.opt.$name.$option", "exometer.reporters", []}.
