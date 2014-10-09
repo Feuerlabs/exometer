@@ -144,11 +144,6 @@ unix_time() ->
 datetime_to_unix_time({{_,_,_},{_,_,_}} = DateTime) ->
     calendar:datetime_to_gregorian_seconds(DateTime) - ?UNIX_EPOCH.
 
-get_opt(K, Opts) ->
-    case lists:keyfind(K, 1, Opts) of
-        {_, V} -> V;
-        false  -> error({required, K})
-    end.
 
 get_opt(K, Opts, Default) ->
     exometer_util:get_opt(K, Opts, Default).
