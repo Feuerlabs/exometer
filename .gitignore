@@ -11,3 +11,4 @@ priv/mibs
 log/
 logs/
 erl_crash.dump
+.rebar

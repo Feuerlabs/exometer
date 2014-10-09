@@ -7,9 +7,9 @@
 %%   file, You can obtain one at http://mozilla.org/MPL/2.0/.
 %%
 %% -------------------------------------------------------------------
--author("Mark Steele <mark@control-alt-del.org>").
 -module(exometer_report_opentsdb).
 -behaviour(exometer_report).
+-author("Mark Steele <mark@control-alt-del.org>").
 
 %% gen_server callbacks
 -export(
@@ -28,12 +28,14 @@
 
 -include("exometer.hrl").
 
--define(DEFAULT_HOST, {"localhost", 4242}).
+-define(DEFAULT_HOST, "localhost").
+-define(DEFAULT_PORT, 4242).
 -define(DEFAULT_CONNECT_TIMEOUT, 5000).
 -define(RECONNECT_INTERVAL, 30). %% seconds
 
 -record(st, {
           host = ?DEFAULT_HOST,
+          port = ?DEFAULT_PORT,
           reconnect_interval = ?RECONNECT_INTERVAL,          
           connect_timeout = ?DEFAULT_CONNECT_TIMEOUT,
           hostname = undefined,
@@ -107,12 +109,12 @@ exometer_info({exometer_callback, prepare_reconnect}, #st{reconnect_interval = I
     {ok, St};
 exometer_info({exometer_callback, reconnect}, St) ->
     ?info("Reconnecting: ~p~n", [St]),
-    case connect_collectd(St) of
+    case connect_opentsdb(St) of
         {ok, NSt} ->
             {ok, NSt};
-        Err  ->
+        Err ->
             ?warning("Could not reconnect: ~p~n", [Err]),
-        prepare_reconnect(),
+            prepare_reconnect(),
             {ok, St}
     end;
 exometer_info(Unknown, St) ->
