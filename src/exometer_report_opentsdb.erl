@@ -50,7 +50,7 @@
 
 exometer_init(Opts) ->
     ?info("Exometer OpenTSDB Reporter; Opts: ~p~n", [Opts]),
-    {Host, Port} = get_opt(host, Opts, ?DEFAULT_HOST),
+    {Host, Port} = get_opt(host, Opts, {?DEFAULT_HOST, ?DEFAULT_PORT}),
     ReconnectInterval = get_opt(reconnect_interval, Opts, ?RECONNECT_INTERVAL) * 1000,
     ConnectTimeout = get_opt(connect_timeout, Opts, ?DEFAULT_CONNECT_TIMEOUT),
     State = #st{
@@ -86,7 +86,7 @@ exometer_report(Metric, DataPoint, _Extra, Value, #st{socket = Sock, hostname = 
             {ok, St};
         _ ->
             gen_tcp:close(Sock),
-            reconnect(St)
+            prepare_reconnect()
     end.
 
 exometer_subscribe(_Metric, _DataPoint, _Extra, _Interval, St) ->
@@ -137,15 +137,6 @@ value(_) -> 0.
 
 timestamp() ->
     integer_to_list(unix_time()).
-
-
-reconnect(St) ->
-    case gen_tcp:connect(St#st.host, St#st.port,  [{mode, list}], St#st.connect_timeout) of
-        {ok, Sock} ->
-            {ok, St#st{socket = Sock}};
-        {error, _} = Error ->
-            Error
-    end.
 
 unix_time() ->
     datetime_to_unix_time(erlang:universaltime()).
