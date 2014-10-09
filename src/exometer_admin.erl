@@ -26,6 +26,7 @@
 -export(
    [
     new_entry/3,
+    propose/3,
     re_register_entry/3,
     delete_entry/1,
     ensure/3,
@@ -177,6 +178,10 @@ new_entry(Name, Type, Opts) ->
             ok
     end.
 
+propose(Name, Type, Opts) ->
+    {Type1, Opt1} = check_type_arg(Type, Opts),
+    gen_server:call(?MODULE, {propose, Name, Type1, Opt1}).
+
 report_new_entry(#exometer_entry{} = E) ->
     exometer_report:new_entry(E).
 
@@ -252,14 +257,14 @@ init(_) ->
 
 handle_call({new_entry, Name, Type, Opts, AllowExisting}, _From, S) ->
     try
-        #exometer_entry{options = OptsTemplate} = E0 =
+        #exometer_entry{options = NewOpts} = E0 =
             lookup_definition(Name, Type, Opts),
 
         case {ets:member(exometer_util:table(), Name), AllowExisting} of
             {true, false} ->
                 {reply, {error, exists}, S};
             _ ->
-                E1 = process_opts(E0, OptsTemplate ++ Opts),
+                E1 = process_opts(E0, NewOpts),
                 Res = exometer:create_entry(E1),
                 exometer_report:new_entry(E1),
                 {reply, Res, S}
@@ -267,6 +272,16 @@ handle_call({new_entry, Name, Type, Opts, AllowExisting}, _From, S) ->
     catch
         error:Error ->
             {reply, {error, Error}, S}
+    end;
+handle_call({propose, Name, Type, Opts}, _From, S) ->
+    try
+	#exometer_entry{options = NewOpts} = E0 =
+	    lookup_definition(Name, Type, Opts),
+	E1 = process_opts(E0, NewOpts),
+	{reply, exometer_info:pp(E1), S}
+    catch
+	error:Error ->
+	    {reply, {error, Error}, S}
     end;
 handle_call({delete_entry, Name}, _From, S) ->
     {reply, delete_entry_(Name), S};
@@ -395,22 +410,39 @@ lookup_definition(Name, ad_hoc, Opts) ->
         [_|_] = Missing ->
             error({required, Missing})
     end;
-lookup_definition(Name, Type, _) ->
-    case ets:prev(?EXOMETER_SHARED, {default, Type, <<>>}) of
-        {default, Type, N} = D0 when N==[''], N==Name ->
-            case ets:lookup(?EXOMETER_SHARED, D0) of
-                [#exometer_entry{} = Def] ->
-                    Def;
-                [] ->
-                    default_definition_(Name, Type)
-            end;
-        {default, OtherType, _} when Type=/=OtherType ->
-            exometer_default(Name, Type);
-        '$end_of_table' ->
-            exometer_default(Name, Type);
-        _ ->
-            default_definition_(Name, Type)
-    end.
+lookup_definition(Name, Type, Opts) ->
+    E = case ets:prev(?EXOMETER_SHARED, {default, Type, <<>>}) of
+	    {default, Type, N} = D0 when N==[''], N==Name ->
+		case ets:lookup(?EXOMETER_SHARED, D0) of
+		    [#exometer_entry{} = Def] ->
+			Def;
+		    [] ->
+			default_definition_(Name, Type)
+		end;
+	    {default, OtherType, _} when Type=/=OtherType ->
+		exometer_default(Name, Type);
+	    '$end_of_table' ->
+		exometer_default(Name, Type);
+	    _ ->
+		default_definition_(Name, Type)
+	end,
+    merge_opts(Opts, E).
+
+merge_opts(Opts, #exometer_entry{options = DefOpts} = E) ->
+    Opts1 = lists:foldl(fun({'--', Keys}, Acc) ->
+				case is_list(Keys) of
+				    true ->
+					lists:foldl(
+					  fun(K,Acc1) ->
+						  lists:keydelete(K, 1, Acc1)
+					  end, Acc, Keys);
+				    false ->
+					error({invalid_option,'--'})
+				end;
+			    ({K,V}, Acc) ->
+				lists:keystore(K, 1, Acc, {K,V})
+			end, DefOpts, Opts),
+    E#exometer_entry{options = Opts1}.
 
 default_definition_(Name, Type) ->
     case search_default(Name, Type) of
@@ -561,19 +593,24 @@ delete_entry_(Name) ->
             ok;
         [#exometer_entry{module = exometer, type = fast_counter,
                          ref = {M, F}}] ->
-            exometer_util:set_call_count(M, F, false),
-            [ets:delete(T, Name) ||
-                T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
+	    try
+		exometer_util:set_call_count(M, F, false)
+	    after
+		[ets:delete(T, Name) ||
+		    T <- [?EXOMETER_ENTRIES|exometer_util:tables()]]
+	    end,
             ok;
         [#exometer_entry{behaviour = probe,
 			 type = Type, ref = Ref} = E] ->
 	    [ exometer_cache:delete(Name, DataPoint) ||
 		DataPoint <- exometer_util:get_datapoints(E)],
-
-	    exometer_probe:delete(Name, Type, Ref),
-            [ets:delete(T, Name) ||
-                T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
-            ok;
+	    try
+		exometer_probe:delete(Name, Type, Ref)
+	    after
+		[ets:delete(T, Name) ||
+		    T <- [?EXOMETER_ENTRIES|exometer_util:tables()]]
+	    end,
+	    ok;
         [#exometer_entry{module= Mod, behaviour = entry,
 			 type = Type, ref = Ref} = E] ->
 	    [ exometer_cache:delete(Name, DataPoint) ||
@@ -582,7 +619,8 @@ delete_entry_(Name) ->
             after
                 [ets:delete(T, Name) ||
                     T <- [?EXOMETER_ENTRIES|exometer_util:tables()]]
-            end;
+            end,
+	    ok;
         [] ->
             {error, not_found}
     end.

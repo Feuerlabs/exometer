@@ -43,6 +43,25 @@
          process_options/1,
          stop/0]).
 
+-export([handle_system_msg/4]).
+
+%% Callbacks used by the sys.erl module
+-export([system_continue/3,
+         system_terminate/4,
+         system_code_change/4,
+         format_status/2]).
+
+%% Internal housekeeping records. The split into two records is used
+%% to separate the variables that are passed as explicit arguments in
+%% the sys API from the ones that are embedded in the 'state'.
+%% (the #sys{} record is the one being embedded...)
+%%
+-record(sys, {cont,mod,name}).
+-record(info, {parent,
+               debug = [],
+               sys = #sys{}}).
+
+
 -spec spawn_process(exometer:name(), fun(() -> no_return())) -> pid().
 %% @doc Spawn an `exometer_proc' process.
 %%
@@ -51,10 +70,18 @@
 %% (Note: `exometer_proc' processes are responsible for their own event loop).
 %% @end
 spawn_process(Name, F) when is_function(F,0) ->
+    {_, Mod} = erlang:fun_info(F, module),
+    Parent = self(),
     proc_lib:spawn(fun() ->
                            exometer_admin:monitor(Name, self()),
-                           F()
+			   init(Name, Mod, F, Parent)
                    end).
+
+init(Name, Mod, StartF, ParentPid) ->
+    I = #info{parent = ParentPid},
+    Sys = I#info.sys,
+    put({?MODULE, info}, I#info{sys = Sys#sys{mod = Mod, name = Name}}),
+    StartF().
 
 -spec cast(pid() | atom(), Msg::any()) -> ok.
 %% @doc Send an asynchronous message to an `exometer_proc' process.
@@ -126,3 +153,77 @@ process_options(Opts) ->
          (_) ->
               ok
       end, Opts ++ Defaults).
+
+
+handle_system_msg(Req, From, State, Cont) ->
+    #info{parent = Parent, debug = Debug, sys = Sys} = I =
+        get({?MODULE, info}),
+    Sys1 = Sys#sys{cont = Cont},
+    put({?MODULE,info}, I#info{sys = Sys1}),
+    sys:handle_system_msg(Req, From, Parent, ?MODULE, Debug,
+                          {Sys1, State}).
+
+system_continue(Parent, Debug, IntState) ->
+    #info{} = I = get({?MODULE, info}),
+    {#sys{cont = Cont} = Sys, State} = IntState,
+    put({?MODULE, info}, I#info{parent = Parent, debug = Debug,
+                                sys = Sys}),
+    continue(State, Cont).
+
+continue(State, Cont) when is_function(Cont) ->
+    Cont(State);
+continue(State, Cont) when is_atom(Cont) ->
+    #info{sys = #sys{mod = Mod}} = get({?MODULE, info}),
+    Mod:Cont(State).
+
+system_terminate(Reason, _Parent, _Debug, _State) ->
+    exit(Reason).
+
+system_code_change(IntState, Module, OldVsn, Extra) ->
+    {Sys,State} = IntState,
+    case apply(Module, code_change, [OldVsn, State, Extra]) of
+        {ok, NewState} ->
+            {ok, {Sys, NewState}};
+        {ok, NewState, NewOptions} when is_list(NewOptions) ->
+            NewSys = process_sys_opts(NewOptions, Sys),
+            {ok, {NewSys, NewState}}
+    end.
+
+process_sys_opts(Opts, Sys) ->
+    lists:foldl(
+      fun({cont, Cont}, S) ->
+              S#sys{cont = Cont};
+         ({mod, Mod}, S) ->
+              S#sys{mod = Mod};
+         ({name, Name}, S) ->
+              S#sys{name = Name}
+      end, Sys, Opts).
+
+format_status(Opt, StatusData) ->
+    [PDict, SysState, Parent, Debug, IntState] = StatusData,
+    {#sys{mod = Mod, name = Name}, State} = IntState,
+    NameTag = if is_pid(Name) ->
+                      pid_to_list(Name);
+                 is_atom(Name) ->
+                      Name;
+		 true ->
+		      lists:flatten(io_lib:fwrite("~w", [Name]))
+              end,
+    Header = lists:concat(["Status for exometer_proc ", NameTag]),
+    Log = sys:get_debug(log, Debug, []),
+    Specific =
+        case erlang:function_exported(Mod, format_status, 2) of
+            true ->
+                case catch Mod:format_status(Opt, [PDict, State]) of
+                    {'EXIT', _} -> [{data, [{"State", State}]}];
+                    Else -> Else
+                end;
+            _ ->
+                [{data, [{"State", State}]}]
+        end,
+    [{header, Header},
+     {data, [{"Status", SysState},
+             {"Module", Mod},
+             {"Parent", Parent},
+             {"Logged events", Log} |
+             Specific]}].

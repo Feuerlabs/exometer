@@ -518,6 +518,9 @@ loop(St) ->
 handle_msg(Msg, St) ->
     Module = St#st.module,
     case Msg of
+	{system, From, Req} ->
+	    exometer_proc:handle_system_msg(
+	      Req, From, St, fun(St1) -> loop(St1) end);
         {exometer_proc, {From, Ref}, {get_value, default} } ->
             {ok, DataPoints} = Module:probe_get_datapoints(St#st.mod_state),
             {Reply, NSt} =

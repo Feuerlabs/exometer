@@ -28,6 +28,8 @@
 -include("exometer.hrl").
 -include_lib("parse_trans/include/exprecs.hrl").
 
+-export_type([pp/0]).
+
 -export_records([exometer_entry]).
 
 -type pp() :: {atom(), [{atom(), any()}]}.
