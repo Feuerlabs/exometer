@@ -402,9 +402,6 @@ opt_trunc(round, {K,V}) when is_float(V) ->
 opt_trunc(_, V) ->
     V.
 
-do_trunc(round, V) -> round(V);
-do_trunc(_, V) -> trunc(V).
-
 test_new(Opts) ->
     init_state(test, Opts).
 
