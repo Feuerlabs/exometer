@@ -296,8 +296,11 @@ delete(_, _, _) ->
 empty() ->
     [].
 
-datapoints(default, DPs) -> DPs;
-datapoints(DataPoints,_) -> DataPoints.
+datapoints(default, DPs) -> datapoints_(DPs);
+datapoints(DataPoints,_) when is_list(DataPoints) -> DataPoints.
+
+datapoints_(DPs) when is_list(DPs) -> DPs;
+datapoints_(DP ) when is_atom(DP ) -> [DP].
 
 pattern_datapoints(A) when is_atom(A), A =/= '_' ->
     [A];
