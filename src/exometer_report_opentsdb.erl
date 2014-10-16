@@ -79,7 +79,7 @@ exometer_report(_Metric, _DataPoint, _Extra, _Value, St) when St#st.socket =:= u
 exometer_report(Metric, DataPoint, _Extra, Value, #st{socket = Sock, hostname = Hostname} = St) ->
     Line = [
         "put ", name(Metric), " ", timestamp(), " ", value(Value), " ", 
-        "hostname=", Hostname, " ", "type=", name(DataPoint), $\n
+        "hostname=", Hostname, " ", "type=", atom_to_list(DataPoint), $\n
     ],
     case gen_tcp:send(Sock, Line) of
         ok ->
