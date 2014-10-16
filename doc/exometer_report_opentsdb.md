@@ -6,7 +6,7 @@
 * [Function Details](#functions)
 
 
-Custom reporting probe for Hosted Graphite.
+Custom reporting probe for OpenTSDB.
 __Behaviours:__ [`exometer_report`](exometer_report.md).
 <a name="description"></a>
 
@@ -14,18 +14,13 @@ __Behaviours:__ [`exometer_report`](exometer_report.md).
 
 
 
-Collectd unix socket integration.
+OpenTSDB integration.
 All data subscribed to by the plugin (through exosense_report:subscribe())
-will be reported to collectd.
+will be reported to OpenTSDB.
 
 
 
 Options:
-
-
-
-`{path, string()}` - The AFUNIX socket path to the collectd socket.
-Default: `"/var/run/collectd-unixsock"`.
 
 
 
@@ -34,29 +29,58 @@ connect operation. Default: `5000` (ms).
 
 
 
-`{read_timeout, non_neg_integer()}` - Read timeout, in milliseconds, when
-receiving replies on the AFUNIX socket. Default: `5000` (ms).
-
-
-
 `{reconnect_interval, non_neg_integer()}` - Time, in seconds, before
 attempting to reconnect. Default: `30` (sec)
 
+`{host, string()}` - OpenTSDB host and port. Default: "localhost:4242"
 
-
-`{connect_retries, non_neg_integer() | infinity}` - How many times to
-try reconnecting before automatically disabling the reporter.
-Default: `infinity`
-
-
-`{refresh_interval, non_neg_integer()}` - Time, in seconds, before
-re-sending a metric value, if it hasn't been updated before then.
-Default: `10` (sec).<a name="index"></a>
+`{hostname, string()}` - This plugin uses a tag called 'host' to denote 
+the hostname to which this metric belongs. Default: net_adm:localhost()
 
 ## Function Index ##
 
-
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#exometer_call-3">exometer_call/3</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_cast-2">exometer_cast/2</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_info-2">exometer_info/2</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_init-1">exometer_init/1</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_newentry-2">exometer_newentry/2</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_report-5">exometer_report/5</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_setopts-4">exometer_setopts/4</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_subscribe-5">exometer_subscribe/5</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_terminate-2">exometer_terminate/2</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_unsubscribe-4">exometer_unsubscribe/4</a></td><td></td></tr></table>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index">
+  <tr>
+    <td valign="top"><a href="#exometer_call-3">exometer_call/3</a></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td valign="top"><a href="#exometer_cast-2">exometer_cast/2</a></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td valign="top"><a href="#exometer_info-2">exometer_info/2</a></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td valign="top"><a href="#exometer_init-1">exometer_init/1</a></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td valign="top"><a href="#exometer_newentry-2">exometer_newentry/2</a></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td valign="top"><a href="#exometer_report-5">exometer_report/5</a></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td valign="top"><a href="#exometer_setopts-4">exometer_setopts/4</a></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td valign="top"><a href="#exometer_subscribe-5">exometer_subscribe/5</a></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td valign="top"><a href="#exometer_terminate-2">exometer_terminate/2</a></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td valign="top"><a href="#exometer_unsubscribe-4">exometer_unsubscribe/4</a></td>
+    <td></td>
+  </tr>
+</table>
 
 
 <a name="functions"></a>
