@@ -191,7 +191,7 @@
 -type metric()          :: exometer:name()
 			 | {find, exometer:name()}
 			 | {select, ets:match_spec()}.
--type datapoint()       :: atom() | pos_integer().
+-type datapoint()       :: exometer:datapoint().
 -type datapoints()      :: datapoint() | [datapoint()].
 -type options()         :: [{atom(), any()}].
 -type mod_state()       :: any().

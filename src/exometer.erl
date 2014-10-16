@@ -65,7 +65,7 @@
 -export([start/0, stop/0]).
 
 -export_type([name/0, type/0, options/0, status/0, behaviour/0,
-	      entry/0]).
+	      entry/0, datapoint/0]).
 
 -compile(inline).
 
@@ -80,6 +80,7 @@
 -type error()       :: {error, any()}.
 -type behaviour()   :: probe | entry.
 -type entry()       :: #exometer_entry{}.
+-type datapoint()   :: atom() | integer().
 
 -define(IS_ENABLED(St), St==enabled orelse St band 2#1 == 1).
 -define(IS_DISABLED(St), St==disabled orelse St band 2#1 =/= 1).
@@ -276,8 +277,11 @@ fast_incr(0, _, _) ->
 get_value(Name) when is_list(Name) ->
     get_value(Name, default).
 
--spec get_value(name(), atom() | [atom()]) -> {ok, value()} | {error, not_found}.
+-spec get_value(name(), datapoint() | [datapoint()]) ->
+		       {ok, value()} | {error, not_found}.
 
+get_value(Name, DataPoint) when is_list(Name), is_integer(DataPoint) ->
+    get_value(Name, [DataPoint]);
 get_value(Name, DataPoint) when is_list(Name), is_atom(DataPoint),
                                 DataPoint=/=default ->
     get_value(Name, [DataPoint]);
@@ -731,7 +735,7 @@ select_cont('$end_of_table') -> '$end_of_table';
 select_cont(Cont) ->
     ets:select(Cont).
 
--spec aggregate(ets:match_spec(), [atom()]) -> list().
+-spec aggregate(ets:match_spec(), [datapoint()]) -> list().
 %% @doc Aggregate datapoints of matching entries.
 %%
 %% This function selects metric entries based on the given match spec, and

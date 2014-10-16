@@ -275,7 +275,7 @@
 -type type()        :: atom().
 -type options()     :: [{atom(), any()}].
 -type datapoints()  :: [datapoint()].
--type datapoint()   :: atom().
+-type datapoint()   :: exometer:datapoint().
 -type value()       :: any().
 -type ref()         :: any().
 -type error()       :: {error, any()}.
