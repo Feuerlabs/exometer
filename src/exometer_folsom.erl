@@ -165,6 +165,8 @@ filter_dp(H, DPs, Trunc) ->
 
 opt_trunc(true, V) when is_float(V) ->
     trunc(V);
+opt_trunc(round, V) when is_float(V) ->
+    round(V);
 opt_trunc(_, V) ->
     V.
 
@@ -175,6 +177,7 @@ get_dp(K, DPs, Trunc) ->
     end.
 
 zero(true) -> 0;
+zero(round) -> 0;
 zero(false) -> 0.0.
 
 

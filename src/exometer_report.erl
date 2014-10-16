@@ -1238,7 +1238,8 @@ code_change(_OldVsn, State, _Extra) ->
 
 reporter_pids() ->
     ets:select(?EXOMETER_REPORTERS,
-	       [{#reporter{pid = '$1', _ = '_'}, [], ['$1']}]).
+	       [{#reporter{pid = '$1', _ = '_'},
+		 [{is_pid,'$1'}], ['$1']}]).
 
 reporter_by_pid(Pid) ->
     ets:select(?EXOMETER_REPORTERS,
