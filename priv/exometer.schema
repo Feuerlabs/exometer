@@ -9,12 +9,10 @@
 {mapping, "exometer.template.fast_counter.module", "exometer.defaults",
  [{default, "exometer"}]
 }.
-%% {mapping, "exometer.template.histogram.module", "exometer.defaults",
-%%  [{default, "exometer_histogram"}]
-%% }.
-%% {mapping, "exometer.template.spiral.module", "exometer.defaults",
-%%  [{default, "exometer_spiral"}]
-%% }.
+{mapping, "exometer.template.histogram.module", "exometer.defaults",
+[{default, "exometer_histogram"}]}.
+{mapping, "exometer.template.spiral.module", "exometer.defaults",
+[{default, "exometer_spiral"}]}.
 {mapping, "exometer.template.duration.module", "exometer.defaults",
  [{default, "exometer_folsom"}]
 }.
@@ -71,40 +69,6 @@
  [{datatype, string}, {default, "auto"}]}.
 {mapping, "exometer.reporter.opt.collectd.hostname", "exometer.reporters",
  [{datatype, string}, {default, "auto"}]}.
-
-{
-	mapping, 
-	"exometer.reporter.opentsdb",
-	"exometer.reporters",
-	[{datatype, atom}, {default, exometer_report_opentsdb}]
-}.
-{
-	mapping, 
-	"exometer.reporter.opt.opentsdb.module", 
-	"exometer.reporters",
-	[{datatype, atom}, {default, exometer_report_opentsdb}]
-}.
-
-{
-	mapping, 
-	"exometer.reporter.opt.opentsdb.connect_timeout", 
-	"exometer.reporters",
- 	[{datatype, {duration, ms}}, {default, "5s"}]
-}.
-
-{
-	mapping,
-	"exometer.reporter.opt.opentsdb.host",
-	"exometer.reporters",
-	[{datatype, ip}, {default, {"127.0.0.1",4242}]
-}.
-
-{
-  mapping, 
-  "exometer.reporter.opt.opentsdb.reconnect_interval", 
-  "exometer.reporters",
-  [{datatype, {duration, s}}, {default, "30s"}]
-}.
 
 
 {mapping, "exometer.reporter.$name", "exometer.reporters", [{datatype, atom}]}.
