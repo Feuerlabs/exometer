@@ -7,6 +7,30 @@
 %%   file, You can obtain one at http://mozilla.org/MPL/2.0/.
 %%
 %% -------------------------------------------------------------------
+
+%% @doc Custom reporting probe for OpenTSDB
+%%
+%% OpenTSDB integration.
+%% All data subscribed to by the plugin (through exosense_report:subscribe())
+%% will be reported to OpenTSDB.
+%%
+%% Options:
+%%
+%% `{connect_timeout, non_neg_integer()}` - Timeout, in milliseconds, for the
+%% +connect operation. Default: `5000` (ms).
+%%
+%% `{connect_timeout, non_neg_integer()}` - Timeout, in milliseconds, for the
+%% connect operation. Default: '5000' (ms).
+%%
+%% `{reconnect_interval, non_neg_integer()}' - Time, in seconds, before
+%% attempting to reconnect. Default: '30' (sec)
+%%
+%% `{host, ip()}` - OpenTSDB host and port. Default: {"127.0.0.1", 4242}
+%%
+%% `{hostname, string()}` - This plugin uses a tag called 'host' to denote 
+%% the hostname to which this metric belongs. Default: net_adm:localhost()
+%% @end
+
 -module(exometer_report_opentsdb).
 -behaviour(exometer_report).
 -author("Mark Steele <mark@control-alt-del.org>").

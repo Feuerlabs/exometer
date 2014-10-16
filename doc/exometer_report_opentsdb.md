@@ -1,6 +1,6 @@
 
 
-# Module exometer_report_collectd #
+# Module exometer_report_opentsdb #
 * [Description](#description)
 * [Function Index](#index)
 * [Function Details](#functions)
@@ -25,62 +25,26 @@ Options:
 
 
 `{connect_timeout, non_neg_integer()}` - Timeout, in milliseconds, for the
-connect operation. Default: `5000` (ms).
++connect operation. Default: `5000` (ms).
+
+`{connect_timeout, non_neg_integer()}` - Timeout, in milliseconds, for the
+connect operation. Default:`5000' (ms).
 
 
 
 `{reconnect_interval, non_neg_integer()}` - Time, in seconds, before
-attempting to reconnect. Default: `30` (sec)
+attempting to reconnect. Default: '30' (sec)
 
-`{host, string()}` - OpenTSDB host and port. Default: "localhost:4242"
 
-`{hostname, string()}` - This plugin uses a tag called 'host' to denote 
-the hostname to which this metric belongs. Default: net_adm:localhost()
+`{host, ip()}` - OpenTSDB host and port. Default: {"127.0.0.1", 4242}
+
+`{hostname, string()}` - This plugin uses a tag called`host' to denote
+the hostname to which this metric belongs. Default: net_adm:localhost()<a name="index"></a>
 
 ## Function Index ##
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index">
-  <tr>
-    <td valign="top"><a href="#exometer_call-3">exometer_call/3</a></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td valign="top"><a href="#exometer_cast-2">exometer_cast/2</a></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td valign="top"><a href="#exometer_info-2">exometer_info/2</a></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td valign="top"><a href="#exometer_init-1">exometer_init/1</a></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td valign="top"><a href="#exometer_newentry-2">exometer_newentry/2</a></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td valign="top"><a href="#exometer_report-5">exometer_report/5</a></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td valign="top"><a href="#exometer_setopts-4">exometer_setopts/4</a></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td valign="top"><a href="#exometer_subscribe-5">exometer_subscribe/5</a></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td valign="top"><a href="#exometer_terminate-2">exometer_terminate/2</a></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td valign="top"><a href="#exometer_unsubscribe-4">exometer_unsubscribe/4</a></td>
-    <td></td>
-  </tr>
-</table>
+
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#exometer_call-3">exometer_call/3</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_cast-2">exometer_cast/2</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_info-2">exometer_info/2</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_init-1">exometer_init/1</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_newentry-2">exometer_newentry/2</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_report-5">exometer_report/5</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_setopts-4">exometer_setopts/4</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_subscribe-5">exometer_subscribe/5</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_terminate-2">exometer_terminate/2</a></td><td></td></tr><tr><td valign="top"><a href="#exometer_unsubscribe-4">exometer_unsubscribe/4</a></td><td></td></tr></table>
 
 
 <a name="functions"></a>
