@@ -4,9 +4,9 @@
 
 Copyright (c) 2014 Basho Technologies, Inc.  All Rights Reserved.
 
-__Version:__ Oct 9 2014 22:39:20
+__Version:__ Oct 17 2014 08:03:42
 
-__Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
+__Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)), Mark Steele ([`mark@control-alt-del.org`](mailto:mark@control-alt-del.org)).
 
 [![Build Status](https://travis-ci.org/Feuerlabs/exometer.png?branch=master)](https://travis-ci.org/Feuerlabs/exometer)
 
@@ -47,6 +47,7 @@ with `exometer`.
 3. [Built in Reporters](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Built_in_Reporters)
     1. [exometer_report_graphite](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_report_graphite)
     2. [exometer_report_collectd](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_report_collectd)
+    2. [exometer_report_opentsdb](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_report_opentsdb)
     3. [exometer_report_snmp](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_report_snmp)
 4. [Instrumenting Erlang code](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Instrumenting_Erlang_code)
     1. [Exometer Start](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Exometer_Start)
@@ -62,6 +63,7 @@ with `exometer`.
     3. [Configuring static subscriptions](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_static_subscriptions)
     4. [Configuring reporter plugins](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_reporter_plugins)
     5. [Configuring collectd reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_collectd_reporter)
+    5. [Configuring opentsdb reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_opentsdb_reporter)
     6. [Configuring graphite reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_graphite_reporter)
     7. [Configuring snmp reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_snmp_reporter)
 6. [Creating custom exometer entries](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Creating_custom_exometer_entries)
@@ -371,6 +373,29 @@ HostName/PluginName-PluginInstance/Type-Metric_DataPoint
 Will be added to the end of the metrics string.
 
 Please see [Configuring collectd reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_collectd_reporter) for details on the
+application environment parameters listed above.
+
+
+#### <a name="exometer_report_opentsdb">exometer_report_opentsdb</a> ####
+
+The OpenTSDB reporter sends metrics to an OpenTSDB server using
+the telnet API. All subscribed-to metric-datapoint values received
+by the reporter are immediately forwarded to OpenTSDB.
+
+If the OpenTSDB connection is lost, the reporter will attempt to reconnect to it
+at a configurable interval.
+
+The data sent to OpenTSDB will be formatted as follows:
+
+```
+put metric timestamp value host=host type=datapoint
+```
+
+Where the value for the host tag will be the configured host in the reporter 
+configuration (defaults to the value returned by `netadm:localhost`), and 
+datapoint tags as specified by the subscriber.
+
+Please see [Configuring opentsdb reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_opentsdb_reporter) for details on the
 application environment parameters listed above.
 
 
@@ -842,6 +867,47 @@ types.  A complete entry in the `type_map` list would be: `{ [
 webserver, https, get_count, total ], "counter" }`.
 
 
+#### <a name="Configuring_opentsdb_reporter">Configuring opentsdb reporter</a> ####
+
+
+Below is an example of the opentsdb reporter application environment, with
+its correct location in the hierarchy:
+
+```erlang
+
+{exometer, [
+    {report, [
+        {reporters, [
+            {exometer_report_opentsdb, [
+                {reconnect_interval, 10},
+                {connect_timeout, 8000},
+                {hostname, "testhost"},
+                {host, {"127.0.0.1", 4242}}
+            ]}
+        ]}
+    ]}
+]}
+```
+
+The following attributes are available for configuration:
+
++ `reconnect_interval` (seconds - default: 30)<br />Specifies the duration between each reconnect attempt to an opentsdb
+server that is not available. Should the server either be unavailable
+at exometer startup, or become unavailable during exometer's
+operation, exometer will attempt to reconnect at the given number of
+seconds.
+
++ `connect_timeout` (milliseconds - default: 5000)<br />Specifies how long the opentsdb reporter plugin shall wait for a
+socket connection to complete before timing out. A timed out
+connection attempt will be retried after the reconnect interval has
+passed see item 1 above).
+
++ `hostname` (string - default: `net_adm:localhost()`)<br />Specifies the host name to use for the host tag in the OpenTSDB tags.
+    Please see [Configuring opentsdb reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_opentsdb_reporter) for details.
+
++ `host` (ip - default: {"127.0.0.1", 4242})<br />Specifies the host and port to connect to OpenTSDB.
+
+
 #### <a name="Configuring_graphite_reporter">Configuring graphite reporter</a> ####
 
 
@@ -955,6 +1021,7 @@ Please see @see exometer_report documentation for details.
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_collectd.md" class="module">exometer_report_collectd</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_graphite.md" class="module">exometer_report_graphite</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_lager.md" class="module">exometer_report_lager</a></td></tr>
+<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_opentsdb.md" class="module">exometer_report_opentsdb</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_riak.md" class="module">exometer_report_riak</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_snmp.md" class="module">exometer_report_snmp</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_statsd.md" class="module">exometer_report_statsd</a></td></tr>

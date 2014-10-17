@@ -1,5 +1,6 @@
 @author Ulf Wiger <ulf.wiger@feuerlabs.com>
 @author Magnus Feuer <magnus.feuer@feuerlabs.com>
+@author Mark Steele <mark@control-alt-del.org>
 @copyright 2014 Basho Technologies, Inc.  All Rights Reserved.
 @version {@version}
 @title Exometer - Erlang instrumentation package
@@ -42,6 +43,7 @@ with ``exometer''.
 3. {@section Built in Reporters}
     1. {@section exometer_report_graphite}
     2. {@section exometer_report_collectd}
+    2. {@section exometer_report_opentsdb}
     3. {@section exometer_report_snmp}
 4. {@section Instrumenting Erlang code}
     1. {@section Exometer Start}
@@ -57,6 +59,7 @@ with ``exometer''.
     3. {@section Configuring static subscriptions}
     4. {@section Configuring reporter plugins}
     5. {@section Configuring collectd reporter}
+    5. {@section Configuring opentsdb reporter}
     6. {@section Configuring graphite reporter}
     7. {@section Configuring snmp reporter}
 6. {@section Creating custom exometer entries}
@@ -357,6 +360,26 @@ All metrics reported to collectd will be have identifiers formatted as follows:
     Will be added to the end of the metrics string.
 
 Please see {@section Configuring collectd reporter} for details on the
+application environment parameters listed above.
+
+=== exometer_report_opentsdb ===
+
+The OpenTSDB reporter sends metrics to an OpenTSDB server using
+the telnet API. All subscribed-to metric-datapoint values received
+by the reporter are immediately forwarded to OpenTSDB.
+
+If the OpenTSDB connection is lost, the reporter will attempt to reconnect to it
+at a configurable interval.
+
+The data sent to OpenTSDB will be formatted as follows:
+
+<pre>put metric timestamp value host=host type=datapoint</pre>
+
+Where the value for the host tag will be the configured host in the reporter 
+configuration (defaults to the value returned by `netadm:localhost'), and 
+datapoint tags as specified by the subscriber.
+
+Please see {@section Configuring opentsdb reporter} for details on the
 application environment parameters listed above.
 
 === exometer_report_snmp ===
@@ -805,6 +828,46 @@ value part of a property is the type string to use when reporting to
 collectd. Please see types.db(5) for a list of available collectd
 types.  A complete entry in the `type_map' list would be: `{ [
 webserver, https, get_count, total ], "counter" }'.
+
+=== Configuring opentsdb reporter ===
+Below is an example of the opentsdb reporter application environment, with
+its correct location in the hierarchy:
+
+<pre lang="erlang">
+{exometer, [
+    {report, [
+        {reporters, [
+            {exometer_report_opentsdb, [
+                {reconnect_interval, 10},
+                {connect_timeout, 8000},
+                {hostname, "testhost"},
+                {host, {"127.0.0.1", 4242}}
+            ]}
+        ]}
+    ]}
+]}</pre>
+
+The following attributes are available for configuration:
+
++ `reconnect_interval' (seconds - default: 30)
+    <br/>Specifies the duration between each reconnect attempt to an opentsdb
+    server that is not available. Should the server either be unavailable
+    at exometer startup, or become unavailable during exometer's
+    operation, exometer will attempt to reconnect at the given number of
+    seconds.
+
++ `connect_timeout' (milliseconds - default: 5000)
+     <br/>Specifies how long the opentsdb reporter plugin shall wait for a 
+    socket connection to complete before timing out. A timed out
+    connection attempt will be retried after the reconnect interval has
+    passed see item 1 above).
+
++ `hostname' (string - default: `net_adm:localhost()')
+     <br/>Specifies the host name to use for the host tag in the OpenTSDB tags.
+    Please see {@section Configuring opentsdb reporter} for details.
+
++ `host' (ip - default: {"127.0.0.1", 4242})
+     <br/>Specifies the host and port to connect to OpenTSDB.
 
 === Configuring graphite reporter ===
 Below is an example of the a graphite reporter application environment, with

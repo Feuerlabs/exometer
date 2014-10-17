@@ -451,7 +451,7 @@ options.
 
 
 <pre><code>
-datapoint() = atom()
+datapoint() = <a href="exometer.md#type-datapoint">exometer:datapoint()</a>
 </code></pre>
 
 

@@ -71,6 +71,18 @@ behaviour() = probe | entry
 
 
 
+### <a name="type-datapoint">datapoint()</a> ###
+
+
+
+<pre><code>
+datapoint() = atom() | integer()
+</code></pre>
+
+
+
+
+
 ### <a name="type-entry">entry()</a> ###
 
 
@@ -182,7 +194,7 @@ value() = any()
 
 
 <pre><code>
-aggregate(Pattern::<a href="ets.md#type-match_spec">ets:match_spec()</a>, DataPoints::[atom()]) -&gt; list()
+aggregate(Pattern::<a href="ets.md#type-match_spec">ets:match_spec()</a>, DataPoints::[<a href="#type-datapoint">datapoint()</a>]) -&gt; list()
 </code></pre>
 <br />
 
@@ -313,7 +325,7 @@ value will be returned.
 
 
 <pre><code>
-get_value(Name::<a href="#type-name">name()</a>, DataPoint::atom() | [atom()]) -&gt; {ok, <a href="#type-value">value()</a>} | {error, not_found}
+get_value(Name::<a href="#type-name">name()</a>, DataPoint::<a href="#type-datapoint">datapoint()</a> | [<a href="#type-datapoint">datapoint()</a>]) -&gt; {ok, <a href="#type-value">value()</a>} | {error, not_found}
 </code></pre>
 <br />
 
