@@ -235,7 +235,7 @@ generate an error log message by exometer.
 
 
 <pre><code>
-datapoint() = atom() | pos_integer()
+datapoint() = <a href="exometer.md#type-datapoint">exometer:datapoint()</a>
 </code></pre>
 
 
