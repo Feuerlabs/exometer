@@ -126,12 +126,17 @@ exometer_report(_Metric, _DataPoint, _Extra, _Value, St)
   {ok, St};
 exometer_report(Metric, DataPoint, _Extra, Value,
                 #st{hostname = Hostname} = St) ->
-  Data = {"metric", {
-            {"name", Metric},
-            {"value", Value},
-            {"timestamp", timestamp()},
-            {"tags", [{"host", Hostname}, {"datapoint", DataPoint}]}}
-         },
+  Data = {
+    {"type", "exometer_metric"},
+    {"body", {
+       {"name", Metric},
+       {"value", Value},
+       {"timestamp", timestamp()},
+       {"host", Hostname},
+       {"instance", DataPoint}
+      }
+    }
+   },
 
   Payload = jiffy:encode(Data),
 
