@@ -19,17 +19,17 @@
 %% `{reconnect_interval, non_neg_integer()}' - Time, in seconds, before
 %% attempting to reconnect. Default: '30' (sec)
 %%
-%% `{amqp_url, string()}` - AMQP host and port.
+%% `{amqp_url, string()}' - AMQP host and port.
 %% Default: "amqp://guest:guest@localhost:5672/%2f"
 %%
-%% `{hostname, string()}` - This plugin uses a tag called 'host' to denote
+%% `{hostname, string()}' - This plugin uses a tag called 'host' to denote
 %% the hostname to which this metric belongs. Default: net_adm:localhost()
 %%
-%% `{exchange, string()}` - The exchange to publish messages to.
+%% `{exchange, string()}' - The exchange to publish messages to.
 %%
-%% `{routing_key, string()}` - The routing key to use to publish messages.
+%% `{routing_key, string()}' - The routing key to use to publish messages.
 %%
-%% `{buffer_size, bytes()}` - The amount of data to buffer before sending to
+%% `{buffer_size, bytes()}' - The amount of data to buffer before sending to
 %% AMQP. Default: 0 (send immediately).
 %%
 %% @end
