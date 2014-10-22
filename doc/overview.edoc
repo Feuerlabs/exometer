@@ -910,7 +910,8 @@ its correct location in the hierarchy:
                 {hostname, "testhost"},
                 {amqp_url, "amqp://user:pass@host:5672/%2f"},
 		{exchange, "metrics"},
-		{routing_key, "metrics"}
+		{routing_key, "metrics"},
+		{buffer_size, 0}
             ]}
         ]}
     ]}
@@ -937,6 +938,9 @@ The following attributes are available for configuration:
 
 + `routing_key' (string - default: `exometer')
      <br/>Specifies the routing key to use when publishing messages.
+
++ `buffer_size' (integer - default: `0')
+     <br/>Specifies the size in bytes of payload to buffer before sending to AMQP.
 
 === Configuring graphite reporter ===
 Below is an example of the a graphite reporter application environment, with
