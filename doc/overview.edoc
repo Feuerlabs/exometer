@@ -43,9 +43,9 @@ with ``exometer''.
 3. {@section Built in Reporters}
     1. {@section exometer_report_graphite}
     2. {@section exometer_report_collectd}
-    2. {@section exometer_report_opentsdb}
-    2. {@section exometer_report_amqp}
-    3. {@section exometer_report_snmp}
+    3. {@section exometer_report_opentsdb}
+    4. {@section exometer_report_amqp}
+    5. {@section exometer_report_snmp}
 4. {@section Instrumenting Erlang code}
     1. {@section Exometer Start}
     2. {@section Creating metrics}
@@ -60,10 +60,10 @@ with ``exometer''.
     3. {@section Configuring static subscriptions}
     4. {@section Configuring reporter plugins}
     5. {@section Configuring collectd reporter}
-    5. {@section Configuring opentsdb reporter}
-    5. {@section Configuring amqp reporter}
-    6. {@section Configuring graphite reporter}
-    7. {@section Configuring snmp reporter}
+    6. {@section Configuring opentsdb reporter}
+    7. {@section Configuring amqp reporter}
+    8. {@section Configuring graphite reporter}
+    9. {@section Configuring snmp reporter}
 6. {@section Creating custom exometer entries}
 7. {@section Creating custom probes}
 8. {@section Creating custom reporter plugins}
