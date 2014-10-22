@@ -65,6 +65,7 @@ with ``exometer''.
 6. {@section Creating custom exometer entries}
 7. {@section Creating custom probes}
 8. {@section Creating custom reporter plugins}
+9. {@section Dependency management}
 
 == Concepts and Definitions ==
 
@@ -375,8 +376,8 @@ The data sent to OpenTSDB will be formatted as follows:
 
 <pre>put metric timestamp value host=host type=datapoint</pre>
 
-Where the value for the host tag will be the configured host in the reporter 
-configuration (defaults to the value returned by `netadm:localhost'), and 
+Where the value for the host tag will be the configured host in the reporter
+configuration (defaults to the value returned by `netadm:localhost'), and
 datapoint tags as specified by the subscriber.
 
 Please see {@section Configuring opentsdb reporter} for details on the
@@ -857,7 +858,7 @@ The following attributes are available for configuration:
     seconds.
 
 + `connect_timeout' (milliseconds - default: 5000)
-     <br/>Specifies how long the opentsdb reporter plugin shall wait for a 
+     <br/>Specifies how long the opentsdb reporter plugin shall wait for a
     socket connection to complete before timing out. A timed out
     connection attempt will be retried after the reconnect interval has
     passed see item 1 above).
@@ -946,3 +947,41 @@ Please see @see exometer_probe documentation for details.
 
 == Creating custom reporter plugins ==
 Please see @see exometer_report documentation for details.
+
+== Dependency management ==
+Exometer dependencies can be controlled using the `EXOMETER_PACKAGES'
+unix environment variable: a string listing packages or applications to
+either keep or remove, separated using space, tab or comma.
+
+Syntax:
+
++ `(Package)' - use `Package' as a base. This will implicitly exclude all
+  applications not included in `Package'. See below for supported packages.
+
++ `+(Package)' - add applications included in `Package'.
+
++ `-(Package)' - remove applications in `Package' (except mandatory deps).
+
++ `App' - keep application `App'.
+
++ `+App' - keep application `App'.
+
++ `-App' - exclude application `App'.
+
+Supported packages:
+
++ `minimal' - only the mandatory deps: `lager', `parse_trans', `setup'.
+
++ `basic' - (mandatory deps and) `folsom'.
+
++ `amqp' - (mandatory deps and) `amqp_client`, `jiffy'.
+
++ `full' - all of the above, plus `afunix' and `netlink'.
+
+Example - use only basic deps plus `afunix'
+
+```EXOMETER_PACKAGES="(basic), +afunix" make'''
+
+Example - use all deps except the AMQP-related deps:
+
+```export EXOMETER_PACKAGES="(full) -(amqp)"'''
