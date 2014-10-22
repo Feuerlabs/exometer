@@ -44,6 +44,7 @@ with ``exometer''.
     1. {@section exometer_report_graphite}
     2. {@section exometer_report_collectd}
     2. {@section exometer_report_opentsdb}
+    2. {@section exometer_report_amqp}
     3. {@section exometer_report_snmp}
 4. {@section Instrumenting Erlang code}
     1. {@section Exometer Start}
@@ -60,6 +61,7 @@ with ``exometer''.
     4. {@section Configuring reporter plugins}
     5. {@section Configuring collectd reporter}
     5. {@section Configuring opentsdb reporter}
+    5. {@section Configuring amqp reporter}
     6. {@section Configuring graphite reporter}
     7. {@section Configuring snmp reporter}
 6. {@section Creating custom exometer entries}
@@ -380,6 +382,32 @@ configuration (defaults to the value returned by `netadm:localhost'), and
 datapoint tags as specified by the subscriber.
 
 Please see {@section Configuring opentsdb reporter} for details on the
+application environment parameters listed above.
+
+=== exometer_report_amqp ===
+
+The AMQP reporter sends metrics to an AMQP broker as a json-encoded payload. All 
+subscribed-to metric-datapoint values received by the reporter are forwarded to AMQP.
+
+If the AMQP connection is lost, the reporter will attempt to reconnect to it
+at a configurable interval.
+
+The data sent to AMQP will be formatted as follows:
+
+<pre>{
+  "type":"exometer_metric",
+  "body":
+    {"name":"messages_per_second",
+     "value":0,"timestamp":1414006826,
+     "host":"testhost",
+     "instance":"max"}
+}</pre>
+
+Where the value for the host tag will be the configured host in the reporter 
+configuration (defaults to the value returned by `netadm:localhost'), the
+instance tag represents the datapoint for the metric.
+
+Please see {@section Configuring amqp reporter} for details on the
 application environment parameters listed above.
 
 === exometer_report_snmp ===
@@ -868,6 +896,47 @@ The following attributes are available for configuration:
 
 + `host' (ip - default: {"127.0.0.1", 4242})
      <br/>Specifies the host and port to connect to OpenTSDB.
+
+=== Configuring amqp reporter ===
+Below is an example of the amqp reporter application environment, with
+its correct location in the hierarchy:
+
+<pre lang="erlang">
+{exometer, [
+    {report, [
+        {reporters, [
+            {exometer_report_amqp, [
+                {reconnect_interval, 10},
+                {hostname, "testhost"},
+                {amqp_url, "amqp://user:pass@host:5672/%2f"},
+		{exchange, "metrics"},
+		{routing_key, "metrics"}
+            ]}
+        ]}
+    ]}
+]}</pre>
+
+The following attributes are available for configuration:
+
++ `reconnect_interval' (seconds - default: 30)
+    <br/>Specifies the duration between each reconnect attempt to an amqp
+    broker that is not available. Should the server either be unavailable
+    at exometer startup, or become unavailable during exometer's
+    operation, exometer will attempt to reconnect at the given number of
+    seconds.
+
++ `hostname' (string - default: `net_adm:localhost()')
+     <br/>Specifies the host name to use for the host property in the JSON payload.
+    Please see {@section Configuring amqp reporter} for details.
+
++ `amqp_url' (string - default: `amqp://guest:guest@localhost:5672/%2f')
+     <br/>Specifies the amqp url to connect to.
+
++ `exchange' (string - default: `exometer')
+     <br/>Specifies the exchange to publish messages to.
+
++ `routing_key' (string - default: `exometer')
+     <br/>Specifies the routing key to use when publishing messages.
 
 === Configuring graphite reporter ===
 Below is an example of the a graphite reporter application environment, with
