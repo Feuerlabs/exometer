@@ -44,6 +44,7 @@
    [
     new/2, new/3,
     re_register/3, ensure/3,
+    repair/1,
     propose/3,
     update/2, update_or_create/2, update_or_create/4,
     get_value/1, get_value/2, get_values/1,
@@ -165,6 +166,16 @@ propose(Name, Type, Opts) when is_list(Name), is_list(Opts) ->
 %% @end
 re_register(Name, Type, Opts) when is_list(Name), is_list(Opts) ->
     exometer_admin:re_register_entry(Name, Type, Opts).
+
+-spec repair(name()) -> ok.
+%% @doc Delete and re-create an entry.
+%%
+%% This function can be tried if a metric (e.g. a complex probe) has become
+%% 'stuck' or otherwise isn't functioning properly. It fetches the stored
+%% meta-data and then deletes and re-creates the metric.
+%% @end
+repair(Name) ->
+    exometer_admin:repair_entry(Name).
 
 -spec ensure(name(), type(), options()) -> ok | error().
 %% @doc Ensure that metric exists and is of given type.
