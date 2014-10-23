@@ -4,9 +4,9 @@
 
 Copyright (c) 2014 Basho Technologies, Inc.  All Rights Reserved.
 
-__Version:__ Oct 23 2014 12:08:39
+__Version:__ Oct 23 2014 12:46:07
 
-__Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)), Mark Steele ([`mark@control-alt-del.org`](mailto:mark@control-alt-del.org)).
+__Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
 [![Build Status](https://travis-ci.org/Feuerlabs/exometer.png?branch=master)](https://travis-ci.org/Feuerlabs/exometer)
 
@@ -404,7 +404,7 @@ application environment parameters listed above.
 
 #### <a name="exometer_report_amqp">exometer_report_amqp</a> ####
 
-The AMQP reporter sends metrics to an AMQP broker as a json-encoded payload. All 
+The AMQP reporter sends metrics to an AMQP broker as a json-encoded payload. All
 subscribed-to metric-datapoint values received by the reporter are forwarded to AMQP.
 
 If the AMQP connection is lost, the reporter will attempt to reconnect to it
@@ -423,7 +423,7 @@ The data sent to AMQP will be formatted as follows:
 }
 ```
 
-Where the value for the host tag will be the configured host in the reporter 
+Where the value for the host tag will be the configured host in the reporter
 configuration (defaults to the value returned by `netadm:localhost`), the
 instance tag represents the datapoint for the metric.
 

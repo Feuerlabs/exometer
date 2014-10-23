@@ -1,6 +1,5 @@
 @author Ulf Wiger <ulf.wiger@feuerlabs.com>
 @author Magnus Feuer <magnus.feuer@feuerlabs.com>
-@author Mark Steele <mark@control-alt-del.org>
 @copyright 2014 Basho Technologies, Inc.  All Rights Reserved.
 @version {@version}
 @title Exometer - Erlang instrumentation package
@@ -387,7 +386,7 @@ application environment parameters listed above.
 
 === exometer_report_amqp ===
 
-The AMQP reporter sends metrics to an AMQP broker as a json-encoded payload. All 
+The AMQP reporter sends metrics to an AMQP broker as a json-encoded payload. All
 subscribed-to metric-datapoint values received by the reporter are forwarded to AMQP.
 
 If the AMQP connection is lost, the reporter will attempt to reconnect to it
@@ -404,7 +403,7 @@ The data sent to AMQP will be formatted as follows:
      "instance":"max"}
 }</pre>
 
-Where the value for the host tag will be the configured host in the reporter 
+Where the value for the host tag will be the configured host in the reporter
 configuration (defaults to the value returned by `netadm:localhost'), the
 instance tag represents the datapoint for the metric.
 
