@@ -28,6 +28,7 @@
     new_entry/3,
     propose/3,
     re_register_entry/3,
+    repair_entry/1,
     delete_entry/1,
     ensure/3,
     auto_create_entry/1
@@ -194,6 +195,14 @@ re_register_entry(Name, Type, Opts) ->
             ok
     end.
 
+repair_entry(Name) ->
+    case gen_server:call(?MODULE, {repair_entry, Name}) of
+	{error, Reason} ->
+	    error(Reason);
+	ok ->
+	    ok
+    end.
+
 delete_entry(Name) ->
     gen_server:call(?MODULE, {delete_entry, Name}).
 
@@ -272,6 +281,16 @@ handle_call({new_entry, Name, Type, Opts, AllowExisting}, _From, S) ->
     catch
         error:Error ->
             {reply, {error, Error}, S}
+    end;
+handle_call({repair_entry, Name}, _From, S) ->
+    try
+	#exometer_entry{} = E = exometer:info(Name, entry),
+	delete_entry_(Name),
+	exometer:create_entry(E),
+	{reply, ok, S}
+    catch
+	error:Error ->
+	    {reply, {error, Error}, S}
     end;
 handle_call({propose, Name, Type, Opts}, _From, S) ->
     try
