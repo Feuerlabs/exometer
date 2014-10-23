@@ -4,7 +4,7 @@
 
 Copyright (c) 2014 Basho Technologies, Inc.  All Rights Reserved.
 
-__Version:__ Oct 17 2014 08:03:42
+__Version:__ Oct 23 2014 09:03:50
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)), Mark Steele ([`mark@control-alt-del.org`](mailto:mark@control-alt-del.org)).
 
@@ -69,6 +69,7 @@ with `exometer`.
 6. [Creating custom exometer entries](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Creating_custom_exometer_entries)
 7. [Creating custom probes](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Creating_custom_probes)
 8. [Creating custom reporter plugins](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Creating_custom_reporter_plugins)
+9. [Dependency management](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Dependency_management)
 
 
 ### <a name="Concepts_and_Definitions">Concepts and Definitions</a> ###
@@ -391,8 +392,8 @@ The data sent to OpenTSDB will be formatted as follows:
 put metric timestamp value host=host type=datapoint
 ```
 
-Where the value for the host tag will be the configured host in the reporter 
-configuration (defaults to the value returned by `netadm:localhost`), and 
+Where the value for the host tag will be the configured host in the reporter
+configuration (defaults to the value returned by `netadm:localhost`), and
 datapoint tags as specified by the subscriber.
 
 Please see [Configuring opentsdb reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_opentsdb_reporter) for details on the
@@ -994,7 +995,54 @@ Please see @see exometer_probe documentation for details.
 
 ### <a name="Creating_custom_reporter_plugins">Creating custom reporter plugins</a> ###
 
+
 Please see @see exometer_report documentation for details.
+
+
+### <a name="Dependency_management">Dependency management</a> ###
+
+
+Exometer dependencies can be controlled using the `EXOMETER_PACKAGES`
+unix environment variable: a string listing packages or applications to
+either keep or remove, separated using space, tab or comma.
+
+Syntax:
+
++ `(Package)` - use `Package` as a base. This will implicitly exclude all
+  applications not included in `Package`. See below for supported packages.
+
++ `+(Package)` - add applications included in `Package`.
+
++ `-(Package)` - remove applications in `Package` (except mandatory deps).
+
++ `App` - keep application `App`.
+
++ `+App` - keep application `App`.
+
++ `-App` - exclude application `App`.
+
+Supported packages:
+
++ `minimal` - only the mandatory deps: `lager`, `parse_trans`, `setup`.
+
++ `basic` - (mandatory deps and) `folsom`.
+
++ `amqp` - (mandatory deps and) `amqp_client`, `jiffy`.
+
++ `full` - all of the above, plus `afunix` and `netlink`.
+
+Example - use only basic deps plus `afunix`
+
+```
+   EXOMETER_PACKAGES="(basic), +afunix" make
+```
+
+Example - use all deps except the AMQP-related deps:
+
+```
+   export EXOMETER_PACKAGES="(full) -(amqp)"
+```
+
 
 
 ## Modules ##
@@ -1018,6 +1066,7 @@ Please see @see exometer_report documentation for details.
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_probe.md" class="module">exometer_probe</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_proc.md" class="module">exometer_proc</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report.md" class="module">exometer_report</a></td></tr>
+<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_amqp.md" class="module">exometer_report_amqp</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_collectd.md" class="module">exometer_report_collectd</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_graphite.md" class="module">exometer_report_graphite</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_lager.md" class="module">exometer_report_lager</a></td></tr>
