@@ -30,7 +30,7 @@ attempting to reconnect. Default: '30' (sec)
 
 
 `{amqp_url, string()}` - AMQP host and port.
-Default: "amqp://guest:guest@localhost:5672/"
+Default: "amqp://guest:guest@localhost:5672/%2f"
 
 
 

@@ -19,17 +19,17 @@
 %% `{reconnect_interval, non_neg_integer()}' - Time, in seconds, before
 %% attempting to reconnect. Default: '30' (sec)
 %%
-%% `{amqp_url, string()}` - AMQP host and port.
-%% Default: "amqp://guest:guest@localhost:5672/"
+%% `{amqp_url, string()}' - AMQP host and port.
+%% Default: "amqp://guest:guest@localhost:5672/%2f"
 %%
-%% `{hostname, string()}` - This plugin uses a tag called 'host' to denote
+%% `{hostname, string()}' - This plugin uses a tag called 'host' to denote
 %% the hostname to which this metric belongs. Default: net_adm:localhost()
 %%
-%% `{exchange, string()}` - The exchange to publish messages to.
+%% `{exchange, string()}' - The exchange to publish messages to.
 %%
-%% `{routing_key, string()}` - The routing key to use to publish messages.
+%% `{routing_key, string()}' - The routing key to use to publish messages.
 %%
-%% `{buffer_size, bytes()}` - The amount of data to buffer before sending to
+%% `{buffer_size, bytes()}' - The amount of data to buffer before sending to
 %% AMQP. Default: 0 (send immediately).
 %%
 %% @end
@@ -67,9 +67,9 @@
 -include("exometer.hrl").
 -include_lib("amqp_client/include/amqp_client.hrl").
 
--define(DEFAULT_AMQP_URL, "amqp://guest:guest@localhost:5672/").
--define(DEFAULT_EXCHANGE, "metrics").
--define(DEFAULT_ROUTING_KEY, "metrics").
+-define(DEFAULT_AMQP_URL, "amqp://guest:guest@localhost:5672/%2f").
+-define(DEFAULT_EXCHANGE, "exometer").
+-define(DEFAULT_ROUTING_KEY, "exometer").
 -define(DEFAULT_RECONNECT_INTERVAL, 30). %% seconds
 -define(DEFAULT_BUFFER_SIZE, 0).
 
@@ -93,20 +93,20 @@
 
 exometer_init(Opts) ->
     ?info("Exometer AMQP Reporter; Opts: ~p~n", [Opts]),
-    AmqpParams = amqp_uri:parse(get_opt(amqp_url, Opts, ?DEFAULT_AMQP_URL)),
+    {ok, AmqpParams} = amqp_uri:parse(get_opt(amqp_url, Opts, ?DEFAULT_AMQP_URL)),
     ReconnectInterval = get_opt(reconnect_interval, 
                                 Opts, ?DEFAULT_RECONNECT_INTERVAL) * 1000,
     BufferSize = get_opt(buffer_size, Opts, ?DEFAULT_BUFFER_SIZE),
     Publish = #'basic.publish'{
-                 exchange = get_opt(exchange, Opts, ?DEFAULT_EXCHANGE),
-                 routing_key = get_opt(routing_key, Opts, ?DEFAULT_ROUTING_KEY)
+                 exchange = iolist_to_binary(get_opt(exchange, Opts, ?DEFAULT_EXCHANGE)),
+                 routing_key = iolist_to_binary(get_opt(routing_key, Opts, ?DEFAULT_ROUTING_KEY))
                 },
     State = #st{
                     reconnect_interval = ReconnectInterval,
                     amqp_params = AmqpParams,
                     buffer_size = BufferSize,
                     publish_options = Publish,
-                    hostname =  check_hostname(get_opt(hostname, Opts, "auto"))
+                    hostname =  iolist_to_binary(check_hostname(get_opt(hostname, Opts, "auto")))
                 },
 
     case connect_amqp(AmqpParams) of
@@ -127,15 +127,17 @@ exometer_report(_Metric, _DataPoint, _Extra, _Value, St)
 exometer_report(Metric, DataPoint, _Extra, Value,
                 #st{hostname = Hostname} = St) ->
   Data = {
-    {"type", "exometer_metric"},
-    {"body", {
-       {"name", Metric},
-       {"value", Value},
-       {"timestamp", timestamp()},
-       {"host", Hostname},
-       {"instance", DataPoint}
-      }
-    }
+    [
+     {<<"type">>, <<"exometer_metric">>},
+     {<<"body">>, {[
+        {<<"name">>, name(Metric)},
+        {<<"value">>, Value},
+        {<<"timestamp">>, unix_time()},
+        {<<"host">>, iolist_to_binary(Hostname)},
+        {<<"instance">>, DataPoint}
+       ]}
+     }
+    ]
    },
 
   Payload = jiffy:encode(Data),
@@ -143,7 +145,7 @@ exometer_report(Metric, DataPoint, _Extra, Value,
   case send_to_amqp(St, Payload) of
     {ok, State} ->
       {ok, State};
-    {error, Reason} ->
+    {error, _Reason} ->
       amqp_channel:close(St#st.channel),
       amqp_connection:close(St#st.connection),
       prepare_reconnect(),
@@ -155,7 +157,8 @@ send_to_amqp(State = #st{
                publish_options = Publish
               },
              Payload) when State#st.buffer_size =:= 0 ->
-  send_to_amqp(Channel, Publish, Payload);
+  ok = send_to_amqp(Channel, Publish, Payload),
+  {ok, State};
 send_to_amqp(State = #st{
                buffer_size = BufferSize,
                channel = Channel,
@@ -175,7 +178,7 @@ send_to_amqp(State = #st{
                publish_options = Publish
               },
              Payload) ->
-  NewBuffer = << Buffer/binary, "~n", Payload/binary >>,
+  NewBuffer = << Buffer/binary, "\n", Payload/binary >>,
   NewBufferSize = byte_size(NewBuffer),
   if NewBufferSize >= BufferSize ->
       ok = send_to_amqp(Channel, Publish, NewBuffer),
@@ -183,6 +186,7 @@ send_to_amqp(State = #st{
      true ->
       {ok, State#st{buffer = NewBuffer}}
   end.
+
 send_to_amqp(Channel, Publish, Payload) ->
   ok = amqp_channel:cast(Channel, Publish, #amqp_msg{payload = Payload}).
 
@@ -234,9 +238,6 @@ exometer_setopts(_Metric, _Options, _Status, St) ->
 exometer_terminate(_, _) ->
     ignore.
 
-timestamp() ->
-    integer_to_list(unix_time()).
-
 unix_time() ->
     datetime_to_unix_time(erlang:universaltime()).
 
@@ -260,14 +261,33 @@ reconnect_after(ReconnectInterval) ->
 
 connect_amqp(AmqpParams) ->
   case amqp_connection:start(AmqpParams) of
-    {ok, Client} ->
-      case amqp_connection:open_channel(Client) of
+    {ok, Connection} ->
+      case amqp_connection:open_channel(Connection) of
         {ok, Channel} ->
-          {ok, Channel, Client};
+          {ok, Connection, Channel};
         {error, Reason} ->
-          amqp_connection:close(Client),
+          amqp_connection:close(Connection),
           {error, Reason}
       end;
     {error, Reason} ->
+      ?info("Error connecting: ~p~n",[Reason]),
       {error, Reason}
   end.
+
+name(Metric) ->
+  iolist_to_binary(metric_to_string(Metric)).
+
+metric_to_string([Final]) ->
+    metric_elem_to_list(Final);
+
+metric_to_string([H | T]) ->
+    metric_elem_to_list(H) ++ "_" ++ metric_to_string(T).
+
+metric_elem_to_list(E) when is_atom(E) ->
+    atom_to_list(E);
+
+metric_elem_to_list(E) when is_list(E) ->
+    E;
+
+metric_elem_to_list(E) when is_integer(E) ->
+    integer_to_list(E).

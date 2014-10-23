@@ -4,7 +4,7 @@
 
 Copyright (c) 2014 Basho Technologies, Inc.  All Rights Reserved.
 
-__Version:__ Oct 23 2014 09:03:50
+__Version:__ Oct 23 2014 12:08:39
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)), Mark Steele ([`mark@control-alt-del.org`](mailto:mark@control-alt-del.org)).
 
@@ -47,8 +47,9 @@ with `exometer`.
 3. [Built in Reporters](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Built_in_Reporters)
     1. [exometer_report_graphite](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_report_graphite)
     2. [exometer_report_collectd](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_report_collectd)
-    2. [exometer_report_opentsdb](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_report_opentsdb)
-    3. [exometer_report_snmp](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_report_snmp)
+    3. [exometer_report_opentsdb](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_report_opentsdb)
+    4. [exometer_report_amqp](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_report_amqp)
+    5. [exometer_report_snmp](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#exometer_report_snmp)
 4. [Instrumenting Erlang code](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Instrumenting_Erlang_code)
     1. [Exometer Start](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Exometer_Start)
     2. [Creating metrics](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Creating_metrics)
@@ -63,9 +64,10 @@ with `exometer`.
     3. [Configuring static subscriptions](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_static_subscriptions)
     4. [Configuring reporter plugins](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_reporter_plugins)
     5. [Configuring collectd reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_collectd_reporter)
-    5. [Configuring opentsdb reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_opentsdb_reporter)
-    6. [Configuring graphite reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_graphite_reporter)
-    7. [Configuring snmp reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_snmp_reporter)
+    6. [Configuring opentsdb reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_opentsdb_reporter)
+    7. [Configuring amqp reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_amqp_reporter)
+    8. [Configuring graphite reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_graphite_reporter)
+    9. [Configuring snmp reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_snmp_reporter)
 6. [Creating custom exometer entries](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Creating_custom_exometer_entries)
 7. [Creating custom probes](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Creating_custom_probes)
 8. [Creating custom reporter plugins](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Creating_custom_reporter_plugins)
@@ -397,6 +399,35 @@ configuration (defaults to the value returned by `netadm:localhost`), and
 datapoint tags as specified by the subscriber.
 
 Please see [Configuring opentsdb reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_opentsdb_reporter) for details on the
+application environment parameters listed above.
+
+
+#### <a name="exometer_report_amqp">exometer_report_amqp</a> ####
+
+The AMQP reporter sends metrics to an AMQP broker as a json-encoded payload. All 
+subscribed-to metric-datapoint values received by the reporter are forwarded to AMQP.
+
+If the AMQP connection is lost, the reporter will attempt to reconnect to it
+at a configurable interval.
+
+The data sent to AMQP will be formatted as follows:
+
+```
+{
+  "type":"exometer_metric",
+  "body":
+    {"name":"messages_per_second",
+     "value":0,"timestamp":1414006826,
+     "host":"testhost",
+     "instance":"max"}
+}
+```
+
+Where the value for the host tag will be the configured host in the reporter 
+configuration (defaults to the value returned by `netadm:localhost`), the
+instance tag represents the datapoint for the metric.
+
+Please see [Configuring amqp reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_amqp_reporter) for details on the
 application environment parameters listed above.
 
 
@@ -907,6 +938,50 @@ passed see item 1 above).
     Please see [Configuring opentsdb reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_opentsdb_reporter) for details.
 
 + `host` (ip - default: {"127.0.0.1", 4242})<br />Specifies the host and port to connect to OpenTSDB.
+
+
+#### <a name="Configuring_amqp_reporter">Configuring amqp reporter</a> ####
+
+
+Below is an example of the amqp reporter application environment, with
+its correct location in the hierarchy:
+
+```erlang
+
+{exometer, [
+    {report, [
+        {reporters, [
+            {exometer_report_amqp, [
+                {reconnect_interval, 10},
+                {hostname, "testhost"},
+                {amqp_url, "amqp://user:pass@host:5672/%2f"},
+		{exchange, "metrics"},
+		{routing_key, "metrics"},
+		{buffer_size, 0}
+            ]}
+        ]}
+    ]}
+]}
+```
+
+The following attributes are available for configuration:
+
++ `reconnect_interval` (seconds - default: 30)<br />Specifies the duration between each reconnect attempt to an amqp
+broker that is not available. Should the server either be unavailable
+at exometer startup, or become unavailable during exometer's
+operation, exometer will attempt to reconnect at the given number of
+seconds.
+
++ `hostname` (string - default: `net_adm:localhost()`)<br />Specifies the host name to use for the host property in the JSON payload.
+    Please see [Configuring amqp reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_amqp_reporter) for details.
+
++ `amqp_url` (string - default: `amqp://guest:guest@localhost:5672/%2f`)<br />Specifies the amqp url to connect to.
+
++ `exchange` (string - default: `exometer`)<br />Specifies the exchange to publish messages to.
+
++ `routing_key` (string - default: `exometer`)<br />Specifies the routing key to use when publishing messages.
+
++ `buffer_size` (integer - default: `0`)<br />Specifies the size in bytes of payload to buffer before sending to AMQP.
 
 
 #### <a name="Configuring_graphite_reporter">Configuring graphite reporter</a> ####
