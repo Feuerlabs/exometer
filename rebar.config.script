@@ -12,7 +12,7 @@
 Script = fun(D,S,Vs) ->
 		 Scr = filename:join(D, S),
 		 case file:script(Scr, orddict:store('SCRIPT', Scr, Vs)) of
-		     {ok, Res} -> 
+		     {ok, Res} ->
                  Res;
 		     {error,_} = Err ->
                  io:fwrite("Error evaluating script ~s~n", [S]),
@@ -21,9 +21,9 @@ Script = fun(D,S,Vs) ->
 	 end.
 
 CFG1 = case os:getenv("REBAR_DEPS") of
-           false -> 
+           false ->
                CONFIG;
-           [] -> 
+           [] ->
                CONFIG;
            Dir ->
                lists:keystore(deps_dir, 1, CONFIG, {deps_dir, Dir})

@@ -21,6 +21,9 @@ This document gives a high level overview of the Exometer system. For
 details, please see the documentation for individual modules, starting
 with ``exometer''.
 
+Note the section on {@section Dependency Management} for how to deal with
+optional packages, both users and developers.
+
 == Table of Content ==
 1. {@section Concept and definitions}
     1. {@section Metric}
@@ -1025,7 +1028,7 @@ Exometer dependencies can be controlled using the `EXOMETER_PACKAGES'
 unix environment variable: a string listing packages or applications to
 either keep or remove, separated using space, tab or comma.
 
-Syntax:
+=== Syntax ===
 
 + `(Package)' - use `Package' as a base. This will implicitly exclude all
   applications not included in `Package'. See below for supported packages.
@@ -1040,7 +1043,7 @@ Syntax:
 
 + `-App' - exclude application `App'.
 
-Supported packages:
+=== Supported packages ===
 
 + `minimal' - only the mandatory deps: `lager', `parse_trans', `setup'.
 
@@ -1057,3 +1060,12 @@ Example - use only basic deps plus `afunix'
 Example - use all deps except the AMQP-related deps:
 
 ```export EXOMETER_PACKAGES="(full) -(amqp)"'''
+
+=== Conditional defines ===
+
+For each optional dependency that is included, a macro is defined,
+named `dep_App' - e.g. `dep_afunix'. Developers must not include
+compile-time dependencies to optional applications, without checking
+the corresponding macro and ensuring that the module compiles even
+when the dependent application is not included. See `exometer_report_amqp.erl'
+for an example.

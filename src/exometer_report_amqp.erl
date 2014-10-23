@@ -65,7 +65,23 @@
    ]).
 
 -include("exometer.hrl").
+
+%% Since amqp is an optional dep, we must check if it's included before
+%% introducing a compile-time dependency.
+%%
+-ifdef(dep_amqp_client).
 -include_lib("amqp_client/include/amqp_client.hrl").
+-else.
+%%
+%% define some (possibly outdated types just to make it compile)
+%%
+-record('P_basic', {content_type, content_encoding, headers, delivery_mode, priority, correlation_id, reply_to, expiration, message_id, timestamp, type, user_id, app_id, cluster_id}).
+
+-record('basic.publish', {ticket = 0, exchange = <<"">>, routing_key = <<"">>, mandatory = false, immediate = false}).
+
+-record(amqp_msg, {props = #'P_basic'{}, payload = <<>>}).
+%%
+-endif.
 
 -define(DEFAULT_AMQP_URL, "amqp://guest:guest@localhost:5672/%2f").
 -define(DEFAULT_EXCHANGE, "exometer").
@@ -94,7 +110,7 @@
 exometer_init(Opts) ->
     ?info("Exometer AMQP Reporter; Opts: ~p~n", [Opts]),
     {ok, AmqpParams} = amqp_uri:parse(get_opt(amqp_url, Opts, ?DEFAULT_AMQP_URL)),
-    ReconnectInterval = get_opt(reconnect_interval, 
+    ReconnectInterval = get_opt(reconnect_interval,
                                 Opts, ?DEFAULT_RECONNECT_INTERVAL) * 1000,
     BufferSize = get_opt(buffer_size, Opts, ?DEFAULT_BUFFER_SIZE),
     Publish = #'basic.publish'{
@@ -144,12 +160,12 @@ exometer_report(Metric, DataPoint, _Extra, Value,
 
   case send_to_amqp(St, Payload) of
     {ok, State} ->
-      {ok, State};
-    {error, _Reason} ->
-      amqp_channel:close(St#st.channel),
-      amqp_connection:close(St#st.connection),
-      prepare_reconnect(),
-      {ok, St#st{channel = false}}
+      {ok, State}
+    %% {error, _Reason} ->  % cannot happen, says dialyzer
+    %%   amqp_channel:close(St#st.channel),
+    %%   amqp_connection:close(St#st.connection),
+    %%   prepare_reconnect(),
+    %%   {ok, St#st{channel = false}}
   end.
 
 send_to_amqp(State = #st{
@@ -217,7 +233,7 @@ exometer_info({exometer_callback, reconnect},
              ) ->
     ?info("Reconnecting: ~p~n", [St]),
     case connect_amqp(AmqpParams) of
-        {ok, Channel} ->
+        {ok, _Connection, Channel} ->
             {ok, St#st{channel = Channel}};
         {error, _} = Error ->
             ?warning("Exometer amqp connection failed; ~p. Retry in ~p~n",

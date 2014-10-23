@@ -46,9 +46,10 @@ DelApp = fun(A, As) ->
 			 As
 		 end
 	 end.
+CONFIG1 =
 case os:getenv("EXOMETER_PACKAGES") of
     Str when is_list(Str) ->
-	L = string:tokens(Str, "\t, \n"),
+	L = string:tokens(Str, "\t, \"\n"),
 	Deps1 =
 	    try As = lists:foldl(
 		       fun("(" ++ P, Acc) ->
@@ -99,3 +100,20 @@ case os:getenv("EXOMETER_PACKAGES") of
     false ->
 	CONFIG
 end.
+%%
+%% Ensure macros defined for each non-mandatory dependency
+%% e.g. {d, dep_afunix} if afunix is included.
+%%
+{_, FinalDeps} = lists:keyfind(deps, 1, CONFIG1).
+ErlOpts = proplists:get_value(erl_opts, CONFIG, []),
+Defs = lists:foldl(fun(Dep, Acc) ->
+			   A = element(1, Dep),
+			   case lists:member(A, Mandatory) of
+			       true -> Acc;
+			       false ->
+				   [{d,list_to_atom(
+					 "dep_" ++ atom_to_list(A))}
+				    | Acc]
+			   end
+		   end, [], FinalDeps),
+lists:keystore(erl_opts, 1, CONFIG1, {erl_opts, ErlOpts ++ Defs}).

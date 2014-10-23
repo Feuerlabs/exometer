@@ -4,7 +4,7 @@
 
 Copyright (c) 2014 Basho Technologies, Inc.  All Rights Reserved.
 
-__Version:__ Oct 23 2014 12:46:07
+__Version:__ Oct 23 2014 23:12:54
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -22,6 +22,9 @@ databases, load balancers, etc.
 This document gives a high level overview of the Exometer system. For
 details, please see the documentation for individual modules, starting
 with `exometer`.
+
+Note the section on [Dependency Management](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Dependency_Management) for how to deal with
+optional packages, both users and developers.
 
 
 ### <a name="Table_of_Content">Table of Content</a> ###
@@ -1081,7 +1084,8 @@ Exometer dependencies can be controlled using the `EXOMETER_PACKAGES`
 unix environment variable: a string listing packages or applications to
 either keep or remove, separated using space, tab or comma.
 
-Syntax:
+
+#### <a name="Syntax">Syntax</a> ####
 
 + `(Package)` - use `Package` as a base. This will implicitly exclude all
   applications not included in `Package`. See below for supported packages.
@@ -1096,7 +1100,8 @@ Syntax:
 
 + `-App` - exclude application `App`.
 
-Supported packages:
+
+#### <a name="Supported_packages">Supported packages</a> ####
 
 + `minimal` - only the mandatory deps: `lager`, `parse_trans`, `setup`.
 
@@ -1119,6 +1124,13 @@ Example - use all deps except the AMQP-related deps:
 ```
 
 
+#### <a name="Conditional_defines">Conditional defines</a> ####
+For each optional dependency that is included, a macro is defined,
+named `dep_App` - e.g. `dep_afunix`. Developers must not include
+compile-time dependencies to optional applications, without checking
+the corresponding macro and ensuring that the module compiles even
+when the dependent application is not included. See `exometer_report_amqp.erl`
+for an example.
 
 ## Modules ##
 
