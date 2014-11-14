@@ -4,7 +4,7 @@
 
 Copyright (c) 2014 Basho Technologies, Inc.  All Rights Reserved.
 
-__Version:__ Oct 23 2014 23:12:54
+__Version:__ Nov 14 2014 13:48:17
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -1125,12 +1125,27 @@ Example - use all deps except the AMQP-related deps:
 
 
 #### <a name="Conditional_defines">Conditional defines</a> ####
+
 For each optional dependency that is included, a macro is defined,
 named `dep_App` - e.g. `dep_afunix`. Developers must not include
 compile-time dependencies to optional applications, without checking
 the corresponding macro and ensuring that the module compiles even
 when the dependent application is not included. See `exometer_report_amqp.erl`
 for an example.
+
+
+#### <a name="Customizing_rebar.config">Customizing rebar.config</a> ####
+
+The OS environment variables `EXOMETER_CONFIG_PREPROCESS` and
+`EXOMETER_CONFIG_POSTPROCESS` can be used to insert a script, similar to
+`rebar.config.script` in the processing flow of the exometer build.
+
+As the names imply, the script given by `EXOMETER_CONFIG_PREPROCESS` (if any)
+will be run before exometer does any processing of its own, and the
+`EXOMETER_CONFIG_POSTPROCESS` script (if any) will be run after all other
+processing is complete.
+Things that could be done in preprocessing: re-targeting a dependency,
+modifying the list of predefined packages, etc.
 
 ## Modules ##
 
@@ -1158,7 +1173,6 @@ for an example.
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_graphite.md" class="module">exometer_report_graphite</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_lager.md" class="module">exometer_report_lager</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_opentsdb.md" class="module">exometer_report_opentsdb</a></td></tr>
-<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_riak.md" class="module">exometer_report_riak</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_snmp.md" class="module">exometer_report_snmp</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_statsd.md" class="module">exometer_report_statsd</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_tty.md" class="module">exometer_report_tty</a></td></tr>

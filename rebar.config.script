@@ -19,16 +19,30 @@ Script = fun(D,S,Vs) ->
 			 Err
 		 end
 	 end.
-
+CONFIG0 = case os:getenv("EXOMETER_CONFIG_PREPROCESS") of
+	      false -> CONFIG;
+	      []    -> CONFIG;
+	      PPScr -> Script(filename:dirname(PPScr),
+			      filename:basename(PPScr),
+			      [{'CONFIG', CONFIG}])
+	  end.
 CFG1 = case os:getenv("REBAR_DEPS") of
            false ->
-               CONFIG;
+               CONFIG0;
            [] ->
-               CONFIG;
+               CONFIG0;
            Dir ->
-               lists:keystore(deps_dir, 1, CONFIG, {deps_dir, Dir})
+               lists:keystore(deps_dir, 1, CONFIG0, {deps_dir, Dir})
        end.
 
 Priv = filename:join(filename:dirname(SCRIPT), "priv").
 CFG2 = Script(Priv, "check_edown.script", [{'CONFIG', CFG1}]).
-Script(Priv, "check_packages.script", [{'CONFIG', CFG2}]).
+CFG3 = Script(Priv, "check_packages.script", [{'CONFIG', CFG2}]).
+
+case os:getenv("EXOMETER_CONFIG_POSTPROCESS") of
+    false  -> CFG3;
+    []     -> CFG3;
+    PoPScr -> Script(filename:dirname(PoPScr),
+		     filename:basename(PoPScr),
+		     [{'CONFIG', CFG3}])
+end.

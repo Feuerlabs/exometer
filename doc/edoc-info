@@ -7,7 +7,7 @@
           exometer_igor,exometer_info,exometer_netlink,exometer_probe,
           exometer_proc,exometer_report,exometer_report_amqp,
           exometer_report_collectd,exometer_report_graphite,
-          exometer_report_lager,exometer_report_opentsdb,exometer_report_riak,
-          exometer_report_snmp,exometer_report_statsd,exometer_report_tty,
-          exometer_shallowtree,exometer_slide,exometer_slot_slide,
-          exometer_spiral,exometer_uniform,exometer_util]}.
+          exometer_report_lager,exometer_report_opentsdb,exometer_report_snmp,
+          exometer_report_statsd,exometer_report_tty,exometer_shallowtree,
+          exometer_slide,exometer_slot_slide,exometer_spiral,exometer_uniform,
+          exometer_util]}.
