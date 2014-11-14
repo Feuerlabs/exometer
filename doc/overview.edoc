@@ -1069,3 +1069,17 @@ compile-time dependencies to optional applications, without checking
 the corresponding macro and ensuring that the module compiles even
 when the dependent application is not included. See `exometer_report_amqp.erl'
 for an example.
+
+=== Customizing rebar.config ===
+
+The OS environment variables `EXOMETER_CONFIG_PREPROCESS' and
+`EXOMETER_CONFIG_POSTPROCESS' can be used to insert a script, similar to
+`rebar.config.script' in the processing flow of the exometer build.
+
+As the names imply, the script given by `EXOMETER_CONFIG_PREPROCESS' (if any)
+will be run before exometer does any processing of its own, and the
+`EXOMETER_CONFIG_POSTPROCESS' script (if any) will be run after all other
+processing is complete.
+
+Things that could be done in preprocessing: re-targeting a dependency,
+modifying the list of predefined packages, etc.
