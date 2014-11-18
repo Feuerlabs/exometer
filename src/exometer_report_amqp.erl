@@ -64,7 +64,7 @@
     exometer_terminate/2
    ]).
 
--include("exometer.hrl").
+-include_lib("exometer_core/include/exometer.hrl").
 
 %% Since amqp is an optional dep, we must check if it's included before
 %% introducing a compile-time dependency.

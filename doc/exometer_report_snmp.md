@@ -8,7 +8,7 @@
 
 
 Internal reporter exposing metrics over SNMP.
-__Behaviours:__ [`exometer_report`](exometer_report.md).
+__Behaviours:__ [`exometer_report`](/Users/uwiger/FL/git/exometer/deps/exometer_core/doc/exometer_report.md).
 <a name="description"></a>
 
 ## Description ##
@@ -37,7 +37,7 @@ snmp() = disabled | [<a href="#type-snmp_option">snmp_option()</a>]
 
 
 <pre><code>
-snmp_option() = {<a href="exometer_entry.md#type-datapoint">exometer_entry:datapoint()</a>, <a href="exometer_report.md#type-interval">exometer_report:interval()</a>} | {<a href="exometer_entry.md#type-datapoint">exometer_entry:datapoint()</a>, <a href="exometer_report.md#type-interval">exometer_report:interval()</a>, <a href="exometer_report.md#type-extra">exometer_report:extra()</a>}
+snmp_option() = {<a href="/Users/uwiger/FL/git/exometer/deps/exometer_core/doc/exometer_entry.md#type-datapoint">exometer_entry:datapoint()</a>, <a href="/Users/uwiger/FL/git/exometer/deps/exometer_core/doc/exometer_report.md#type-interval">exometer_report:interval()</a>} | {<a href="/Users/uwiger/FL/git/exometer/deps/exometer_core/doc/exometer_entry.md#type-datapoint">exometer_entry:datapoint()</a>, <a href="/Users/uwiger/FL/git/exometer/deps/exometer_core/doc/exometer_report.md#type-interval">exometer_report:interval()</a>, <a href="/Users/uwiger/FL/git/exometer/deps/exometer_core/doc/exometer_report.md#type-extra">exometer_report:extra()</a>}
 </code></pre>
 
 

@@ -64,7 +64,7 @@
 
 -define(SERVER, ?MODULE).
 
--include("exometer.hrl").
+-include_lib("exometer_core/include/exometer.hrl").
 
 -define(CONNECT_TIMEOUT, 5000).
 -define(CONNECT_RETRIES, infinity).

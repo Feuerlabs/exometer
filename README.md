@@ -4,7 +4,7 @@
 
 Copyright (c) 2014 Basho Technologies, Inc.  All Rights Reserved.
 
-__Version:__ Nov 14 2014 13:48:17
+__Version:__ Nov 18 2014 11:20:12
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -477,7 +477,7 @@ application:start(exometer).
 Note that dependent applications need to be started first. On newer OTP versions
 (R61B or later), you can use `application:ensure_all_started(exometer)`.
 
-For testing, you can also use [`exometer:start/0`](https://github.com/Feuerlabs/exometer/blob/master/doc/exometer.md#start-0).
+For testing, you can also use [`exometer:start/0`](/Users/uwiger/FL/git/exometer/deps/exometer_core/doc/exometer.md#start-0).
 
 If you make use of e.g. folsom metrics, you also need to start `folsom`. Exometer
 will not do that automatically, nor does it contain an application dependency for it.
@@ -1151,35 +1151,11 @@ modifying the list of predefined packages, etc.
 
 
 <table width="100%" border="0" summary="list of modules">
-<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exo_montest.md" class="module">exo_montest</a></td></tr>
-<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer.md" class="module">exometer</a></td></tr>
-<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_admin.md" class="module">exometer_admin</a></td></tr>
-<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_cache.md" class="module">exometer_cache</a></td></tr>
-<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_cpu.md" class="module">exometer_cpu</a></td></tr>
-<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_duration.md" class="module">exometer_duration</a></td></tr>
-<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_entry.md" class="module">exometer_entry</a></td></tr>
-<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_folsom.md" class="module">exometer_folsom</a></td></tr>
-<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_folsom_monitor.md" class="module">exometer_folsom_monitor</a></td></tr>
-<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_function.md" class="module">exometer_function</a></td></tr>
-<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_histogram.md" class="module">exometer_histogram</a></td></tr>
-<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_igor.md" class="module">exometer_igor</a></td></tr>
-<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_info.md" class="module">exometer_info</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_netlink.md" class="module">exometer_netlink</a></td></tr>
-<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_probe.md" class="module">exometer_probe</a></td></tr>
-<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_proc.md" class="module">exometer_proc</a></td></tr>
-<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report.md" class="module">exometer_report</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_amqp.md" class="module">exometer_report_amqp</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_collectd.md" class="module">exometer_report_collectd</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_graphite.md" class="module">exometer_report_graphite</a></td></tr>
-<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_lager.md" class="module">exometer_report_lager</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_opentsdb.md" class="module">exometer_report_opentsdb</a></td></tr>
 <tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_snmp.md" class="module">exometer_report_snmp</a></td></tr>
-<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_statsd.md" class="module">exometer_report_statsd</a></td></tr>
-<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_tty.md" class="module">exometer_report_tty</a></td></tr>
-<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_shallowtree.md" class="module">exometer_shallowtree</a></td></tr>
-<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_slide.md" class="module">exometer_slide</a></td></tr>
-<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_slot_slide.md" class="module">exometer_slot_slide</a></td></tr>
-<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_spiral.md" class="module">exometer_spiral</a></td></tr>
-<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_uniform.md" class="module">exometer_uniform</a></td></tr>
-<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_util.md" class="module">exometer_util</a></td></tr></table>
+<tr><td><a href="https://github.com/Feuerlabs/exometer/blob/master/doc/exometer_report_statsd.md" class="module">exometer_report_statsd</a></td></tr></table>
 
