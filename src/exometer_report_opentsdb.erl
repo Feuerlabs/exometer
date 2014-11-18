@@ -27,7 +27,7 @@
 %%
 %% `{host, ip()}` - OpenTSDB host and port. Default: {"127.0.0.1", 4242}
 %%
-%% `{hostname, string()}` - This plugin uses a tag called 'host' to denote 
+%% `{hostname, string()}` - This plugin uses a tag called 'host' to denote
 %% the hostname to which this metric belongs. Default: net_adm:localhost()
 %% @end
 
@@ -50,7 +50,7 @@
     exometer_terminate/2
    ]).
 
--include("exometer.hrl").
+-include_lib("exometer_core/include/exometer.hrl").
 
 -define(DEFAULT_HOST, "localhost").
 -define(DEFAULT_PORT, 4242).
@@ -60,7 +60,7 @@
 -record(st, {
           host = ?DEFAULT_HOST,
           port = ?DEFAULT_PORT,
-          reconnect_interval = ?RECONNECT_INTERVAL,          
+          reconnect_interval = ?RECONNECT_INTERVAL,
           connect_timeout = ?DEFAULT_CONNECT_TIMEOUT,
           hostname = undefined,
           socket = undefined}).
@@ -79,9 +79,9 @@ exometer_init(Opts) ->
     ConnectTimeout = get_opt(connect_timeout, Opts, ?DEFAULT_CONNECT_TIMEOUT),
     State = #st{
                     reconnect_interval = ReconnectInterval,
-                    host = Host, 
-                    port = Port, 
-                    connect_timeout = ConnectTimeout, 
+                    host = Host,
+                    port = Port,
+                    connect_timeout = ConnectTimeout,
                     hostname =  check_hostname(get_opt(hostname, Opts, "auto"))
                 },
     case connect_opentsdb(Host, Port, ConnectTimeout) of
@@ -102,7 +102,7 @@ exometer_report(_Metric, _DataPoint, _Extra, _Value, St) when St#st.socket =:= u
 %% put <metric> <time> <measurement> <k1>=<v1> <k2>=<v2>\n
 exometer_report(Metric, DataPoint, _Extra, Value, #st{socket = Sock, hostname = Hostname} = St) ->
     Line = [
-        "put ", name(Metric), " ", timestamp(), " ", value(Value), " ", 
+        "put ", name(Metric), " ", timestamp(), " ", value(Value), " ",
         "hostname=", Hostname, " ", "type=", atom_to_list(DataPoint), $\n
     ],
     case gen_tcp:send(Sock, Line) of

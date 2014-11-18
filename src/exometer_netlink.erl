@@ -28,7 +28,7 @@
 -export([count_sample/3,
          count_transform/2]).
 
--include("exometer.hrl").
+-include_lib("exometer_core/include/exometer.hrl").
 -import(netlink_stat, [get_value/1]).
 -record(st, {name,
              slide = undefined, %%

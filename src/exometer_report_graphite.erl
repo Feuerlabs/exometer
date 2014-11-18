@@ -26,7 +26,7 @@
     exometer_terminate/2
    ]).
 
--include("exometer.hrl").
+-include_lib("exometer_core/include/exometer.hrl").
 
 -define(DEFAULT_HOST, "carbon.hostedgraphite.com").
 -define(DEFAULT_PORT, 2003).

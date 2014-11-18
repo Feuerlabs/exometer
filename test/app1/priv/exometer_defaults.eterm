@@ -1,0 +1,2 @@
+%% -*- erlang-indent-level: 4; indent-tabs-mode: nil -*-
+{[h,'_'], histogram, []}.
