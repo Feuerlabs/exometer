@@ -169,23 +169,24 @@ get_value_int_(#st{truncate = Trunc,
     %% We need element count and sum of all elements to get mean value.
     Tot0 = case Trunc of true -> 0; round -> 0; false -> 0.0 end,
     TS = exometer_util:timestamp(),
-    {Length, FullLength, Total, Min0, Max, Lst0, Xtra} =
+    {Length, FullLength, Total, Min0, Max0, Lst0, Xtra} =
         Module:foldl(
 	  TS,
           fun
               ({_TS1, {Val, Cnt, NMin, NMax, X}},
                {Length, FullLen, Total, OMin, OMax, List, Xs}) ->
                   {Length + 1, FullLen + Cnt, Total + Val,
-		   min(OMin, NMin), max(OMax, NMax),
+		   min(OMin, NMin), -min(OMax, -NMax),
                    [Val|List], [X|Xs]};
 
               ({_TS1, Val}, {Length, _, Total, Min, Max, List, Xs}) ->
 		  L1 = Length+1,
-                  {L1, L1, Total + Val, min(Val, Min), max(Val, Max),
+                  {L1, L1, Total + Val, min(Val, Min), -min(-Val, Max),
                    [Val|List], Xs}
           end,
-          {0,  0, Tot0, infinity, 0, [], []}, St#st.slide),
+          {0,  0, Tot0, infinity, '-infinity', [], []}, St#st.slide),
     Min = if Min0 == infinity -> 0; true -> Min0 end,
+    Max = if Max0 == '-infinity' -> 0; true -> Max0 end,
     Mean = case Length of
                0 -> 0.0;
                N -> Total / N
