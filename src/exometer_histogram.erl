@@ -104,6 +104,16 @@
 -define(DATAPOINTS,
         [n, mean, min, max, median, 50, 75, 90, 95, 99, 999 ]).
 
+-define(max(Number1, Number2),
+        case {Number1, Number2} of
+          {_, '-infinity'} ->
+            Number1;
+          {'-infinity', _} ->
+            Number2;
+          _ ->
+            max(Number1, Number2)
+        end).
+
 -spec behaviour() -> exometer:behaviour().
 behaviour() ->
     probe.
@@ -176,12 +186,12 @@ get_value_int_(#st{truncate = Trunc,
               ({_TS1, {Val, Cnt, NMin, NMax, X}},
                {Length, FullLen, Total, OMin, OMax, List, Xs}) ->
                   {Length + 1, FullLen + Cnt, Total + Val,
-		   min(OMin, NMin), -min(OMax, -NMax),
+		   min(NMin, OMin), ?max(NMax, OMax),
                    [Val|List], [X|Xs]};
 
               ({_TS1, Val}, {Length, _, Total, Min, Max, List, Xs}) ->
 		  L1 = Length+1,
-                  {L1, L1, Total + Val, min(Val, Min), -min(-Val, Max),
+                  {L1, L1, Total + Val, min(Val, Min), ?max(Val, Max),
                    [Val|List], Xs}
           end,
           {0,  0, Tot0, infinity, '-infinity', [], []}, St#st.slide),
