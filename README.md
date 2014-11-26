@@ -475,7 +475,7 @@ application:start(exometer).
 ```
 
 Note that dependent applications need to be started first. On newer OTP versions
-(R61B or later), you can use `application:ensure_all_started(exometer)`.
+(R16B or later), you can use `application:ensure_all_started(exometer)`.
 
 For testing, you can also use [`exometer:start/0`](https://github.com/Feuerlabs/exometer/blob/master/doc/exometer.md#start-0).
 
