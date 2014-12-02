@@ -571,7 +571,7 @@ A dynamic subscription can be setup with the following call:
 
 ```erlang
 
-exometer_report:subscribe(Recipient, Metric, DataPoint, Inteval)
+exometer_report:subscribe(Recipient, Metric, DataPoint, Interval)
 ```
 
 `Recipient` is the name of a reporter.
