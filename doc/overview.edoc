@@ -832,10 +832,6 @@ The following attributes are available for configuration:
      <br/>Specifies the plugin instance id to use when constructing an collectd identifier.
     Please see {@section Configuring collectd reporter} for details.
 
-+ `plugin_instance' (string - default: left hand side of `node()')
-     <br/>Specifies the plugin instance id to use when constructing an collectd identifier.
-    Please see {@section Configuring collectd reporter} for details.
-
 + `hostname' (string - default: `net_adm:localhost()')
      <br/>Specifies the host name to use when constructing an collectd identifier.
     Please see {@section Configuring collectd reporter} for details.
