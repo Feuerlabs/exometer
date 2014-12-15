@@ -1017,12 +1017,21 @@ type_arg_first(Opts) ->
 %% Retrieve individual data points for the counter maintained by
 %% the exometer record itself.
 get_ctr_datapoint(#exometer_entry{name = Name}, value) ->
-    {value, lists:sum([ets:lookup_element(T, Name, #exometer_entry.value)
-		       || T <- exometer_util:tables()])};
+    {value, counter_sum(Name)};
+get_ctr_datapoint(#exometer_entry{name = Name}, value16) ->
+    {value, counter_sum(Name) rem 16#FFFF};
+get_ctr_datapoint(#exometer_entry{name = Name}, value32) ->
+    {value, counter_sum(Name) rem 16#FFFFFFFF};
+get_ctr_datapoint(#exometer_entry{name = Name}, value64) ->
+    {value, counter_sum(Name) rem 16#FFFFFFFFFFFFFFFF};
 get_ctr_datapoint(#exometer_entry{timestamp = TS}, ms_since_reset) ->
     {ms_since_reset, exometer_util:timestamp() - TS};
 get_ctr_datapoint(#exometer_entry{}, Undefined) ->
     {Undefined, undefined}.
+
+counter_sum(Name) ->
+    lists:sum([ets:lookup_element(T, Name, #exometer_entry.value)
+	       || T <- exometer_util:tables()]).
 
 get_gauge_datapoint(#exometer_entry{value = Value}, value) ->
     {value, Value};
