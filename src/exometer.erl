@@ -22,6 +22,7 @@
 %%           [{['_'], function    , [{module, exometer_function}]},
 %%            {['_'], counter     , [{module, exometer}]},
 %%            {['_'], fast_counter, [{module, exometer}]},
+%%            {['_'], wrap_counter, [{module, exometer}]},
 %%            {['_'], gauge       , [{module, exometer}]},
 %%            {['_'], histogram   , [{module, exometer_histogram}]},
 %%            {['_'], spiral      , [{module, exometer_spiral}]},
@@ -206,6 +207,22 @@ update(Name, Value) when is_list(Name) ->
 		#exometer_entry{module = ?MODULE, type = counter} ->
                     ets:update_counter(
                       Table, Name, {#exometer_entry.value, Value});
+		#exometer_entry{module = ?MODULE, type = wrap_counter,
+				ref = Ref} ->
+		    case Ref of
+			undefined ->
+			    ets:update_counter(
+			      ?EXOMETER_ENTRIES, Name,
+			      {#exometer_entry.value, Value});
+			{Min, Max} ->
+			    {Thresh, SetValue} =
+				if Value >= 0 -> {Max, Min};
+				   true       -> {Min, Max}
+				end,
+			    ets:update_counter(
+			      ?EXOMETER_ENTRIES, Name,
+			      {#exometer_entry.value, Value, Thresh, SetValue})
+		    end;
 		#exometer_entry{module = ?MODULE,
 				type = fast_counter, ref = {M, F}} ->
                     fast_incr(Value, M, F);
@@ -299,11 +316,23 @@ get_value(Name, DataPoint) when is_list(Name), is_atom(DataPoint),
 
 %% Also covers DataPoints = default
 get_value(Name, DataPoints) when is_list(Name) ->
-    case ets:lookup(exometer_util:table(), Name) of
+    case lookup_entry(Name) of
         [#exometer_entry{} = E] ->
             {ok, get_value_(E, DataPoints)};
+	    %% catch error:_ -> {error, not_found}
+	    %% end;
         _ ->
             {error, not_found}
+    end.
+
+lookup_entry(Name) ->
+    case ets:lookup(exometer_util:table(), Name) of
+	[#exometer_entry{module = ?MODULE,
+			 type = Type}] when Type == gauge;
+					    Type == wrap_counter ->
+	    ets:lookup(?EXOMETER_ENTRIES, Name);
+	Other ->
+	    Other
     end.
 
 %% If the entry is disabled, just err out.
@@ -319,7 +348,8 @@ get_value_(#exometer_entry{cache = Cache } = E,
 
 get_value_(#exometer_entry{ module = ?MODULE,
 			    type = Type} = E, default)
-  when Type == counter; Type == fast_counter; Type == gauge ->
+  when Type == counter; Type == fast_counter;
+       Type == wrap_counter; Type == gauge ->
     get_value_(E, exometer_util:get_datapoints(E));
 
 get_value_(#exometer_entry{ module = ?MODULE,
@@ -327,9 +357,8 @@ get_value_(#exometer_entry{ module = ?MODULE,
     DataPoints = datapoints(DataPoints0, E),
     [get_ctr_datapoint(E, D) || D <- DataPoints];
 
-get_value_(#exometer_entry{ module = ?MODULE,
-			    type = gauge, name = Name}, DataPoints0) ->
-    [E] = ets:lookup(?EXOMETER_ENTRIES, Name),
+get_value_(#exometer_entry{module = ?MODULE,
+			   type = gauge} = E, DataPoints0) ->
     DataPoints = datapoints(DataPoints0, E),
     [get_gauge_datapoint(E, D) || D <- DataPoints];
 
@@ -337,6 +366,11 @@ get_value_(#exometer_entry{module = ?MODULE,
                            type = fast_counter} = E, DataPoints0) ->
     DataPoints = datapoints(DataPoints0, E),
     [get_fctr_datapoint(E, D) || D <- DataPoints ];
+
+get_value_(#exometer_entry{module = ?MODULE,
+                           type = wrap_counter} = E, DataPoints0) ->
+    DataPoints = datapoints(DataPoints0, E),
+    [get_wctr_datapoint(E, D) || D <- DataPoints ];
 
 get_value_(#exometer_entry{behaviour = entry,
 			   module = Mod,
@@ -403,6 +437,7 @@ sample(Name)  when is_list(Name) ->
 	    case E of
 		#exometer_entry{module = ?MODULE, type = counter} -> ok;
 		#exometer_entry{module = ?MODULE, type = fast_counter} -> ok;
+		#exometer_entry{module = ?MODULE, type = wrap_counter} -> ok;
 		#exometer_entry{behaviour = probe,
 				type = Type,
 				ref = Ref} ->
@@ -436,6 +471,12 @@ reset(Name)  when is_list(Name) ->
 		    [ets:update_element(T, Name, [{#exometer_entry.value, 0},
 						  {#exometer_entry.timestamp, TS}])
 		     || T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
+		    ok;
+		#exometer_entry{module = ?MODULE, type = wrap_counter} ->
+		    TS = exometer_util:timestamp(),
+		    ets:update_element(?EXOMETER_ENTRIES, Name,
+				       [{#exometer_entry.value, 0},
+					{#exometer_entry.timestamp, TS}]),
 		    ok;
 		#exometer_entry{module = ?MODULE, type = fast_counter,
 				ref = {M, F}} ->
@@ -492,6 +533,7 @@ setopts(Name, Options) when is_list(Name), is_list(Options) ->
                         {_, enabled} ->
 			    case Type of
 				fast_counter -> setopts_fctr(E, Options);
+				wrap_counter -> setopts_wctr(E, Options);
 				counter      -> setopts_ctr(E, Options);
 				gauge        -> setopts_gauge(E, Options)
                             end,
@@ -508,6 +550,7 @@ setopts(Name, Options) when is_list(Name), is_list(Options) ->
                         R when R==false; R=={status,disabled} ->
 			    case Type of
 				fast_counter -> setopts_fctr(E, Options);
+				wrap_counter -> setopts_wctr(E, Options);
 				counter      -> setopts_ctr(E, Options);
 				gauge        -> setopts_gauge(E, Options)
                             end,
@@ -580,6 +623,21 @@ setopts_fctr(#exometer_entry{name = Name,
     end,
     Elems1 = add_elem(ref, Ref, Elems),
     update_entry_elems(Name, Elems1),
+    ok.
+
+setopts_wctr(#exometer_entry{name = Name,
+			     ref = OldRef} = E, Options) ->
+    {#exometer_entry{}, Elems} =
+	process_setopts(E, Options),
+    Ref = case lists:keyfind(wrap, 1, Options) of
+	      false ->
+		  OldRef;
+	      {_, {Min, Max} = Range} when is_integer(Min), is_integer(Max),
+					   Min =< Max ->
+		  Range
+	  end,
+    Elems1 = add_elem(ref, Ref, Elems),
+    ets:update_element(?EXOMETER_ENTRIES, Name, Elems1),
     ok.
 
 setopts_ctr(#exometer_entry{name = Name} = E, Options) ->
@@ -1048,11 +1106,33 @@ get_fctr_datapoint(#exometer_entry{timestamp = TS }, ms_since_reset) ->
 get_fctr_datapoint(#exometer_entry{ }, Undefined) ->
     {Undefined, undefined}.
 
+get_wctr_datapoint(#exometer_entry{value = Value}, value) ->
+    {value, Value};
+get_wctr_datapoint(#exometer_entry{timestamp = TS}, ms_since_reset) ->
+    {ms_since_reset, exometer_util:timestamp() - TS};
+get_wctr_datapoint(#exometer_entry{}, Undefined) ->
+    {Undefined, undefined}.
 
 create_entry(#exometer_entry{module = exometer,
                              type = Type} = E) when Type == counter;
 						    Type == gauge ->
     E1 = E#exometer_entry{value = 0, timestamp = exometer_util:timestamp()},
+    [ets:insert(T, E1) || T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
+    ok;
+
+create_entry(#exometer_entry{module = exometer,
+			     type = wrap_counter, options = Opts} = E) ->
+    Ref = case lists:keyfind(wrap, 1, Opts) of
+	      false -> undefined;
+	      {_, {Min, Max} = Range} when is_integer(Min), is_integer(Max),
+					   Min =< Max->
+		  Range
+	  end,
+    E1 = E#exometer_entry{value = 0, timestamp = exometer_util:timestamp(),
+			  ref = Ref},
+    %% We will only operate on the ?EXOMETER_ENTRIES table, but as metadata
+    %% lookups are done on the thread-local table, we must write into all of
+    %% them.
     [ets:insert(T, E1) || T <- [?EXOMETER_ENTRIES|exometer_util:tables()]],
     ok;
 

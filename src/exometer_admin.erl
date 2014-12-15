@@ -477,6 +477,7 @@ exometer_default(Name, Type) ->
 module(counter )      -> exometer;
 module(gauge)         -> exometer;
 module(fast_counter)  -> exometer;
+module(wrap_counter)  -> exometer;
 module(uniform)       -> exometer_uniform;
 module(duration)      -> exometer_duration;
 module(histogram)     -> exometer_histogram;
