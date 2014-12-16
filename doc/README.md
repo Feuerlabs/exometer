@@ -4,7 +4,7 @@
 
 Copyright (c) 2014 Basho Technologies, Inc.  All Rights Reserved.
 
-__Version:__ Nov 14 2014 13:48:17
+__Version:__ Nov 16 2014 19:46:20
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -1154,6 +1154,7 @@ modifying the list of predefined packages, etc.
 <tr><td><a href="exo_montest.md" class="module">exo_montest</a></td></tr>
 <tr><td><a href="exometer.md" class="module">exometer</a></td></tr>
 <tr><td><a href="exometer_admin.md" class="module">exometer_admin</a></td></tr>
+<tr><td><a href="exometer_alias.md" class="module">exometer_alias</a></td></tr>
 <tr><td><a href="exometer_cache.md" class="module">exometer_cache</a></td></tr>
 <tr><td><a href="exometer_cpu.md" class="module">exometer_cpu</a></td></tr>
 <tr><td><a href="exometer_duration.md" class="module">exometer_duration</a></td></tr>

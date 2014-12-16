@@ -1,8 +1,8 @@
 %% encoding: UTF-8
 {application,exometer}.
 {packages,[]}.
-{modules,[exo_montest,exometer,exometer_admin,exometer_cache,exometer_cpu,
-          exometer_duration,exometer_entry,exometer_folsom,
+{modules,[exo_montest,exometer,exometer_admin,exometer_alias,exometer_cache,
+          exometer_cpu,exometer_duration,exometer_entry,exometer_folsom,
           exometer_folsom_monitor,exometer_function,exometer_histogram,
           exometer_igor,exometer_info,exometer_netlink,exometer_probe,
           exometer_proc,exometer_report,exometer_report_amqp,
