@@ -457,7 +457,7 @@ application:start(lager),
 application:start(exometer).</pre>
 
 Note that dependent applications need to be started first. On newer OTP versions
-(R61B or later), you can use `application:ensure_all_started(exometer)'.
+(R16B or later), you can use `application:ensure_all_started(exometer)'.
 
 For testing, you can also use {@link exometer:start/0}.
 
