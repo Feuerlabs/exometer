@@ -4,7 +4,4 @@ otp_release:
     - R16B02
     - R16B01
     - R16B
-    - R15B03
-    - R15B02
-    - R15B01
 after_failure: "echo 'logs/raw.log\n'; cat logs/raw.log; for f in `find logs/ct_run*/log*/ -type f`; do echo \"\n$f\n\" ; cat $f; done"
