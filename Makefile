@@ -7,9 +7,9 @@ DIALYZER_APPS = erts kernel stdlib compiler syntax_tools snmp ssl ssh \
 		lager goldrush afunix netlink folsom mnesia parse_trans \
 		setup exometer_core
 
-all: deps compile xref test
+all: deps compile
 
-ci: compile xref test
+ci: compile xref dialyzer test
 
 deps:
 	rebar get-deps
