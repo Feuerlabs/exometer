@@ -290,6 +290,12 @@ send_request(Sock, Request, Metric, DataPoint, Extra, Value,
                     maybe_reconnect_after(Sock),
                     St#st{socket = undefined}
             end;
+        {error, enotconn} ->
+            %% Socket is not connected, setup later reconnect
+            ?warning("Failed to send. Will reconnect in ~p~n",
+                     [St#st.reconnect_interval]),
+            maybe_reconnect_after(Sock),
+            St#st{socket = undefined};
         _ ->
             St
     catch
