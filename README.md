@@ -475,7 +475,7 @@ application:start(exometer).
 ```
 
 Note that dependent applications need to be started first. On newer OTP versions
-(R61B or later), you can use `application:ensure_all_started(exometer)`.
+(R16B or later), you can use `application:ensure_all_started(exometer)`.
 
 For testing, you can also use [`exometer:start/0`](/Users/uwiger/FL/git/exometer/deps/exometer_core/doc/exometer.md#start-0).
 
@@ -571,7 +571,7 @@ A dynamic subscription can be setup with the following call:
 
 ```erlang
 
-exometer_report:subscribe(Recipient, Metric, DataPoint, Inteval)
+exometer_report:subscribe(Recipient, Metric, DataPoint, Interval)
 ```
 
 `Recipient` is the name of a reporter.
