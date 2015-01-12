@@ -19,7 +19,7 @@ case lists:member("edown=true", Args) of
         case code:lib_dir(edown) of
             {error, bad_name} ->
                 D = {edown, ".*",
-                     {git, "git://github.com/esl/edown.git", "HEAD"}},
+                     {git, "git://github.com/uwiger/edown.git", "HEAD"}},
                 Deps = case lists:keyfind(deps, 1, CONFIG) of
                            false -> [D];
                            {_, Ds} ->

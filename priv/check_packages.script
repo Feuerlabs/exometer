@@ -1,9 +1,13 @@
 %% -*- erlang -*-
 %%---- BEGIN COPYRIGHT -------------------------------------------------------
 %%
-%% Copyright (C) 2013 Feuerlabs Inc. All rights reserved.                                                 %%
-%% This Source Code Form is subject to the terms of the Mozilla Public                                    %% License, v. 2.0. If a copy of the MPL was not distributed with this
-%% file, You can obtain one at http://mozilla.org/MPL/2.0/.                                               %%                                                                                                        %%---- END COPYRIGHT ---------------------------------------------------------
+%% Copyright (C) 2013 Feuerlabs Inc. All rights reserved.
+%%
+%% This Source Code Form is subject to the terms of the Mozilla Public
+%% License, v. 2.0. If a copy of the MPL was not distributed with this
+%% file, You can obtain one at http://mozilla.org/MPL/2.0/.
+%%
+%%---- END COPYRIGHT ---------------------------------------------------------
 
 Configs0 = proplists:get_value(configurations, CONFIG, []).
 {_, Mandatory0} = lists:keyfind(mandatory_deps, 1, CONFIG).
@@ -86,7 +90,7 @@ case os:getenv("EXOMETER_PACKAGES") of
 			       catch
 				   error:_ -> Acc
 			       end
-		       end, [], L),
+		       end, Mandatory, L),
 		 lists:filter(fun(D) ->
 				      lists:member(element(1,D), As)
 			      end, Deps)
