@@ -1,0 +1,12 @@
+%% -*- erlang -*-
+%%
+%% This helper script selects the correct cover spec for the Erlang/OTP version being used.
+%% Assumes that the rebar config is bound to CONFIG
+case erlang:system_info(version) of
+    Vsn when Vsn >= "6.1" ->
+        % using 17.1 or later
+        lists:keystore(ct_extra_params, 1, CONFIG, {ct_extra_params, "-cover test/cover.spec"});
+    _ ->
+        % using 17.0 or older
+        lists:keystore(ct_extra_params, 1, CONFIG, {ct_extra_params, "-cover test/cover.spec.pre171"})
+end.
