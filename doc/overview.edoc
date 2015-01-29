@@ -8,6 +8,8 @@
 
 [![Build Status](https://travis-ci.org/Feuerlabs/exometer.png?branch=master)](https://travis-ci.org/Feuerlabs/exometer)
 
+<b>NOTE: Exometer has been split into <a href="https://github.com/Feuerlabs/exometer_core">exometer_core</a>, and exometer (as well as separate reporter applications). The latest monolithic version of Exometer is 1.1.</b>
+
 The Exometer package allows for easy and efficient instrumentation of
 Erlang code, allowing crucial data on system performance to be
 exported to a wide variety of monitoring systems.
@@ -19,7 +21,7 @@ databases, load balancers, etc.
 
 This document gives a high level overview of the Exometer system. For
 details, please see the documentation for individual modules, starting
-with ``exometer''.
+with `exometer'.
 
 Note the section on {@section Dependency Management} for how to deal with
 optional packages, both users and developers.
@@ -84,12 +86,12 @@ then reported to the Exometer system. An example metric would be
 
 Metrics are identified by a list of terms, such as given below:
 
-``[ xml_front_end, parser, file_size ]''
+`[ xml_front_end, parser, file_size ]'
 
 A metric is created through a call by the code to be instrumented to
-``exometer:new()''. Once created, the metric can be updated through
-``exometer:update()'', or on its own initiative through the
-``exometer_probe:sample'' behavior implementation.
+`exometer:new()'. Once created, the metric can be updated through
+`exometer:update()', or on its own initiative through the
+`exometer_probe:sample' behavior implementation.
 
 === Data Point ===
 
@@ -97,10 +99,10 @@ Each metric can consist of multiple data points, where each point has
 a specific value.
 
 A typical example of data points would be a
-``transactions_per_second'' (tps) metric, usually stored as a
+`transactions_per_second' (tps) metric, usually stored as a
 histogram covering the last couple of minutes of tps samples. Such a
-histogram would host multiple values, such as ``min'', ``max'',
-``median'', ``mean'', ``50_percentile'', ``75_percentile'',
+histogram would host multiple values, such as `min', `max',
+`median', `mean', `50_percentile', `75_percentile',
 etc.
 
 It is up to the type of the metric, and the data probe backing that
@@ -111,15 +113,22 @@ given metric.
 === Metric Type ===
 
 The type of a metric, specified when the metric is created through
-``exometer:new()'', determines which ``exometer_entry''
+`exometer:new()', determines which `exometer_entry'
 callback to use.
 
 The link between the type and the entry to use is configured
-through the ``exometer_admin'' module, and its associated exometer
+through the `exometer_admin' module, and its associated exometer
 defaults configuration data.
 
-The metric type, in other words, is only used to map a metric to a
-configurable ``exometer_entry'' callback.
+The metric type, in other words, is mainly used to map a metric to a
+configurable `exometer_entry' callback, but it can also be referenced
+in queries using `exometer:select/1'. An entry callback can also support
+multiple types (the type is provided as an argument in the callback functions).
+
+Exometer provides default mappings for a number of metric types. It is
+possible to select different callbacks for each metric instance, as well
+as modify metrics using callback-specific options. Please see
+{@section Configuring type - entry maps} for details on how to do this.
 
 === Entry Callback ===
 
@@ -238,13 +247,16 @@ The gauge can be reset to zero through `exometer:reset()'.
 The available data points under a metric using the gauge entry
 are `value' and `ms_since_reset'.
 
-=== exometer_histogram (probe) ===
+=== histogram (probe) ===
 
 The histogram probe stores a given number of updates, provided through
 `exometer:update()', in a histogram. The histogram maintains a log
 derived from all values received during a configurable time span and
 provides min, max, median, mean, and percentile analysis data points
 for the stored data.
+
+Exometer supports a number of different histogram implementations, each
+with different performance and accuracy trade-offs. 
 
 In order to save memory, the histogram is divided into equal-sized
 time slots, where each slot spans a settable interval. All values
@@ -277,6 +289,11 @@ probe is also available.
 
 === exometer_folsom [entry] ===
 
+`exometer_folsom' is an entry behavior which implements most metric types
+supported by the <a href="https://github.com/boundary/folsom">folsom</a>
+metrics package: Specifically, the metric types `counter', `spiral',
+`histogram', `meter', `meter_reader', `gauge', `duration' and `history'.
+
 The folsom entry integrates with the folsom metrics package provided
 by the boundary repo at github. Updated values sent to the folsom entry
 can be forwarded to folsom's counter, histogram, duration, meter,
@@ -287,11 +304,10 @@ should use the native probes that duplicate folsom.
 
 === exometer_function [entry] ===
 
-The function entry allows for a simple caller-supplied function to be
-invoked in order to retrieve non-exometer data. The
-`exometer_function:get_value()' function will invoke a
-`Module:Function(DataPoints)' call, where `Module' and
-`Function' are provided by the caller.
+The function entry allows for an existing erlang function to be wrapped
+as an exometer entry. The {@link exometer_function} module supports a number
+of options for passing arguments and matching out data points from the
+result.
 
 The function entry provides an easy way of integrating an external
 system without having to write a complete entry.
@@ -468,7 +484,7 @@ retrieve their actual value:
 exometer:get_value(Name, DataPoint)</pre>
 
 The `Name' paramer identifies the metric, and `DataPoints'
-identifies the data points (returned from the previous ``info()'' call)
+identifies the data points (returned from the previous `info()' call)
 to retrieve the value for.
 
 If no DataPoints are provided, the values of a default list of data points,
