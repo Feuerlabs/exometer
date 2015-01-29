@@ -4,7 +4,7 @@
 
 Copyright (c) 2014 Basho Technologies, Inc.  All Rights Reserved.
 
-__Version:__ Nov 18 2014 11:20:12
+__Version:__ Jan 5 2015 17:33:07
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -49,10 +49,9 @@ optional packages, both users and developers.
     8. [exometer_function [entry]](#exometer_function_[entry])
 3. [Built in Reporters](#Built_in_Reporters)
     1. [exometer_report_graphite](#exometer_report_graphite)
-    2. [exometer_report_collectd](#exometer_report_collectd)
-    3. [exometer_report_opentsdb](#exometer_report_opentsdb)
-    4. [exometer_report_amqp](#exometer_report_amqp)
-    5. [exometer_report_snmp](#exometer_report_snmp)
+    2. [exometer_report_opentsdb](#exometer_report_opentsdb)
+    3. [exometer_report_amqp](#exometer_report_amqp)
+    4. [exometer_report_snmp](#exometer_report_snmp)
 4. [Instrumenting Erlang code](#Instrumenting_Erlang_code)
     1. [Exometer Start](#Exometer_Start)
     2. [Creating metrics](#Creating_metrics)
@@ -66,11 +65,10 @@ optional packages, both users and developers.
     2. [Configuring statically defined entries](#Configuring_statically_defined_entries)
     3. [Configuring static subscriptions](#Configuring_static_subscriptions)
     4. [Configuring reporter plugins](#Configuring_reporter_plugins)
-    5. [Configuring collectd reporter](#Configuring_collectd_reporter)
-    6. [Configuring opentsdb reporter](#Configuring_opentsdb_reporter)
-    7. [Configuring amqp reporter](#Configuring_amqp_reporter)
-    8. [Configuring graphite reporter](#Configuring_graphite_reporter)
-    9. [Configuring snmp reporter](#Configuring_snmp_reporter)
+    5. [Configuring opentsdb reporter](#Configuring_opentsdb_reporter)
+    6. [Configuring amqp reporter](#Configuring_amqp_reporter)
+    7. [Configuring graphite reporter](#Configuring_graphite_reporter)
+    8. [Configuring snmp reporter](#Configuring_snmp_reporter)
 6. [Creating custom exometer entries](#Creating_custom_exometer_entries)
 7. [Creating custom probes](#Creating_custom_probes)
 8. [Creating custom reporter plugins](#Creating_custom_reporter_plugins)
@@ -340,48 +338,6 @@ reporter receives a metric-datapoint value (subscribed to through
 forward the key-value pair to the graphite server.
 
 
-#### <a name="exometer_report_collectd">exometer_report_collectd</a> ####
-
-The collectd reporter communicates with a local `collectd` process
-through its unix socket protocol. All subscribed-to metric-datapoint
-values received by the reporter are immediately forwarded to
-`collectd`. Once a value has been forwarded, the reporter continuously
-refreshes the value toward `collectd` at a configurable interval in order
-to keep it from expiring inside `collectd`.
-
-If the `collectd` connection is lost, the reporter will attempt to reconnect to it
-at a configurable interval.
-
-All metrics reported to collectd will be have identifiers formatted as follows:
-
-```
-HostName/PluginName-PluginInstance/Type-Metric_DataPoint
-```
-
-+ `HostName`<br />Host name of the entry.<br />Configurable through the `hostname` application environment parameter.<br />Default is the value returned by `netadm:localhost()`.
-
-+ `PluginName`<br />The collectd plugin name.<br />Configurable through the `plugin_name` application environment parameter.<br />Default is `exometer`.
-
-+ `PluginInstance`<br />The instance ID to use for the plugin.<br />Configurable through the `plugin_instance` application environment parameter.<br />Default is the erlang node name in the left hand side of the value
-    returned by `node()`.
-
-+ `Type`<br />Type assigned to the reported value.<br />The type is looked up through the `type_map`.<br />The given metric and data points are used as a key in a list format,
-    such as `[ db, cache, hits, median ]`. The type that is resolved from
-    the metric/data point will be used as the `Type` component in the
-    collectd identifier. Please see types.db(5) for a list of available
-    collectd types.<br />Default for `Type` is 'gauge'.
-
-+ `Metric`<br />The name of the metric. The atoms in the metric list will be converted
-    to a string separated by `_`. Thus `[ db, cache, hits ]` will be converted
-    to `db_cache_hits`.
-
-+ `DataPoint`<br />The data point of the given metric.
-Will be added to the end of the metrics string.
-
-Please see [Configuring collectd reporter](#Configuring_collectd_reporter) for details on the
-application environment parameters listed above.
-
-
 #### <a name="exometer_report_opentsdb">exometer_report_opentsdb</a> ####
 
 The OpenTSDB reporter sends metrics to an OpenTSDB server using
@@ -454,7 +410,7 @@ To configure SNMP export for a single metric use these options:
 
 + `{snmp, [{Datapint, Interval, Extra}]}`<br />Same as above, but using an addition extra identification for the subscriptions.<br />Allow the creation ofmultiple subscriptions for a single datapoint.
 
-Please see [Configuring collectd reporter](#Configuring_collectd_reporter) for details on how to configure the
+Please see [Configuring snmp reporter](#Configuring_snmp_reporter) for details on how to configure the
 SNMP reporter.
 
 
@@ -475,7 +431,7 @@ application:start(exometer).
 ```
 
 Note that dependent applications need to be started first. On newer OTP versions
-(R61B or later), you can use `application:ensure_all_started(exometer)`.
+(R16B or later), you can use `application:ensure_all_started(exometer)`.
 
 For testing, you can also use [`exometer:start/0`](/Users/uwiger/FL/git/exometer/deps/exometer_core/doc/exometer.md#start-0).
 
@@ -812,96 +768,6 @@ specifies the configuration parameters for the reporters shipped with
 exometer.
 
 
-#### <a name="Configuring_collectd_reporter">Configuring collectd reporter</a> ####
-
-
-Below is an example of the collectd reporter application environment, with
-its correct location in the hierarchy:
-
-```erlang
-
-{exometer, [
-    {report, [
-        {reporters, [
-            {exometer_report_collectd, [
-                {reconnect_interval, 10},
-                {refresh_interval, 20},
-                {read_timeout, 5000},
-                {connect_timeout, 8000},
-                {hostname, "testhost"},
-                {path, "/var/run/collectd-unixsock"},
-                {plugin_name, "testname"},
-                {plugin_instance, "testnode"},
-                {type_map,
-                    [{[db, cache, hits, max], "gauge"}]
-                }
-            ]}
-        ]}
-    ]}
-]}
-```
-
-The following attributes are available for configuration:
-
-+ `reconnect_interval` (seconds - default: 30)<br />Specifies the duration between each reconnect attempt to a collectd
-server that is not available. Should the server either be unavailable
-at exometer startup, or become unavailable during exometer's
-operation, exometer will attempt to reconnect at the given number of
-seconds.
-
-+ `refresh_interval` (seconds - default: 10)<br />Specifies how often a value, which has not been updated by exometer,
-is to be resent with its current value to collectd. If collectd does
-not see an identifier updated at a given number of seconds (see
-Timeout in collectd.conf(5)), it will be removed from the list of
-maintained identifiers.
-
-+ `read_timeout` (milliseconds - default: 5000)<br />Specifies how long the collectd reporter plugin shall wait for an
-acknowledgement from collectd after sending it an updated value.  If
-an acknowledgment is not received within the given interval, the
-plugin will disconnect from the collectd server and reconnect to it
-after the given reconnect interval (see item one above).
-
-+ `connect_timeout` (milliseconds - default: 5000)<br />Specifies how long the collectd reporter plugin shall wait for a unix
-socket connection to complete before timing out. A timed out
-connection attempt will be retried after the reconnect interval has
-passed see item 1 above).
-
-+ `path` (file path - default: "/var/run/collectd-unixsock")<br />Specifies the path to the named unix socket that collectd is listening
-on. When exometer starts and loads the collectd reporter plugin, the
-plugin will connect to the given socket.
-
-+ `plugin_name` (string - default: "exometer")<br />Specifies the plugin name to use when constructing an collectd identifier.
-    Please see [Configuring collectd reporter](#Configuring_collectd_reporter) for details.
-
-+ `plugin_instance` (string - default: left hand side of `node()`)<br />Specifies the plugin instance id to use when constructing an collectd identifier.
-    Please see [Configuring collectd reporter](#Configuring_collectd_reporter) for details.
-
-+ `plugin_instance` (string - default: left hand side of `node()`)<br />Specifies the plugin instance id to use when constructing an collectd identifier.
-    Please see [Configuring collectd reporter](#Configuring_collectd_reporter) for details.
-
-+ `hostname` (string - default: `net_adm:localhost()`)<br />Specifies the host name to use when constructing an collectd identifier.
-    Please see [Configuring collectd reporter](#Configuring_collectd_reporter) for details.
-
-+ `type_map` (prop list - default: n/a)<br />Specifies the mapping between metrics/datapoints and the collectd type
-to use when sending an updated metric value. See below.
-
-Type maps must be provided since there is no natural connection
-between the type of a metric/datapoint pair and an identifier in
-collectd. The `type_map` consists of a prop list that converts a path
-to a metric/datapoint to a string that can be used as a type when
-reporting to collectd.
-
-The key part of each element in the list consists of a list of atoms
-that matches the name of the metrics, with the name of the data point
-added as a final element. If the metric is identified as `[ webserver,
-https, get_count ]`, and the data point is called `total`, the key in
-the type_map would be `[ webserver, https, get_count, total ]`, The
-value part of a property is the type string to use when reporting to
-collectd. Please see types.db(5) for a list of available collectd
-types.  A complete entry in the `type_map` list would be: `{ [
-webserver, https, get_count, total ], "counter" }`.
-
-
 #### <a name="Configuring_opentsdb_reporter">Configuring opentsdb reporter</a> ####
 
 
@@ -1153,7 +1019,6 @@ modifying the list of predefined packages, etc.
 <table width="100%" border="0" summary="list of modules">
 <tr><td><a href="exometer_netlink.md" class="module">exometer_netlink</a></td></tr>
 <tr><td><a href="exometer_report_amqp.md" class="module">exometer_report_amqp</a></td></tr>
-<tr><td><a href="exometer_report_collectd.md" class="module">exometer_report_collectd</a></td></tr>
 <tr><td><a href="exometer_report_graphite.md" class="module">exometer_report_graphite</a></td></tr>
 <tr><td><a href="exometer_report_opentsdb.md" class="module">exometer_report_opentsdb</a></td></tr>
 <tr><td><a href="exometer_report_snmp.md" class="module">exometer_report_snmp</a></td></tr>
