@@ -1,6 +1,6 @@
 %% encoding: UTF-8
 {application,exometer}.
 {packages,[]}.
-{modules,[exometer_netlink,exometer_report_amqp,exometer_report_collectd,
-          exometer_report_graphite,exometer_report_opentsdb,
-          exometer_report_snmp,exometer_report_statsd]}.
+{modules,[exometer_netlink,exometer_report_amqp,exometer_report_graphite,
+          exometer_report_opentsdb,exometer_report_snmp,
+          exometer_report_statsd]}.
