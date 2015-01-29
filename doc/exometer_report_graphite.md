@@ -4,7 +4,7 @@
 * [Function Index](#index)
 * [Function Details](#functions)
 
-__Behaviours:__ [`exometer_report`](/Users/uwiger/FL/git/exometer/deps/exometer_core/doc/exometer_report.md).
+__Behaviours:__ [`exometer_report`](/Users/uwiger/b4/exometer/deps/exometer_core/doc/exometer_report.md).
 <a name="index"></a>
 
 ## Function Index ##

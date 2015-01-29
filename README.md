@@ -4,11 +4,13 @@
 
 Copyright (c) 2014 Basho Technologies, Inc.  All Rights Reserved.
 
-__Version:__ Jan 5 2015 17:33:07
+__Version:__ Jan 29 2015 20:56:36
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
 [![Build Status](https://travis-ci.org/Feuerlabs/exometer.png?branch=master)](https://travis-ci.org/Feuerlabs/exometer)
+
+__NOTE: Exometer has been split into [exometer_core](https://github.com/Feuerlabs/exometer_core), and exometer (as well as separate reporter applications). The latest monolithic version of Exometer is 1.1.__
 
 The Exometer package allows for easy and efficient instrumentation of
 Erlang code, allowing crucial data on system performance to be
@@ -126,8 +128,15 @@ The link between the type and the entry to use is configured
 through the `exometer_admin` module, and its associated exometer
 defaults configuration data.
 
-The metric type, in other words, is only used to map a metric to a
-configurable `exometer_entry` callback.
+The metric type, in other words, is mainly used to map a metric to a
+configurable `exometer_entry` callback, but it can also be referenced
+in queries using `exometer:select/1`. An entry callback can also support
+multiple types (the type is provided as an argument in the callback functions).
+
+Exometer provides default mappings for a number of metric types. It is
+possible to select different callbacks for each metric instance, as well
+as modify metrics using callback-specific options. Please see
+[Configuring type - entry maps](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_type_-_entry_maps) for details on how to do this.
 
 
 #### <a name="Entry_Callback">Entry Callback</a> ####
@@ -258,13 +267,16 @@ The available data points under a metric using the gauge entry
 are `value` and `ms_since_reset`.
 
 
-#### <a name="exometer_histogram_(probe)">exometer_histogram (probe)</a> ####
+#### <a name="histogram_(probe)">histogram (probe)</a> ####
 
 The histogram probe stores a given number of updates, provided through
 `exometer:update()`, in a histogram. The histogram maintains a log
 derived from all values received during a configurable time span and
 provides min, max, median, mean, and percentile analysis data points
 for the stored data.
+
+Exometer supports a number of different histogram implementations, each
+with different performance and accuracy trade-offs. 
 
 In order to save memory, the histogram is divided into equal-sized
 time slots, where each slot spans a settable interval. All values
@@ -300,6 +312,11 @@ probe is also available.
 
 #### <a name="exometer_folsom_[entry]">exometer_folsom [entry]</a> ####
 
+`exometer_folsom` is an entry behavior which implements most metric types
+supported by the [folsom](https://github.com/boundary/folsom)
+metrics package: Specifically, the metric types `counter`, `spiral`,
+`histogram`, `meter`, `meter_reader`, `gauge`, `duration` and `history`.
+
 The folsom entry integrates with the folsom metrics package provided
 by the boundary repo at github. Updated values sent to the folsom entry
 can be forwarded to folsom's counter, histogram, duration, meter,
@@ -311,11 +328,10 @@ should use the native probes that duplicate folsom.
 
 #### <a name="exometer_function_[entry]">exometer_function [entry]</a> ####
 
-The function entry allows for a simple caller-supplied function to be
-invoked in order to retrieve non-exometer data. The
-`exometer_function:get_value()` function will invoke a
-`Module:Function(DataPoints)` call, where `Module` and
-`Function` are provided by the caller.
+The function entry allows for an existing erlang function to be wrapped
+as an exometer entry. The [`exometer_function`](/Users/uwiger/b4/exometer/deps/exometer_core/doc/exometer_function.md) module supports a number
+of options for passing arguments and matching out data points from the
+result.
 
 The function entry provides an easy way of integrating an external
 system without having to write a complete entry.
@@ -433,7 +449,7 @@ application:start(exometer).
 Note that dependent applications need to be started first. On newer OTP versions
 (R16B or later), you can use `application:ensure_all_started(exometer)`.
 
-For testing, you can also use [`exometer:start/0`](/Users/uwiger/FL/git/exometer/deps/exometer_core/doc/exometer.md#start-0).
+For testing, you can also use [`exometer:start/0`](/Users/uwiger/b4/exometer/deps/exometer_core/doc/exometer.md#start-0).
 
 If you make use of e.g. folsom metrics, you also need to start `folsom`. Exometer
 will not do that automatically, nor does it contain an application dependency for it.
