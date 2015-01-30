@@ -460,7 +460,7 @@ format.
 
 #### <a name="Creating_metrics">Creating metrics</a> ####
 
-A metric, can be created throuh a call to
+A metric, can be created through a call to
 
 ```erlang
 
