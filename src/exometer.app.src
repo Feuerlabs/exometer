@@ -4,19 +4,17 @@
   {description, "Code instrumentation and metrics collection package."},
   {vsn, git},
   {registered, []},
-  {applications, 
+  {applications,
    [
     kernel,
     stdlib,
     lager
    ]},
-  {included_applications, 
+  {included_applications,
    [
    ]},
   {mod, {exometer_app, []}},
-  {start_phases, [{preset_defaults, []},
-                  {start_reporters, []}]},
-  {env, 
+  {env,
    [
    ]}
  ]}.

@@ -302,7 +302,7 @@ test_histogram_support(Config) ->
                                        ]),
     ok = wait_for_mib_version(2, 10, 10000),
     [] = [K || {_, K, _} <- ExpectedResults0, not lists:member(K, snmpa:which_variables())],
-    [ok = exometer:update(Name, V) || V <- exometer_SUITE:vals()],
+    [ok = exometer:update(Name, V) || V <- vals()],
     ExpectedResults1 = lists:map(
                          fun({_, K, V}) ->
                                  {value, Oid} = snmpa:name_to_oid(K),
@@ -489,3 +489,14 @@ wait_for_mib_version(Vsn, Step, Count) ->
         E ->
             E
     end.
+
+%% Copied from exometer_SUITE.erl since using a helper function from a dependencies test cases isn't
+%% maintainable.
+vals() ->
+    lists:append(
+      [lists:duplicate(50, 1),
+       lists:duplicate(50, 2),
+       lists:duplicate(20, 3),
+       lists:duplicate(5, 4),
+       lists:duplicate(5, 5),
+       [6,7,8,9]]).

@@ -38,7 +38,7 @@
 
 -export_type([snmp/0, snmp_option/0]).
 
--include_lib("exometer/include/exometer.hrl").
+-include_lib("exometer_core/include/exometer.hrl").
 -include("log.hrl").
 
 -define(MIB_TEMPLATE, "mibs/EXOMETER-METRICS-MIB.mib").

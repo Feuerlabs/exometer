@@ -4,11 +4,13 @@
 
 Copyright (c) 2014 Basho Technologies, Inc.  All Rights Reserved.
 
-__Version:__ Nov 14 2014 13:48:17
+__Version:__ Jan 29 2015 20:56:36
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
 [![Build Status](https://travis-ci.org/Feuerlabs/exometer.png?branch=master)](https://travis-ci.org/Feuerlabs/exometer)
+
+__NOTE: Exometer has been split into [exometer_core](https://github.com/Feuerlabs/exometer_core), and exometer (as well as separate reporter applications). The latest monolithic version of Exometer is 1.1.__
 
 The Exometer package allows for easy and efficient instrumentation of
 Erlang code, allowing crucial data on system performance to be
@@ -49,10 +51,9 @@ optional packages, both users and developers.
     8. [exometer_function [entry]](#exometer_function_[entry])
 3. [Built in Reporters](#Built_in_Reporters)
     1. [exometer_report_graphite](#exometer_report_graphite)
-    2. [exometer_report_collectd](#exometer_report_collectd)
-    3. [exometer_report_opentsdb](#exometer_report_opentsdb)
-    4. [exometer_report_amqp](#exometer_report_amqp)
-    5. [exometer_report_snmp](#exometer_report_snmp)
+    2. [exometer_report_opentsdb](#exometer_report_opentsdb)
+    3. [exometer_report_amqp](#exometer_report_amqp)
+    4. [exometer_report_snmp](#exometer_report_snmp)
 4. [Instrumenting Erlang code](#Instrumenting_Erlang_code)
     1. [Exometer Start](#Exometer_Start)
     2. [Creating metrics](#Creating_metrics)
@@ -66,11 +67,10 @@ optional packages, both users and developers.
     2. [Configuring statically defined entries](#Configuring_statically_defined_entries)
     3. [Configuring static subscriptions](#Configuring_static_subscriptions)
     4. [Configuring reporter plugins](#Configuring_reporter_plugins)
-    5. [Configuring collectd reporter](#Configuring_collectd_reporter)
-    6. [Configuring opentsdb reporter](#Configuring_opentsdb_reporter)
-    7. [Configuring amqp reporter](#Configuring_amqp_reporter)
-    8. [Configuring graphite reporter](#Configuring_graphite_reporter)
-    9. [Configuring snmp reporter](#Configuring_snmp_reporter)
+    5. [Configuring opentsdb reporter](#Configuring_opentsdb_reporter)
+    6. [Configuring amqp reporter](#Configuring_amqp_reporter)
+    7. [Configuring graphite reporter](#Configuring_graphite_reporter)
+    8. [Configuring snmp reporter](#Configuring_snmp_reporter)
 6. [Creating custom exometer entries](#Creating_custom_exometer_entries)
 7. [Creating custom probes](#Creating_custom_probes)
 8. [Creating custom reporter plugins](#Creating_custom_reporter_plugins)
@@ -128,8 +128,15 @@ The link between the type and the entry to use is configured
 through the `exometer_admin` module, and its associated exometer
 defaults configuration data.
 
-The metric type, in other words, is only used to map a metric to a
-configurable `exometer_entry` callback.
+The metric type, in other words, is mainly used to map a metric to a
+configurable `exometer_entry` callback, but it can also be referenced
+in queries using `exometer:select/1`. An entry callback can also support
+multiple types (the type is provided as an argument in the callback functions).
+
+Exometer provides default mappings for a number of metric types. It is
+possible to select different callbacks for each metric instance, as well
+as modify metrics using callback-specific options. Please see
+[Configuring type - entry maps](#Configuring_type_-_entry_maps) for details on how to do this.
 
 
 #### <a name="Entry_Callback">Entry Callback</a> ####
@@ -260,13 +267,16 @@ The available data points under a metric using the gauge entry
 are `value` and `ms_since_reset`.
 
 
-#### <a name="exometer_histogram_(probe)">exometer_histogram (probe)</a> ####
+#### <a name="histogram_(probe)">histogram (probe)</a> ####
 
 The histogram probe stores a given number of updates, provided through
 `exometer:update()`, in a histogram. The histogram maintains a log
 derived from all values received during a configurable time span and
 provides min, max, median, mean, and percentile analysis data points
 for the stored data.
+
+Exometer supports a number of different histogram implementations, each
+with different performance and accuracy trade-offs. 
 
 In order to save memory, the histogram is divided into equal-sized
 time slots, where each slot spans a settable interval. All values
@@ -302,6 +312,11 @@ probe is also available.
 
 #### <a name="exometer_folsom_[entry]">exometer_folsom [entry]</a> ####
 
+`exometer_folsom` is an entry behavior which implements most metric types
+supported by the [folsom](https://github.com/boundary/folsom)
+metrics package: Specifically, the metric types `counter`, `spiral`,
+`histogram`, `meter`, `meter_reader`, `gauge`, `duration` and `history`.
+
 The folsom entry integrates with the folsom metrics package provided
 by the boundary repo at github. Updated values sent to the folsom entry
 can be forwarded to folsom's counter, histogram, duration, meter,
@@ -313,11 +328,10 @@ should use the native probes that duplicate folsom.
 
 #### <a name="exometer_function_[entry]">exometer_function [entry]</a> ####
 
-The function entry allows for a simple caller-supplied function to be
-invoked in order to retrieve non-exometer data. The
-`exometer_function:get_value()` function will invoke a
-`Module:Function(DataPoints)` call, where `Module` and
-`Function` are provided by the caller.
+The function entry allows for an existing erlang function to be wrapped
+as an exometer entry. The [`exometer_function`](/Users/uwiger/b4/exometer/deps/exometer_core/doc/exometer_function.md) module supports a number
+of options for passing arguments and matching out data points from the
+result.
 
 The function entry provides an easy way of integrating an external
 system without having to write a complete entry.
@@ -338,48 +352,6 @@ the one provided by [`http://hostedgraphite.com`](http://hostedgraphite.com). Wh
 reporter receives a metric-datapoint value (subscribed to through
 `exometer_report:subscriber()`), the reporter will immediately
 forward the key-value pair to the graphite server.
-
-
-#### <a name="exometer_report_collectd">exometer_report_collectd</a> ####
-
-The collectd reporter communicates with a local `collectd` process
-through its unix socket protocol. All subscribed-to metric-datapoint
-values received by the reporter are immediately forwarded to
-`collectd`. Once a value has been forwarded, the reporter continuously
-refreshes the value toward `collectd` at a configurable interval in order
-to keep it from expiring inside `collectd`.
-
-If the `collectd` connection is lost, the reporter will attempt to reconnect to it
-at a configurable interval.
-
-All metrics reported to collectd will be have identifiers formatted as follows:
-
-```
-HostName/PluginName-PluginInstance/Type-Metric_DataPoint
-```
-
-+ `HostName`<br />Host name of the entry.<br />Configurable through the `hostname` application environment parameter.<br />Default is the value returned by `netadm:localhost()`.
-
-+ `PluginName`<br />The collectd plugin name.<br />Configurable through the `plugin_name` application environment parameter.<br />Default is `exometer`.
-
-+ `PluginInstance`<br />The instance ID to use for the plugin.<br />Configurable through the `plugin_instance` application environment parameter.<br />Default is the erlang node name in the left hand side of the value
-    returned by `node()`.
-
-+ `Type`<br />Type assigned to the reported value.<br />The type is looked up through the `type_map`.<br />The given metric and data points are used as a key in a list format,
-    such as `[ db, cache, hits, median ]`. The type that is resolved from
-    the metric/data point will be used as the `Type` component in the
-    collectd identifier. Please see types.db(5) for a list of available
-    collectd types.<br />Default for `Type` is 'gauge'.
-
-+ `Metric`<br />The name of the metric. The atoms in the metric list will be converted
-    to a string separated by `_`. Thus `[ db, cache, hits ]` will be converted
-    to `db_cache_hits`.
-
-+ `DataPoint`<br />The data point of the given metric.
-Will be added to the end of the metrics string.
-
-Please see [Configuring collectd reporter](#Configuring_collectd_reporter) for details on the
-application environment parameters listed above.
 
 
 #### <a name="exometer_report_opentsdb">exometer_report_opentsdb</a> ####
@@ -454,7 +426,7 @@ To configure SNMP export for a single metric use these options:
 
 + `{snmp, [{Datapint, Interval, Extra}]}`<br />Same as above, but using an addition extra identification for the subscriptions.<br />Allow the creation ofmultiple subscriptions for a single datapoint.
 
-Please see [Configuring collectd reporter](#Configuring_collectd_reporter) for details on how to configure the
+Please see [Configuring snmp reporter](#Configuring_snmp_reporter) for details on how to configure the
 SNMP reporter.
 
 
@@ -475,9 +447,9 @@ application:start(exometer).
 ```
 
 Note that dependent applications need to be started first. On newer OTP versions
-(R61B or later), you can use `application:ensure_all_started(exometer)`.
+(R16B or later), you can use `application:ensure_all_started(exometer)`.
 
-For testing, you can also use [`exometer:start/0`](exometer.md#start-0).
+For testing, you can also use [`exometer:start/0`](/Users/uwiger/b4/exometer/deps/exometer_core/doc/exometer.md#start-0).
 
 If you make use of e.g. folsom metrics, you also need to start `folsom`. Exometer
 will not do that automatically, nor does it contain an application dependency for it.
@@ -812,96 +784,6 @@ specifies the configuration parameters for the reporters shipped with
 exometer.
 
 
-#### <a name="Configuring_collectd_reporter">Configuring collectd reporter</a> ####
-
-
-Below is an example of the collectd reporter application environment, with
-its correct location in the hierarchy:
-
-```erlang
-
-{exometer, [
-    {report, [
-        {reporters, [
-            {exometer_report_collectd, [
-                {reconnect_interval, 10},
-                {refresh_interval, 20},
-                {read_timeout, 5000},
-                {connect_timeout, 8000},
-                {hostname, "testhost"},
-                {path, "/var/run/collectd-unixsock"},
-                {plugin_name, "testname"},
-                {plugin_instance, "testnode"},
-                {type_map,
-                    [{[db, cache, hits, max], "gauge"}]
-                }
-            ]}
-        ]}
-    ]}
-]}
-```
-
-The following attributes are available for configuration:
-
-+ `reconnect_interval` (seconds - default: 30)<br />Specifies the duration between each reconnect attempt to a collectd
-server that is not available. Should the server either be unavailable
-at exometer startup, or become unavailable during exometer's
-operation, exometer will attempt to reconnect at the given number of
-seconds.
-
-+ `refresh_interval` (seconds - default: 10)<br />Specifies how often a value, which has not been updated by exometer,
-is to be resent with its current value to collectd. If collectd does
-not see an identifier updated at a given number of seconds (see
-Timeout in collectd.conf(5)), it will be removed from the list of
-maintained identifiers.
-
-+ `read_timeout` (milliseconds - default: 5000)<br />Specifies how long the collectd reporter plugin shall wait for an
-acknowledgement from collectd after sending it an updated value.  If
-an acknowledgment is not received within the given interval, the
-plugin will disconnect from the collectd server and reconnect to it
-after the given reconnect interval (see item one above).
-
-+ `connect_timeout` (milliseconds - default: 5000)<br />Specifies how long the collectd reporter plugin shall wait for a unix
-socket connection to complete before timing out. A timed out
-connection attempt will be retried after the reconnect interval has
-passed see item 1 above).
-
-+ `path` (file path - default: "/var/run/collectd-unixsock")<br />Specifies the path to the named unix socket that collectd is listening
-on. When exometer starts and loads the collectd reporter plugin, the
-plugin will connect to the given socket.
-
-+ `plugin_name` (string - default: "exometer")<br />Specifies the plugin name to use when constructing an collectd identifier.
-    Please see [Configuring collectd reporter](#Configuring_collectd_reporter) for details.
-
-+ `plugin_instance` (string - default: left hand side of `node()`)<br />Specifies the plugin instance id to use when constructing an collectd identifier.
-    Please see [Configuring collectd reporter](#Configuring_collectd_reporter) for details.
-
-+ `plugin_instance` (string - default: left hand side of `node()`)<br />Specifies the plugin instance id to use when constructing an collectd identifier.
-    Please see [Configuring collectd reporter](#Configuring_collectd_reporter) for details.
-
-+ `hostname` (string - default: `net_adm:localhost()`)<br />Specifies the host name to use when constructing an collectd identifier.
-    Please see [Configuring collectd reporter](#Configuring_collectd_reporter) for details.
-
-+ `type_map` (prop list - default: n/a)<br />Specifies the mapping between metrics/datapoints and the collectd type
-to use when sending an updated metric value. See below.
-
-Type maps must be provided since there is no natural connection
-between the type of a metric/datapoint pair and an identifier in
-collectd. The `type_map` consists of a prop list that converts a path
-to a metric/datapoint to a string that can be used as a type when
-reporting to collectd.
-
-The key part of each element in the list consists of a list of atoms
-that matches the name of the metrics, with the name of the data point
-added as a final element. If the metric is identified as `[ webserver,
-https, get_count ]`, and the data point is called `total`, the key in
-the type_map would be `[ webserver, https, get_count, total ]`, The
-value part of a property is the type string to use when reporting to
-collectd. Please see types.db(5) for a list of available collectd
-types.  A complete entry in the `type_map` list would be: `{ [
-webserver, https, get_count, total ], "counter" }`.
-
-
 #### <a name="Configuring_opentsdb_reporter">Configuring opentsdb reporter</a> ####
 
 
@@ -1151,35 +1033,10 @@ modifying the list of predefined packages, etc.
 
 
 <table width="100%" border="0" summary="list of modules">
-<tr><td><a href="exo_montest.md" class="module">exo_montest</a></td></tr>
-<tr><td><a href="exometer.md" class="module">exometer</a></td></tr>
-<tr><td><a href="exometer_admin.md" class="module">exometer_admin</a></td></tr>
-<tr><td><a href="exometer_cache.md" class="module">exometer_cache</a></td></tr>
-<tr><td><a href="exometer_cpu.md" class="module">exometer_cpu</a></td></tr>
-<tr><td><a href="exometer_duration.md" class="module">exometer_duration</a></td></tr>
-<tr><td><a href="exometer_entry.md" class="module">exometer_entry</a></td></tr>
-<tr><td><a href="exometer_folsom.md" class="module">exometer_folsom</a></td></tr>
-<tr><td><a href="exometer_folsom_monitor.md" class="module">exometer_folsom_monitor</a></td></tr>
-<tr><td><a href="exometer_function.md" class="module">exometer_function</a></td></tr>
-<tr><td><a href="exometer_histogram.md" class="module">exometer_histogram</a></td></tr>
-<tr><td><a href="exometer_igor.md" class="module">exometer_igor</a></td></tr>
-<tr><td><a href="exometer_info.md" class="module">exometer_info</a></td></tr>
 <tr><td><a href="exometer_netlink.md" class="module">exometer_netlink</a></td></tr>
-<tr><td><a href="exometer_probe.md" class="module">exometer_probe</a></td></tr>
-<tr><td><a href="exometer_proc.md" class="module">exometer_proc</a></td></tr>
-<tr><td><a href="exometer_report.md" class="module">exometer_report</a></td></tr>
 <tr><td><a href="exometer_report_amqp.md" class="module">exometer_report_amqp</a></td></tr>
-<tr><td><a href="exometer_report_collectd.md" class="module">exometer_report_collectd</a></td></tr>
 <tr><td><a href="exometer_report_graphite.md" class="module">exometer_report_graphite</a></td></tr>
-<tr><td><a href="exometer_report_lager.md" class="module">exometer_report_lager</a></td></tr>
 <tr><td><a href="exometer_report_opentsdb.md" class="module">exometer_report_opentsdb</a></td></tr>
 <tr><td><a href="exometer_report_snmp.md" class="module">exometer_report_snmp</a></td></tr>
-<tr><td><a href="exometer_report_statsd.md" class="module">exometer_report_statsd</a></td></tr>
-<tr><td><a href="exometer_report_tty.md" class="module">exometer_report_tty</a></td></tr>
-<tr><td><a href="exometer_shallowtree.md" class="module">exometer_shallowtree</a></td></tr>
-<tr><td><a href="exometer_slide.md" class="module">exometer_slide</a></td></tr>
-<tr><td><a href="exometer_slot_slide.md" class="module">exometer_slot_slide</a></td></tr>
-<tr><td><a href="exometer_spiral.md" class="module">exometer_spiral</a></td></tr>
-<tr><td><a href="exometer_uniform.md" class="module">exometer_uniform</a></td></tr>
-<tr><td><a href="exometer_util.md" class="module">exometer_util</a></td></tr></table>
+<tr><td><a href="exometer_report_statsd.md" class="module">exometer_report_statsd</a></td></tr></table>
 
