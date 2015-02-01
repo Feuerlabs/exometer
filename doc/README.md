@@ -4,7 +4,7 @@
 
 Copyright (c) 2014 Basho Technologies, Inc.  All Rights Reserved.
 
-__Version:__ Jan 29 2015 20:56:36
+__Version:__ Feb 1 2015 23:02:37
 
 __Authors:__ Ulf Wiger ([`ulf.wiger@feuerlabs.com`](mailto:ulf.wiger@feuerlabs.com)), Magnus Feuer ([`magnus.feuer@feuerlabs.com`](mailto:magnus.feuer@feuerlabs.com)).
 
@@ -329,7 +329,7 @@ should use the native probes that duplicate folsom.
 #### <a name="exometer_function_[entry]">exometer_function [entry]</a> ####
 
 The function entry allows for an existing erlang function to be wrapped
-as an exometer entry. The [`exometer_function`](/Users/uwiger/b4/exometer/deps/exometer_core/doc/exometer_function.md) module supports a number
+as an exometer entry. The [`exometer_function`](https://github.com/Feuerlabs/exometer_core/blob/master/doc/exometer_function.md) module supports a number
 of options for passing arguments and matching out data points from the
 result.
 
@@ -449,7 +449,7 @@ application:start(exometer).
 Note that dependent applications need to be started first. On newer OTP versions
 (R16B or later), you can use `application:ensure_all_started(exometer)`.
 
-For testing, you can also use [`exometer:start/0`](/Users/uwiger/b4/exometer/deps/exometer_core/doc/exometer.md#start-0).
+For testing, you can also use [`exometer:start/0`](https://github.com/Feuerlabs/exometer_core/blob/master/doc/exometer.md#start-0).
 
 If you make use of e.g. folsom metrics, you also need to start `folsom`. Exometer
 will not do that automatically, nor does it contain an application dependency for it.
@@ -460,7 +460,7 @@ format.
 
 #### <a name="Creating_metrics">Creating metrics</a> ####
 
-A metric, can be created throuh a call to
+A metric, can be created through a call to
 
 ```erlang
 

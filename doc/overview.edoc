@@ -429,7 +429,7 @@ format.
 
 === Creating metrics  ===
 
-A metric, can be created throuh a call to
+A metric, can be created through a call to
 
 <pre lang="erlang">
 exometer:new(Name, Type)</pre>
