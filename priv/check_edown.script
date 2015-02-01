@@ -12,17 +12,11 @@ case lists:member("edown=true", Args) of
 	C1;
     true ->
 	%% We actually only need to start inets if we have a doc path with http URIS
-	io:fwrite("starting crypto et al~n", []),
-	CRes = application:start(crypto),
-	io:fwrite("start(crypto) -> ~p~n", [CRes]),
-	ARes = application:start(asn1),
-	io:fwrite("start(asn1) -> ~p~n", [ARes]),
-	PRes = application:start(public_key),
-	io:fwrite("start(public_key) -> ~p~n", [PRes]),
-	SRes = application:start(ssl),
-	io:fwrite("start(ssl) -> ~p~n", [SRes]),
-	IRes = application:start(inets),
-	io:fwrite("start(inets) -> ~p~n", [IRes]),
+	application:start(crypto),
+	application:start(asn1),
+	application:start(public_key),
+	application:start(ssl),
+	application:start(inets),
         case code:lib_dir(edown) of
             {error, bad_name} ->
                 D = {edown, ".*",
