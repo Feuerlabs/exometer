@@ -29,6 +29,10 @@
 %%
 %% `{hostname, string()}` - This plugin uses a tag called 'host' to denote
 %% the hostname to which this metric belongs. Default: net_adm:localhost()
+%%
+%% `{join_metric_and_datapoint, bool()}` - If true, the datapoint name is
+%% concatenated to the metric name. This increases scan performance in HBase
+%% for metrics with a lot of entries.
 %% @end
 
 -module(exometer_report_opentsdb).
@@ -63,7 +67,8 @@
           reconnect_interval = ?RECONNECT_INTERVAL,
           connect_timeout = ?DEFAULT_CONNECT_TIMEOUT,
           hostname = undefined,
-          socket = undefined}).
+          socket = undefined,
+          join_metric_and_datapoint = false}).
 
 %% calendar:datetime_to_gregorian_seconds({{1970,1,1},{0,0,0}}).
 -define(UNIX_EPOCH, 62167219200).
@@ -77,12 +82,15 @@ exometer_init(Opts) ->
     {Host, Port} = get_opt(host, Opts, {?DEFAULT_HOST, ?DEFAULT_PORT}),
     ReconnectInterval = get_opt(reconnect_interval, Opts, ?RECONNECT_INTERVAL) * 1000,
     ConnectTimeout = get_opt(connect_timeout, Opts, ?DEFAULT_CONNECT_TIMEOUT),
+    JoinMetricAndDatapoint = get_opt(join_metric_and_datapoint, Opts, false),
+
     State = #st{
                     reconnect_interval = ReconnectInterval,
                     host = Host,
                     port = Port,
                     connect_timeout = ConnectTimeout,
-                    hostname =  check_hostname(get_opt(hostname, Opts, "auto"))
+                    hostname =  check_hostname(get_opt(hostname, Opts, "auto")),
+                    join_metric_and_datapoint = JoinMetricAndDatapoint
                 },
     case connect_opentsdb(Host, Port, ConnectTimeout) of
         {ok, Sock} ->
@@ -100,11 +108,22 @@ exometer_report(_Metric, _DataPoint, _Extra, _Value, St) when St#st.socket =:= u
 
 %% Format a opentsdb output. Each entry is one measurement plus key/value attributes.
 %% put <metric> <time> <measurement> <k1>=<v1> <k2>=<v2>\n
-exometer_report(Metric, DataPoint, _Extra, Value, #st{socket = Sock, hostname = Hostname} = St) ->
-    Line = [
-        "put ", name(Metric), " ", timestamp(), " ", value(Value), " ",
-        "hostname=", Hostname, " ", "type=", metric_elem_to_list(DataPoint), $\n
-    ],
+exometer_report(Metric, DataPoint, _Extra, Value, #st{socket = Sock, hostname = Hostname,
+                join_metric_and_datapoint = JoinMetricAndDatapoint} = St) ->
+    if
+        JoinMetricAndDatapoint ->
+            Line = [
+                    "put ", name(Metric), "_", metric_elem_to_list(DataPoint),
+                    " ", timestamp(), " ", value(Value), " ", "hostname=", Hostname, $\n
+                   ];
+        true ->
+
+            Line = [
+                    "put ", name(Metric), " ", timestamp(), " ", value(Value), " ",
+                    "hostname=", Hostname, " ", "type=", metric_elem_to_list(DataPoint), $\n
+                   ]
+    end,
+
     case gen_tcp:send(Sock, Line) of
         ok ->
             {ok, St};
