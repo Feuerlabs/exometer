@@ -30,5 +30,5 @@ ensure_all_started(App, Apps0) ->
             {ok, lists:reverse(Apps0)};
         {error,{not_started,BaseApp}} ->
             {ok, Apps} = ensure_all_started(BaseApp, Apps0),
-            ensure_all_started(App, [BaseApp|Apps])
+            ensure_all_started(App, Apps)
     end.
