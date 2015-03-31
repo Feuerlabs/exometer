@@ -256,7 +256,7 @@ provides min, max, median, mean, and percentile analysis data points
 for the stored data.
 
 Exometer supports a number of different histogram implementations, each
-with different performance and accuracy trade-offs. 
+with different performance and accuracy trade-offs.
 
 In order to save memory, the histogram is divided into equal-sized
 time slots, where each slot spans a settable interval. All values
@@ -634,7 +634,7 @@ plugins. See {@section Configuring reporter plugins} for details on
 how to configure individual plugins.
 
 The `subscribers' sub-section contains all static subscriptions to be
-setup att exometer applications start. Each tuple in the prop list
+setup at exometer applications start. Each tuple in the prop list
 should be of one of the following formats:
 
 * `{Reporter, Metric, DataPoint, Interval}'
@@ -666,12 +666,12 @@ The meaning of the above tuple elements is:
     <br/>Specifies the path to a metric previously created with an
     `exometer:new()' call.
 
-+ `DataPoint' ::  atom() | [atom()]'
++ `DataPoint ::  atom() | [atom()]'
     <br/>Specifies the data point within the given metric to send to the
     receiver. The data point must match one of the data points returned by
     `exometer:info(Name, datapoints)' for the given metrics name.
 
-+ `Interval' :: integer()' (milliseconds)
++ `Interval :: integer()' (milliseconds)
     <br/>Specifies the interval, in milliseconds, between each update of the
     given metric's data point. At the given interval, the data point will
     be samples, and the result will be sent to the receiver.
@@ -762,7 +762,7 @@ The following attributes are available for configuration:
      <br/>Specifies the host name to use for the host tag in the OpenTSDB tags.
     Please see {@section Configuring opentsdb reporter} for details.
 
-+ `host' (ip - default: {"127.0.0.1", 4242})
++ `host' (ip - default: `{"127.0.0.1", 4242}')
      <br/>Specifies the host and port to connect to OpenTSDB.
 
 === Configuring amqp reporter ===
