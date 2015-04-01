@@ -81,8 +81,8 @@ end_per_suite(_Config) ->
 init_per_testcase(test_snmp_export_disabled, Config) ->
     application:load(exometer),
     application:set_env(exometer, report, []),
-    exometer:start(),
-    Config;
+    {ok, StartedApps} = exometer_test_util:ensure_all_started(exometer),
+    [{started_apps, StartedApps} | Config];
 init_per_testcase(Case, Config) when
       Case == test_reporter_restart;
       Case == test_agent_manager_communication_example;
@@ -100,6 +100,9 @@ init_per_testcase(Case, Config) ->
     Conf = snmp_init_testcase(Case),
     Conf ++ Config.
 
+end_per_testcase(test_snmp_export_disabled, Config) ->
+    [ok = application:stop(App) || App <- ?config(started_apps, Config)],
+    ok;
 end_per_testcase(_Case, Config) ->
     case ?config(manager_node, Config) of
         undefined ->
@@ -107,8 +110,7 @@ end_per_testcase(_Case, Config) ->
         Manager ->
             {ok, _} = ct_slave:stop(Manager)
     end,
-    exometer:stop(),
-    application:stop(snmp),
+    [ok = application:stop(App) || App <- ?config(started_apps, Config)],
     ok.
 
 %%%===================================================================
@@ -356,13 +358,14 @@ snmp_init_testcase(Case) ->
     SnmpConf = proplists:get_value(snmp, FileConf),
     application:load(snmp),
     [ok = application:set_env(snmp, K, V) || {K, V} <- SnmpConf],
-    ok = application:start(snmp),
-    ok = exometer:start(),
+    {ok, StartedApps1} = exometer_test_util:ensure_all_started(snmp),
+    {ok, StartedApps2} = exometer_test_util:ensure_all_started(exometer),
     true = is_app_running(snmp, 10, 10000),
     true = is_process_running(snmp_master_agent, 10, 10000),
     true = is_process_running(exometer_report_snmp, 10, 10000),
     ok = wait_for_mib_version(1, 10, 10000),
-    [{mib_template, MibTemplate},
+    [{started_apps, StartedApps1 ++ StartedApps2},
+     {mib_template, MibTemplate},
      {mib_file, MibFilePath},
      {agent_conf_path, AgentConfPath},
      {manager_conf_path, ManagerConfPath}].
