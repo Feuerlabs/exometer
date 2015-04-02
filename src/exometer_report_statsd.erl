@@ -36,6 +36,7 @@
 -record(st, {socket  :: inet:socket(),
              address :: inet:ip_address(),
              port    :: inet:port_number(),
+	     prefix  :: string(),
              type_map :: [{list(atom()), atom()}]}).
 
 %%%===================================================================
@@ -49,18 +50,21 @@ exometer_init(Opts) ->
     AddrType   = Host#hostent.h_addrtype,
     Port       = get_opt(port, Opts, ?DEFAULT_PORT),
     TypeMap    = get_opt(type_map, Opts, []),
+    Prefix     = get_opt(prefix, Opts, []),
 
     case gen_udp:open(0, [AddrType]) of
 	{ok, Sock} ->
-	    {ok, #st{socket=Sock, address=IP, port=Port, type_map=TypeMap}};
+	    {ok, #st{socket=Sock, address=IP, port=Port, type_map=TypeMap,
+		     prefix = Prefix}};
 	{error, _} = Error ->
 	    Error
     end.
 
 
-exometer_report(Metric, DataPoint, Extra, Value, #st{type_map = TypeMap} = St) ->
-    Key = ets_key(Metric, DataPoint),
-    Name = name(Metric, DataPoint),
+exometer_report(Metric, DataPoint, Extra, Value, #st{type_map = TypeMap,
+						     prefix = Pfx} = St) ->
+    Key = ets_key(Pfx, Metric, DataPoint),
+    Name = name(Pfx, Metric, DataPoint),
     ?debug("Report metric ~p = ~p~n", [Name, Value]),
     Type = case exometer_util:report_type(Key, Extra, TypeMap) of
                {ok, T} -> T;
@@ -116,10 +120,12 @@ type(histogram) -> "h";
 type(meter) -> "m";
 type(set) -> "s". %% datadog specific type, see http://docs.datadoghq.com/guides/dogstatsd/#tags
 
-ets_key(Metric, DataPoint) -> Metric ++ [ DataPoint ].
+ets_key([] , Metric, DataPoint) -> Metric ++ [ DataPoint ];
+ets_key(Pfx, Metric, DataPoint) -> [Pfx|Metric] ++ [DataPoint].
 
-name(Metric, DataPoint) ->
-    intersperse(".", lists:map(fun thing_to_list/1, ets_key(Metric, DataPoint))).
+name(Prefix, Metric, DataPoint) ->
+    intersperse(".", lists:map(fun thing_to_list/1,
+			       ets_key(Prefix, Metric, DataPoint))).
 
 thing_to_list(X) when is_atom(X) -> atom_to_list(X);
 thing_to_list(X) when is_integer(X) -> integer_to_list(X);
