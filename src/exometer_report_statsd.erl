@@ -36,7 +36,7 @@
 -record(st, {socket  :: inet:socket(),
              address :: inet:ip_address(),
              port    :: inet:port_number(),
-	     prefix  :: string(),
+             prefix  :: string(),
              type_map :: [{list(atom()), atom()}]}).
 
 %%%===================================================================
@@ -55,7 +55,7 @@ exometer_init(Opts) ->
     case gen_udp:open(0, [AddrType]) of
 	{ok, Sock} ->
 	    {ok, #st{socket=Sock, address=IP, port=Port, type_map=TypeMap,
-		     prefix = Prefix}};
+		     prefix=Prefix}};
 	{error, _} = Error ->
 	    Error
     end.
@@ -121,11 +121,11 @@ type(meter) -> "m";
 type(set) -> "s". %% datadog specific type, see http://docs.datadoghq.com/guides/dogstatsd/#tags
 
 ets_key([] , Metric, DataPoint) -> Metric ++ [ DataPoint ];
-ets_key(Pfx, Metric, DataPoint) -> [Pfx|Metric] ++ [DataPoint].
+ets_key(Pfx, Metric, DataPoint) -> [ Pfx | Metric ] ++ [ DataPoint ].
 
 name(Prefix, Metric, DataPoint) ->
     intersperse(".", lists:map(fun thing_to_list/1,
-			       ets_key(Prefix, Metric, DataPoint))).
+                               ets_key(Prefix, Metric, DataPoint))).
 
 thing_to_list(X) when is_atom(X) -> atom_to_list(X);
 thing_to_list(X) when is_integer(X) -> integer_to_list(X);
