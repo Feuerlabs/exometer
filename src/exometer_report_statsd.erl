@@ -53,17 +53,17 @@ exometer_init(Opts) ->
     Prefix     = get_opt(prefix, Opts, []),
 
     case gen_udp:open(0, [AddrType]) of
-	{ok, Sock} ->
-	    {ok, #st{socket=Sock, address=IP, port=Port, type_map=TypeMap,
-		     prefix=Prefix}};
-	{error, _} = Error ->
-	    Error
+    {ok, Sock} ->
+        {ok, #st{socket=Sock, address=IP, port=Port, type_map=TypeMap,
+             prefix=Prefix}};
+    {error, _} = Error ->
+        Error
     end.
 
 
 exometer_report(Metric, DataPoint, Extra, Value, #st{type_map = TypeMap,
-						     prefix = Pfx} = St) ->
-    Key = ets_key(Pfx, Metric, DataPoint),
+                             prefix = Pfx} = St) ->
+    Key = ets_key([], Metric, DataPoint),
     Name = name(Pfx, Metric, DataPoint),
     ?debug("Report metric ~p = ~p~n", [Name, Value]),
     Type = case exometer_util:report_type(Key, Extra, TypeMap) of
