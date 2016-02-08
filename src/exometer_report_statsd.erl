@@ -53,17 +53,17 @@ exometer_init(Opts) ->
     Prefix     = get_opt(prefix, Opts, []),
 
     case gen_udp:open(0, [AddrType]) of
-	{ok, Sock} ->
-	    {ok, #st{socket=Sock, address=IP, port=Port, type_map=TypeMap,
-		     prefix=Prefix}};
-	{error, _} = Error ->
-	    Error
+    {ok, Sock} ->
+        {ok, #st{socket=Sock, address=IP, port=Port, type_map=TypeMap,
+             prefix=Prefix}};
+    {error, _} = Error ->
+        Error
     end.
 
 
 exometer_report(Metric, DataPoint, Extra, Value, #st{type_map = TypeMap,
-						     prefix = Pfx} = St) ->
-    Key = ets_key(Pfx, Metric, DataPoint),
+                             prefix = Pfx} = St) ->
+    Key = metric_key(Metric, DataPoint),
     Name = name(Pfx, Metric, DataPoint),
     ?debug("Report metric ~p = ~p~n", [Name, Value]),
     Type = case exometer_util:report_type(Key, Extra, TypeMap) of
@@ -120,12 +120,14 @@ type(histogram) -> "h";
 type(meter) -> "m";
 type(set) -> "s". %% datadog specific type, see http://docs.datadoghq.com/guides/dogstatsd/#tags
 
-ets_key([] , Metric, DataPoint) -> Metric ++ [ DataPoint ];
-ets_key(Pfx, Metric, DataPoint) -> [ Pfx | Metric ] ++ [ DataPoint ].
+metric_key(Metric,DataPoint) -> metric_key([],Metric,DataPoint).
+
+metric_key([] , Metric, DataPoint) -> Metric ++ [ DataPoint ];
+metric_key(Pfx, Metric, DataPoint) -> [ Pfx | Metric ] ++ [ DataPoint ].
 
 name(Prefix, Metric, DataPoint) ->
     intersperse(".", lists:map(fun thing_to_list/1,
-                               ets_key(Prefix, Metric, DataPoint))).
+                               metric_key(Prefix, Metric, DataPoint))).
 
 thing_to_list(X) when is_atom(X) -> atom_to_list(X);
 thing_to_list(X) when is_integer(X) -> integer_to_list(X);
