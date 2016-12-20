@@ -57,19 +57,23 @@ exometer_init(Opts) ->
     Port = get_opt(port, Opts, ?DEFAULT_PORT),
     ConnectTimeout = get_opt(connect_timeout, Opts, ?DEFAULT_CONNECT_TIMEOUT),
 
-    case gen_tcp:connect(Host, Port,  [{mode, list}], ConnectTimeout) of
-        {ok, Sock} ->
-            {ok, #st{prefix = Prefix,
-                     api_key = API_key,
-                     socket = Sock,
-                     host = Host,
-                     port = Port,
-                     connect_timeout = ConnectTimeout }};
-        {error, _} = Error ->
-            Error
-    end.
+    Socket = case gen_tcp:connect(Host, Port,  [{mode, list}], ConnectTimeout) of
+                 {ok, Sock} ->
+                     Sock;
+                 {error, Error} ->
+                     ?warning("skip connection establishment with reason ~p", [Error]),
+                     undefined
+             end,
+    {ok, #st{prefix = Prefix,
+             api_key = API_key,
+             socket = Socket,
+             host = Host,
+             port = Port,
+             connect_timeout = ConnectTimeout }}.
 
-
+exometer_report(Probe, DataPoint, _Extra, _Value, #st{socket = undefined} = St) ->
+    ?warning("skip reporting due to lack of the connection ~p ~p", [Probe, DataPoint]),
+    reconnect(St);
 exometer_report(Probe, DataPoint, _Extra, Value, #st{socket = Sock,
                                                     api_key = APIKey,
                                                     prefix = Prefix} = St) ->
@@ -121,12 +125,20 @@ key(APIKey, Prefix, Prob, DataPoint) ->
 
 %% Add probe and datapoint within probe
 name(Probe, DataPoint) ->
-    [[[metric_elem_to_list(I), $.] || I <- Probe], datapoint(DataPoint)].
+    [[[metric_elem_escape(metric_elem_to_list(I)), $.] || I <- Probe], datapoint(DataPoint)].
 
 metric_elem_to_list(V) when is_atom(V) -> atom_to_list(V);
 metric_elem_to_list(V) when is_binary(V) -> binary_to_list(V);
 metric_elem_to_list(V) when is_integer(V) -> integer_to_list(V);
 metric_elem_to_list(V) when is_list(V) -> V.
+
+metric_elem_escape(V) ->
+    EscapeChar = fun($.) ->
+                         $_;
+                    (Any) ->
+                         Any
+                 end,
+    [ EscapeChar(Char) || Char <- V].
 
 datapoint(V) when is_integer(V) -> integer_to_list(V);
 datapoint(V) when is_atom(V) -> atom_to_list(V).
