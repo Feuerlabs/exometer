@@ -697,7 +697,7 @@ plugins. See [Configuring reporter plugins](https://github.com/Feuerlabs/exomete
 how to configure individual plugins.
 
 The `subscribers` sub-section contains all static subscriptions to be
-setup att exometer applications start. Each tuple in the prop list
+setup at exometer applications start. Each tuple in the prop list
 should be of one of the following formats:
 
 * `{Reporter, Metric, DataPoint, Interval}`
@@ -725,10 +725,10 @@ points.
 
 + `Metric :: [atoms()]`<br />Specifies the path to a metric previously created with an`exometer:new()` call.
 
-+ `DataPoint` ::  atom() | [atom()]'<br />Specifies the data point within the given metric to send to the
++ `DataPoint ::  atom() | [atom()]`<br />Specifies the data point within the given metric to send to the
     receiver. The data point must match one of the data points returned by`exometer:info(Name, datapoints)` for the given metrics name.
 
-+ `Interval` :: integer()' (milliseconds)<br />Specifies the interval, in milliseconds, between each update of the
++ `Interval :: integer()` (milliseconds)<br />Specifies the interval, in milliseconds, between each update of the
 given metric's data point. At the given interval, the data point will
 be samples, and the result will be sent to the receiver.
 
@@ -822,7 +822,7 @@ passed see item 1 above).
 + `hostname` (string - default: `net_adm:localhost()`)<br />Specifies the host name to use for the host tag in the OpenTSDB tags.
     Please see [Configuring opentsdb reporter](https://github.com/Feuerlabs/exometer/blob/master/doc/README.md#Configuring_opentsdb_reporter) for details.
 
-+ `host` (ip - default: {"127.0.0.1", 4242})<br />Specifies the host and port to connect to OpenTSDB.
++ `host` (ip - default: `{"127.0.0.1", 4242}`)<br />Specifies the host and port to connect to OpenTSDB.
 
 
 #### <a name="Configuring_amqp_reporter">Configuring amqp reporter</a> ####
