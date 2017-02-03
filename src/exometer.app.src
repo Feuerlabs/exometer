@@ -8,7 +8,6 @@
    [
     kernel,
     stdlib,
-    lager,
     exometer_core
    ]},
   {included_applications,

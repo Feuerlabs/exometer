@@ -65,6 +65,7 @@
    ]).
 
 -include_lib("exometer_core/include/exometer.hrl").
+-include_lib("hut/include/hut.hrl").
 
 %% Since amqp is an optional dep, we must check if it's included before
 %% introducing a compile-time dependency.
@@ -103,12 +104,10 @@
 %% calendar:datetime_to_gregorian_seconds({{1970,1,1},{0,0,0}}).
 -define(UNIX_EPOCH, 62167219200).
 
--include("log.hrl").
-
 %% Probe callbacks
 
 exometer_init(Opts) ->
-    ?info("Exometer AMQP Reporter; Opts: ~p~n", [Opts]),
+    ?log(info, "Exometer AMQP Reporter; Opts: ~p~n", [Opts]),
     {ok, AmqpParams} = amqp_uri:parse(get_opt(amqp_url, Opts, ?DEFAULT_AMQP_URL)),
     ReconnectInterval = get_opt(reconnect_interval,
                                 Opts, ?DEFAULT_RECONNECT_INTERVAL) * 1000,
@@ -129,7 +128,7 @@ exometer_init(Opts) ->
         {ok, Connection, Channel} ->
             {ok, State#st{channel = Channel, connection = Connection}};
         {error, _} = Error ->
-            ?warning("Exometer amqp connection failed; ~p. Retry in ~p~n",
+            ?log(warning, "Exometer amqp connection failed; ~p. Retry in ~p~n",
                      [Error, ReconnectInterval]),
             prepare_reconnect(),
             {ok, State}
@@ -138,7 +137,7 @@ exometer_init(Opts) ->
 %% Exometer report when no amqp connection exists.
 exometer_report(_Metric, _DataPoint, _Extra, _Value, St)
   when St#st.channel =:= false ->
-  ?warning("Report metric: No connection. Value lost~n"),
+  ?log(warning, "Report metric: No connection. Value lost~n"),
   {ok, St};
 exometer_report(Metric, DataPoint, _Extra, Value,
                 #st{hostname = Hostname} = St) ->
@@ -213,11 +212,11 @@ exometer_unsubscribe(_Metric, _DataPoint, _Extra, St) ->
     {ok, St }.
 
 exometer_call(Unknown, From, St) ->
-    ?info("Unknown call ~p from ~p", [Unknown, From]),
+    ?log(info, "Unknown call ~p from ~p", [Unknown, From]),
     {ok, St}.
 
 exometer_cast(Unknown, St) ->
-    ?info("Unknown cast: ~p", [Unknown]),
+    ?log(info, "Unknown cast: ~p", [Unknown]),
     {ok, St}.
 
 
@@ -231,18 +230,18 @@ exometer_info({exometer_callback, reconnect},
                       reconnect_interval = ReconnectInterval
                      }
              ) ->
-    ?info("Reconnecting: ~p~n", [St]),
+    ?log(info, "Reconnecting: ~p~n", [St]),
     case connect_amqp(AmqpParams) of
         {ok, _Connection, Channel} ->
             {ok, St#st{channel = Channel}};
         {error, _} = Error ->
-            ?warning("Exometer amqp connection failed; ~p. Retry in ~p~n",
+            ?log(warning, "Exometer amqp connection failed; ~p. Retry in ~p~n",
                      [Error, ReconnectInterval]),
             prepare_reconnect(),
             {ok, St}
     end;
 exometer_info(Unknown, St) ->
-    ?info("Unknown info: ~p", [Unknown]),
+    ?log(info, "Unknown info: ~p", [Unknown]),
     {ok, St}.
 
 exometer_newentry(_Entry, St) ->
@@ -286,7 +285,7 @@ connect_amqp(AmqpParams) ->
           {error, Reason}
       end;
     {error, Reason} ->
-      ?info("Error connecting: ~p~n",[Reason]),
+      ?log(info, "Error connecting: ~p~n",[Reason]),
       {error, Reason}
   end.
 

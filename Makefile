@@ -3,8 +3,8 @@
 EXOMETER_PLT=exometer.plt
 DIALYZER_OPTS = # -Wunderspecs
 DIALYZER_APPS = erts kernel stdlib compiler syntax_tools snmp ssl ssh \
-		crypto public_key test_server webtool xmerl common_test \
-		lager goldrush afunix netlink folsom mnesia parse_trans \
+		crypto public_key xmerl common_test \
+		afunix netlink folsom mnesia parse_trans \
 		setup exometer_core
 
 all: deps compile
@@ -47,11 +47,11 @@ dialyzer: deps compile $(EXOMETER_PLT)
 	dialyzer -r ebin --plt $(EXOMETER_PLT) $(DIALYZER_OPTS)
 
 compile_examples:
-	erlc +'{parse_transform, lager_transform}' -pz deps/lager/ebin -I src -o examples/snmp_manager/ examples/snmp_manager/*.erl
+	erlc -I src -o examples/snmp_manager/ examples/snmp_manager/*.erl
 
 devnode_snmp_agent:
-	erl -sname agent -pa deps/*/ebin ebin -config examples/snmp_agent/sys.config -boot start_sasl -s lager -s crypto -s exometer
+	erl -sname agent -pa deps/*/ebin ebin -config examples/snmp_agent/sys.config -boot start_sasl -s crypto -s exometer
 
 devnode_snmp_manager: compile_examples
 	erl -sname manager -pz examples/snmp_manager -pz deps/*/ebin ebin -config examples/snmp_manager/sys.config \
-		-boot start_sasl -s lager -s crypto -s snmp
+		-boot start_sasl -s crypto -s snmp

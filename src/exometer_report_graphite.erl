@@ -27,6 +27,7 @@
    ]).
 
 -include_lib("exometer_core/include/exometer.hrl").
+-include_lib("hut/include/hut.hrl").
 
 -define(DEFAULT_HOST, "carbon.hostedgraphite.com").
 -define(DEFAULT_PORT, 2003).
@@ -45,12 +46,10 @@
 %% calendar:datetime_to_gregorian_seconds({{1970,1,1},{0,0,0}}).
 -define(UNIX_EPOCH, 62167219200).
 
--include("log.hrl").
-
 %% Probe callbacks
 
 exometer_init(Opts) ->
-    ?info("Exometer Graphite Reporter; Opts: ~p~n", [Opts]),
+    ?log(info, "Exometer Graphite Reporter; Opts: ~p~n", [Opts]),
     API_key = get_opt(api_key, Opts),
     Prefix = get_opt(prefix, Opts, []),
     Host = get_opt(host, Opts, ?DEFAULT_HOST),
@@ -89,15 +88,15 @@ exometer_unsubscribe(_Metric, _DataPoint, _Extra, St) ->
     {ok, St }.
 
 exometer_call(Unknown, From, St) ->
-    ?info("Unknown call ~p from ~p", [Unknown, From]),
+    ?log(info, "Unknown call ~p from ~p", [Unknown, From]),
     {ok, St}.
 
 exometer_cast(Unknown, St) ->
-    ?info("Unknown cast: ~p", [Unknown]),
+    ?log(info, "Unknown cast: ~p", [Unknown]),
     {ok, St}.
 
 exometer_info(Unknown, St) ->
-    ?info("Unknown info: ~p", [Unknown]),
+    ?log(info, "Unknown info: ~p", [Unknown]),
     {ok, St}.
 
 exometer_newentry(_Entry, St) ->

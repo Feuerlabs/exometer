@@ -55,6 +55,7 @@
    ]).
 
 -include_lib("exometer_core/include/exometer.hrl").
+-include_lib("hut/include/hut.hrl").
 
 -define(DEFAULT_HOST, "localhost").
 -define(DEFAULT_PORT, 4242).
@@ -73,12 +74,10 @@
 %% calendar:datetime_to_gregorian_seconds({{1970,1,1},{0,0,0}}).
 -define(UNIX_EPOCH, 62167219200).
 
--include("log.hrl").
-
 %% Probe callbacks
 
 exometer_init(Opts) ->
-    ?info("Exometer OpenTSDB Reporter; Opts: ~p~n", [Opts]),
+    ?log(info, "Exometer OpenTSDB Reporter; Opts: ~p~n", [Opts]),
     {Host, Port} = get_opt(host, Opts, {?DEFAULT_HOST, ?DEFAULT_PORT}),
     ReconnectInterval = get_opt(reconnect_interval, Opts, ?RECONNECT_INTERVAL) * 1000,
     ConnectTimeout = get_opt(connect_timeout, Opts, ?DEFAULT_CONNECT_TIMEOUT),
@@ -96,32 +95,31 @@ exometer_init(Opts) ->
         {ok, Sock} ->
             {ok, State#st{socket = Sock}};
         {error, _} = Error ->
-            ?warning("Exometer opentsdb connection failed; ~p. Retry in ~p~n", [Error, ReconnectInterval]),
+            ?log(warning, "Exometer opentsdb connection failed; ~p. Retry in ~p~n", [Error, ReconnectInterval]),
             prepare_reconnect(),
             {ok, State}
     end.
 
 %% Exometer report when no opentsdb socket connection exists.
 exometer_report(_Metric, _DataPoint, _Extra, _Value, St) when St#st.socket =:= undefined ->
-    ?warning("Report metric: No connection. Value lost~n"),
+    ?log(warning, "Report metric: No connection. Value lost~n"),
     {ok, St};
 
 %% Format a opentsdb output. Each entry is one measurement plus key/value attributes.
 %% put <metric> <time> <measurement> <k1>=<v1> <k2>=<v2>\n
 exometer_report(Metric, DataPoint, _Extra, Value, #st{socket = Sock, hostname = Hostname,
                 join_metric_and_datapoint = JoinMetricAndDatapoint} = St) ->
-    if
+    Line = if
         JoinMetricAndDatapoint ->
-            Line = [
-                    "put ", name(Metric), "_", metric_elem_to_list(DataPoint),
-                    " ", timestamp(), " ", value(Value), " ", "hostname=", Hostname, $\n
-                   ];
+            [
+                "put ", name(Metric), "_", metric_elem_to_list(DataPoint),
+                " ", timestamp(), " ", value(Value), " ", "hostname=", Hostname, $\n
+            ];
         true ->
-
-            Line = [
-                    "put ", name(Metric), " ", timestamp(), " ", value(Value), " ",
-                    "hostname=", Hostname, " ", "type=", metric_elem_to_list(DataPoint), $\n
-                   ]
+            [
+                "put ", name(Metric), " ", timestamp(), " ", value(Value), " ",
+                "hostname=", Hostname, " ", "type=", metric_elem_to_list(DataPoint), $\n
+            ]
     end,
 
     case gen_tcp:send(Sock, Line) of
@@ -139,11 +137,11 @@ exometer_unsubscribe(_Metric, _DataPoint, _Extra, St) ->
     {ok, St }.
 
 exometer_call(Unknown, From, St) ->
-    ?info("Unknown call ~p from ~p", [Unknown, From]),
+    ?log(info, "Unknown call ~p from ~p", [Unknown, From]),
     {ok, St}.
 
 exometer_cast(Unknown, St) ->
-    ?info("Unknown cast: ~p", [Unknown]),
+    ?log(info, "Unknown cast: ~p", [Unknown]),
     {ok, St}.
 
 
@@ -151,17 +149,17 @@ exometer_info({exometer_callback, prepare_reconnect}, #st{reconnect_interval = I
     reconnect_after(Int),
     {ok, St};
 exometer_info({exometer_callback, reconnect}, St) ->
-    ?info("Reconnecting: ~p~n", [St]),
+    ?log(info, "Reconnecting: ~p~n", [St]),
     case connect_opentsdb(St) of
         {ok, NSt} ->
             {ok, NSt};
         Err ->
-            ?warning("Could not reconnect: ~p~n", [Err]),
+            ?log(warning, "Could not reconnect: ~p~n", [Err]),
             prepare_reconnect(),
             {ok, St}
     end;
 exometer_info(Unknown, St) ->
-    ?info("Unknown info: ~p", [Unknown]),
+    ?log(info, "Unknown info: ~p", [Unknown]),
     {ok, St}.
 
 exometer_newentry(_Entry, St) ->

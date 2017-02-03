@@ -413,7 +413,6 @@ use metrics reporting.
 The system using Exometer must start the `exometer' application prior to using it:
 
 <pre lang="erlang">
-application:start(lager),
 application:start(exometer).</pre>
 
 Note that dependent applications need to be started first. On newer OTP versions
@@ -910,7 +909,7 @@ either keep or remove, separated using space, tab or comma.
 
 === Supported packages ===
 
-+ `minimal' - only the mandatory deps: `lager', `parse_trans', `setup'.
++ `minimal' - only the mandatory deps: `parse_trans', `setup'.
 
 + `basic' - (mandatory deps and) `folsom'.
 
