@@ -45,10 +45,10 @@
 
 exometer_init(Opts) ->
     ?info("~p(~p): Starting~n", [?MODULE, Opts]),
-    {ok, Host} = inet:gethostbyname(get_opt(hostname, Opts, ?DEFAULT_HOST)),
+    {ok, Host} = inet:gethostbyname(host(Opts)),
     [IP|_]     = Host#hostent.h_addr_list,
     AddrType   = Host#hostent.h_addrtype,
-    Port       = get_opt(port, Opts, ?DEFAULT_PORT),
+    Port       = port(Opts),
     TypeMap    = get_opt(type_map, Opts, []),
     Prefix     = get_opt(prefix, Opts, []),
 
@@ -112,6 +112,26 @@ exometer_terminate(_, _) ->
 
 get_opt(K, Opts, Def) ->
     exometer_util:get_opt(K, Opts, Def).
+
+host(Opts) ->
+  case get_opt(hostname, Opts, ?DEFAULT_HOST) of
+    {system, T} -> from_env(T);
+    T -> T
+  end.
+
+port(Opts) ->
+  case get_opt(port, Opts, ?DEFAULT_PORT) of
+    {system, T} ->
+      {String, _} = string:to_integer(from_env(T)),
+      String;
+    T -> T
+  end.
+
+from_env(Config) ->
+  case os:getenv(Config) of
+    false -> nil;
+    V -> V
+  end.
 
 type(gauge) -> "g";
 type(counter) -> "c";
