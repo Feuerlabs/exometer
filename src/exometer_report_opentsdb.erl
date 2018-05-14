@@ -226,5 +226,8 @@ metric_elem_to_list(E) when is_atom(E) ->
 metric_elem_to_list(E) when is_list(E) ->
     E;
 
+metric_elem_to_list(E) when is_binary(E) ->
+    [E];
+
 metric_elem_to_list(E) when is_integer(E) ->
     integer_to_list(E).
