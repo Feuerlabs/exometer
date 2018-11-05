@@ -13,7 +13,7 @@
 
 -include_lib("kernel/include/inet.hrl").
 -include_lib("exometer_core/include/exometer.hrl").
--include("log.hrl").
+-include_lib("hut/include/hut.hrl").
 
 %% gen_server callbacks
 -export(
@@ -44,7 +44,7 @@
 %%%===================================================================
 
 exometer_init(Opts) ->
-    ?info("~p(~p): Starting~n", [?MODULE, Opts]),
+    ?log(info, "~p(~p): Starting~n", [?MODULE, Opts]),
     {ok, Host} = inet:gethostbyname(get_opt(hostname, Opts, ?DEFAULT_HOST)),
     [IP|_]     = Host#hostent.h_addr_list,
     AddrType   = Host#hostent.h_addrtype,
@@ -65,7 +65,7 @@ exometer_report(Metric, DataPoint, Extra, Value, #st{type_map = TypeMap,
                              prefix = Pfx} = St) ->
     Key = metric_key(Metric, DataPoint),
     Name = name(Pfx, Metric, DataPoint),
-    ?debug("Report metric ~p = ~p~n", [Name, Value]),
+    ?log(debug, "Report metric ~p = ~p~n", [Name, Value]),
     Type = case exometer_util:report_type(Key, Extra, TypeMap) of
                {ok, T} -> T;
                error -> gauge
@@ -75,7 +75,7 @@ exometer_report(Metric, DataPoint, Extra, Value, #st{type_map = TypeMap,
         ok ->
             {ok, St};
         {error, Reason} ->
-            ?info("Unable to write metric. ~p~n", [Reason]),
+            ?log(info, "Unable to write metric. ~p~n", [Reason]),
             {ok, St}
     end.
 
@@ -86,15 +86,15 @@ exometer_unsubscribe(_Metric, _DataPoint, _Extra, St) ->
     {ok, St}.
 
 exometer_call(Unknown, From, St) ->
-    ?info("Unknown call ~p from ~p", [Unknown, From]),
+    ?log(info, "Unknown call ~p from ~p", [Unknown, From]),
     {ok, St}.
 
 exometer_cast(Unknown, St) ->
-    ?info("Unknown cast: ~p", [Unknown]),
+    ?log(info, "Unknown cast: ~p", [Unknown]),
     {ok, St}.
 
 exometer_info(Unknown, St) ->
-    ?info("Unknown info: ~p", [Unknown]),
+    ?log(info, "Unknown info: ~p", [Unknown]),
     {ok, St}.
 
 exometer_newentry(_Entry, St) ->

@@ -467,7 +467,7 @@ start_manager(Config) ->
             {env, [{"ERL_LIBS", "../../deps"}]},
             {erl_flags, deps_code_flags() ++
                         " -pz ../../examples/snmp_manager" ++
-                        " -s lager -config " ++
+                        " -config " ++
                         ?config(manager_conf_path, Config)}],
     {ok, Manager} = ct_slave:start(Host, Node, Opts),
     [{manager, Manager}, {manager_node, Node} | Config].

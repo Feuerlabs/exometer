@@ -39,7 +39,7 @@
 -export_type([snmp/0, snmp_option/0]).
 
 -include_lib("exometer_core/include/exometer.hrl").
--include("log.hrl").
+-include_lib("hut/include/hut.hrl").
 
 -define(MIB_TEMPLATE, "mibs/EXOMETER-METRICS-MIB.mib").
 -define(MIB_DIR, "tmp/" ++ erlang:atom_to_list(?MODULE)).
@@ -68,13 +68,13 @@
 %%%===================================================================
 
 exometer_init(Opts) ->
-    ?info("~p(~p): Starting~n", [?MODULE, Opts]),
+    ?log(info, "~p(~p): Starting~n", [?MODULE, Opts]),
     RunningApps = application:which_applications(),
     case lists:keymember(snmp, 1, RunningApps) of
         true ->
             ok;
         false ->
-            ?warning("Application SNMP not started. Ensure that a usable SNMP agent is configured.")
+            ?log(warning, "Application SNMP not started. Ensure that a usable SNMP agent is configured.")
     end,
 
     % prepare nr mapping used to track enabled metrics
@@ -118,7 +118,7 @@ exometer_unsubscribe(Metric, DataPoint, Extra, St) ->
     disable_inform(Entry, DataPoint, Extra, St).
 
 exometer_report(Metric, DataPoint, _Extra, Value, St)  ->
-    ?debug("Report metric ~p_~p = ~p~n", [Metric, DataPoint, Value]),
+    ?log(debug, "Report metric ~p_~p = ~p~n", [Metric, DataPoint, Value]),
     Inform = erlang:binary_to_existing_atom(inform_name(Metric, DataPoint), latin1),
     VarName = erlang:binary_to_existing_atom(metric_name(Metric, DataPoint), latin1),
     Varbinds = [{VarName, Value}],
@@ -132,15 +132,15 @@ exometer_call(get_mib, _From, #st{mib_version=Vsn,
     {reply, {ok, Vsn, MibName, Mib}, St};
 
 exometer_call(Unknown, From, St) ->
-    ?info("Unknown call ~p from ~p", [Unknown, From]),
+    ?log(info, "Unknown call ~p from ~p", [Unknown, From]),
     {ok, St}.
 
 exometer_cast(Unknown, St) ->
-    ?info("Unknown cast: ~p", [Unknown]),
+    ?log(info, "Unknown cast: ~p", [Unknown]),
     {ok, St}.
 
 exometer_info(Unknown, St) ->
-    ?info("Unknown info: ~p", [Unknown]),
+    ?log(info, "Unknown info: ~p", [Unknown]),
     {ok, St}.
 
 exometer_newentry(E, St) ->
@@ -165,7 +165,7 @@ exometer_setopts(#exometer_entry{name = Name} = E, Options, _, St0) ->
 	    ok = update_subscriptions(Name, Subs),
 	    {ok, St0};
 	{_, Err} ->
-	    ?error("Option ~p has incorrect value ~p", [snmp, Err]),
+	    ?log(error, "Option ~p has incorrect value ~p", [snmp, Err]),
 	    {error, improper_option}
     end.
 
@@ -173,7 +173,7 @@ exometer_setopts(#exometer_entry{name = Name} = E, Options, _, St0) ->
 exometer_terminate(_, #st{mib_file_path=MibPath0}) ->
     MibPath1 = filename:rootname(MibPath0),
     ok = snmpa:unload_mibs(snmp_master_agent, [MibPath1]),
-    ?info("MIB ~s unloaded", [MibPath1]),
+    ?log(info, "MIB ~s unloaded", [MibPath1]),
     ok.
 
 %%%===================================================================
@@ -194,16 +194,16 @@ get_mib() ->
 % Currently only get operations are handled.
 % @end
 snmp_operation(get, {Metric, Dp}) ->
-    ?info("SNMP Get ~p:~p", [Metric, Dp]),
+    ?log(info, "SNMP Get ~p:~p", [Metric, Dp]),
     {ok, [{Dp, V}]} = exometer:get_value(Metric, Dp),
     snmp_value(Metric, Dp, V);
 snmp_operation(Op, Key) ->
-    ?warning("Unhandled SNMP operation ~p on ~p", [Op, Key]),
+    ?log(warning, "Unhandled SNMP operation ~p on ~p", [Op, Key]),
     {noValue, noSuchObject}.
 
 % @doc See snmp_operation/2. Currently no operations are handled.
 snmp_operation(Op, Val, Key) ->
-    ?warning("Unhandled SNMP operation ~p on ~p with value ~p", [Op, Key, Val]),
+    ?log(warning, "Unhandled SNMP operation ~p on ~p with value ~p", [Op, Key, Val]),
     {noValue, noSuchObject}.
 
 %%%===================================================================
@@ -292,18 +292,18 @@ load_mib(Vsn, Mib0, IgnoreUnload) ->
                     ok;
                 false ->
                     ok = snmpa:unload_mibs(snmp_master_agent, [BinMib1]),
-                    ?info("MIB ~s unloaded", [BinMib1])
+                    ?log(info, "MIB ~s unloaded", [BinMib1])
             end,
             case snmpa:load_mibs(snmp_master_agent, [BinMib1]) of
                 ok ->
-                    ?info("MIB ~s loaded", [BinMib1]),
+                    ?log(info, "MIB ~s loaded", [BinMib1]),
                     {ok, increment_vsn(Vsn)};
                 E ->
-                    ?error("Error ~p when loading MIB ~s", [E, BinMib1]),
+                    ?log(error, "Error ~p when loading MIB ~s", [E, BinMib1]),
                     E
             end;
         E ->
-            ?error("Error ~p when compiling MIB ~s", [E, Mib0]),
+            ?log(error, "Error ~p when compiling MIB ~s", [E, Mib0]),
             E
     end.
 
@@ -531,14 +531,14 @@ snmp_value(Name, Dp, Value) ->
                 true ->
                     case Mod:snmp_value(Name, Dp, Value) of
                         undefined ->
-                            ?error("SNMP value representation undefined in"
+                            ?log(error, "SNMP value representation undefined in"
                                    "module ~p for ~p:~p", [Mod, Name, Dp]),
                             {noValue, noSuchObject};
                         NewValue ->
                             {value, NewValue}
                     end;
                 false ->
-                    ?error("snmp_value/3 not exported in module ~p for ~p:~p",
+                    ?log(error, "snmp_value/3 not exported in module ~p for ~p:~p",
                            [Mod, Name, Dp]),
                     {noValue, noSuchObject}
             end
@@ -716,6 +716,6 @@ newentry(#exometer_entry{name = Name, options = Options} = E, St0) ->
 	    ok = update_subscriptions(Name, Subs),
 	    {ok, St1};
 	{_, Other} ->
-	    ?error("Option ~p has incorrect value ~p", [snmp, Other]),
+	    ?log(error, "Option ~p has incorrect value ~p", [snmp, Other]),
 	    {error, improper_option}
     end.

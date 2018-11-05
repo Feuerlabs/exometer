@@ -16,7 +16,7 @@
 %% @doc Specify reporter backend.
 %%
 %% Recognized values:
-%%     collectd | statsd | tty | lager | ModuleName
+%%     collectd | statsd | tty | ModuleName
 %%
 %% where ModuleName is an exometer reporter plugin.
 %%
@@ -117,7 +117,6 @@
 	 Backend = fun(collectd) -> exometer_report_collectd;
 		      (statsd  ) -> exometer_report_statsd;
 		      (tty     ) -> exometer_report_tty;
-		      (lager   ) -> exometer_report_lager;
 		      (B       ) -> B
 		   end,
 	 Interval =

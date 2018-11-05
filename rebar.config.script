@@ -26,24 +26,11 @@ CONFIG0 = case os:getenv("EXOMETER_CONFIG_PREPROCESS") of
 			      filename:basename(PPScr),
 			      [{'CONFIG', CONFIG}])
 	  end.
-CFG1 = case os:getenv("REBAR_DEPS") of
-           false ->
-               CONFIG0;
-           [] ->
-               CONFIG0;
-           Dir ->
-               lists:keystore(deps_dir, 1, CONFIG0, {deps_dir, Dir})
-       end.
-
-Priv = filename:join(filename:dirname(SCRIPT), "priv").
-CFG2 = Script(Priv, "check_edown.script", [{'CONFIG', CFG1}]).
-CFG3 = Script(Priv, "check_packages.script", [{'CONFIG', CFG2}]).
-CFG4 = Script(Priv, "check_cover.script", [{'CONFIG', CFG3}]).
 
 case os:getenv("EXOMETER_CONFIG_POSTPROCESS") of
-    false  -> CFG4;
-    []     -> CFG4;
+    false  -> CONFIG0;
+    []     -> CONFIG0;
     PoPScr -> Script(filename:dirname(PoPScr),
 		     filename:basename(PoPScr),
-		     [{'CONFIG', CFG4}])
+		     [{'CONFIG', CONFIG0}])
 end.
