@@ -1,4 +1,4 @@
-.PHONY: all clean clean_plt deps compile test doc dialyzer xref devnode_snmp_agent devnode_snmp_manager compile_examples ci
+.PHONY: all clean compile test doc dialyzer xref devnode_snmp_agent devnode_snmp_manager compile_examples ci
 
 REBAR3 ?= rebar3
 
@@ -9,7 +9,7 @@ ci: compile xref dialyzer test
 compile:
 	${REBAR3} compile
 
-clean: clean_plt
+clean:
 	${REBAR3} clean
 
 clean-all: clean
@@ -24,8 +24,8 @@ xref:
 doc:
 	$(REBAR3) as docs do edoc
 
-clean_plt:
-	rm -f $(EXOMETER_PLT)
+dialyzer: compile
+	$(REBAR3) dialyzer
 
 compile_examples:
 	erlc -pz _build/default/lib/hut/ebin -I src -o examples/snmp_manager/ examples/snmp_manager/*.erl
