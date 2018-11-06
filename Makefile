@@ -16,7 +16,7 @@ clean-all: clean
 	rm -rf _build
 
 test: compile_examples
-	ERL_LIBS=./examples $(REBAR3) ct
+	ERL_LIBS=./examples $(REBAR3) ct --sname ct_master
 
 xref:
 	${REBAR3} as full do xref
@@ -28,7 +28,7 @@ clean_plt:
 	rm -f $(EXOMETER_PLT)
 
 compile_examples:
-	erlc -I src -o examples/snmp_manager/ examples/snmp_manager/*.erl
+	erlc -pz _build/default/lib/hut/ebin -I src -o examples/snmp_manager/ examples/snmp_manager/*.erl
 
 devnode_snmp_agent:
 	erl -sname agent -pa deps/*/ebin ebin -config examples/snmp_agent/sys.config -boot start_sasl -s crypto -s exometer

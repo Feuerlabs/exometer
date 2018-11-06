@@ -142,7 +142,7 @@ test_agent_manager_communication_example(Config) ->
     ok.
 
 test_mib_modification(Config) ->
-    {ok, ExpectedMib} = file:read_file("../../test/data/EXOTEST-MIB.mib.modified"),
+    {ok, ExpectedMib} = file:read_file("../../../../test/data/EXOTEST-MIB.mib.modified"),
     ct:log("Expected MIB: ~s", [binary_to_list(ExpectedMib)]),
     ok = exometer:new([test, app, one], counter, [{snmp, [{value, 1000}]}]),
     ok = exometer:new([test, app, two], fast_counter, [{snmp, []}, {function, {erlang, now}}]),
@@ -153,8 +153,9 @@ test_mib_modification(Config) ->
                                                    {snmp_syntax,
                                                     [{value,<<"Counter64">>}]}]),
     ok = wait_for_mib_version(10, 10, 20000),
-
-    {ok, ModifiedMib} = file:read_file(?config(mib_file, Config) ++ ".mib"),
+    ModifiedMibPath = ?config(mib_file, Config) ++ ".mib",
+    ct:log("Modified MIB Path = ~s", [ModifiedMibPath]),
+    {ok, ModifiedMib} = file:read_file(ModifiedMibPath),
     ct:log("Modified MIB: ~s", [binary_to_list(ModifiedMib)]),
     ExpectedMib = ModifiedMib,
     ct:log("AliasNames = ~p", [snmpa:which_aliasnames()]),
@@ -341,8 +342,10 @@ test_reporter_restart(Config) ->
 snmp_init_testcase(Case) ->
     AgentConfPath = agent_conf_path(),
     ManagerConfPath = manager_conf_path(),
+    ct:log("Agent configuration path: ~p", [AgentConfPath]),
+    ct:log("Manager configuration path: ~p", [ManagerConfPath]),
     reset_snmp_dirs(AgentConfPath, ManagerConfPath),
-    MibTemplate = "../../test/data/EXOTEST-MIB.mib",
+    MibTemplate = "../../../../test/data/EXOTEST-MIB.mib",
     TmpPath = filename:join(["tmp", atom_to_list(Case)]),
     application:load(exometer),
     ReporterSpec = [{reporters, [{exometer_report_snmp,
@@ -426,7 +429,7 @@ agent_conf_path() ->
         true ->
             "../../test/config/snmp_agent-compat-r15.config";
         false ->
-            "../../test/config/snmp_agent.config"
+            "../../../../test/config/snmp_agent.config"
     end.
 
 manager_conf_path() ->
@@ -436,7 +439,7 @@ manager_conf_path() ->
         true ->
             "../../test/config/snmp_manager-compat-r15.config";
         false ->
-            "../../test/config/snmp_manager.config"
+            "../../../../test/config/snmp_manager.config"
     end.
 
 gethostname() ->
@@ -450,7 +453,7 @@ gethostname() ->
     list_to_atom(Hostname).
 
 deps_code_flags() ->
-    DepsDir = "../../deps",
+    DepsDir = "../../lib",
     {ok, Deps0} = file:list_dir(DepsDir),
     Deps1 = ["-pz " ++ filename:join([DepsDir, Dep, "ebin"]) || Dep <- Deps0],
     string:join(Deps1, " ").
@@ -464,11 +467,12 @@ start_manager(Config) ->
              [
               {exo_test_user, start, []}
              ]},
-            {env, [{"ERL_LIBS", "../../deps"}]},
+            {env, [{"ERL_LIBS", "../../lib"}]},
             {erl_flags, deps_code_flags() ++
-                        " -pz ../../examples/snmp_manager" ++
+                        " -pz ../../../../examples/snmp_manager" ++
                         " -config " ++
                         ?config(manager_conf_path, Config)}],
+    ct:log("Starting slave ~p on ~p with Opts = ~p", [Node, Host, Opts]),
     {ok, Manager} = ct_slave:start(Host, Node, Opts),
     [{manager, Manager}, {manager_node, Node} | Config].
 

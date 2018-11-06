@@ -186,6 +186,8 @@ get_mib() ->
         exometer_proc:call(?MODULE, get_mib)
     catch
         error:badarg ->
+            {error, not_running};
+        error:noproc ->
             {error, not_running}
     end.
 
