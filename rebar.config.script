@@ -15,7 +15,7 @@ Script = fun(D,S,Vs) ->
 		     {ok, Res} ->
                  Res;
 		     {error,_} = Err ->
-                 io:fwrite("Error evaluating script ~s~n", [S]),
+			 io:fwrite("Error evaluating script ~s: ~p~n", [S, Err]),
 			 Err
 		 end
 	 end.
@@ -26,11 +26,12 @@ CONFIG0 = case os:getenv("EXOMETER_CONFIG_PREPROCESS") of
 			      filename:basename(PPScr),
 			      [{'CONFIG', CONFIG}])
 	  end.
-
+Priv = filename:join(filename:dirname(SCRIPT), "priv").
+CONFIG1 = Script(Priv, "update_dep_amqp_client.script", [{'CONFIG', CONFIG0}]).
 case os:getenv("EXOMETER_CONFIG_POSTPROCESS") of
-    false  -> CONFIG0;
-    []     -> CONFIG0;
+    false  -> CONFIG1;
+    []     -> CONFIG1;
     PoPScr -> Script(filename:dirname(PoPScr),
 		     filename:basename(PoPScr),
-		     [{'CONFIG', CONFIG0}])
+		     [{'CONFIG', CONFIG1}])
 end.

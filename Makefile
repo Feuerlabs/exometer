@@ -16,7 +16,7 @@ clean-all: clean
 	rm -rf _build
 
 test: compile_examples
-	ERL_LIBS=./examples $(REBAR3) ct --sname ct_master
+	ERL_LIBS=./examples $(REBAR3) ct
 
 xref:
 	${REBAR3} as full do xref

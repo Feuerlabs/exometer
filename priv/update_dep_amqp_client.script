@@ -1,0 +1,26 @@
+%% -*- erlang -*-
+%%
+%% This helper script checks if we compile with a pre-20 OTP version.
+%% If so, it replaces the dependency amqp_client with an older, working version.
+AmqpClientVersion = "3.6.16".
+SupportedOtpVersions = [
+  "Erlang/OTP 20",
+  "Erlang/OTP 21"
+].
+Profiles = proplists:get_value(profiles, CONFIG, []).
+OtpVersion = erlang:system_info(system_version).
+case lists:any(fun(Vsn) -> string:str(OtpVersion, Vsn) == 1 end, SupportedOtpVersions) of
+  true -> CONFIG;
+  false ->
+    NewProfiles = lists:map(
+		    fun({PName, POpts}) ->
+		      Deps = proplists:get_value(deps, POpts, []),
+		      NewDeps = lists:map(
+				  fun
+				    ({amqp_client, _}) -> {amqp_client, AmqpClientVersion};
+				    (Other) -> Other
+				  end, Deps),
+		      {PName, lists:keystore(deps, 1, POpts, {deps, NewDeps})}
+		    end, Profiles),
+    lists:keystore(profiles, 1, CONFIG, {profiles, NewProfiles})
+end.
