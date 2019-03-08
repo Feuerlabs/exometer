@@ -142,7 +142,7 @@ test_agent_manager_communication_example(Config) ->
     ok.
 
 test_mib_modification(Config) ->
-    {ok, ExpectedMib} = file:read_file("../../test/data/EXOTEST-MIB.mib.modified"),
+    {ok, ExpectedMib} = file:read_file("../../../../test/data/EXOTEST-MIB.mib.modified"),
     ct:log("Expected MIB: ~s", [binary_to_list(ExpectedMib)]),
     ok = exometer:new([test, app, one], counter, [{snmp, [{value, 1000}]}]),
     ok = exometer:new([test, app, two], fast_counter, [{snmp, []}, {function, {erlang, now}}]),
@@ -342,7 +342,7 @@ snmp_init_testcase(Case) ->
     AgentConfPath = agent_conf_path(),
     ManagerConfPath = manager_conf_path(),
     reset_snmp_dirs(AgentConfPath, ManagerConfPath),
-    MibTemplate = "../../test/data/EXOTEST-MIB.mib",
+    MibTemplate = "../../../../test/data/EXOTEST-MIB.mib",
     TmpPath = filename:join(["tmp", atom_to_list(Case)]),
     application:load(exometer),
     ReporterSpec = [{reporters, [{exometer_report_snmp,
@@ -424,9 +424,9 @@ agent_conf_path() ->
     CompatList = ["R15B01", "R15B02", "R15B03", "R16B", "R16B01", "R16B02"],
     case lists:member(OtpVersion, CompatList) of
         true ->
-            "../../test/config/snmp_agent-compat-r15.config";
+            "../../../../test/config/snmp_agent-compat-r15.config";
         false ->
-            "../../test/config/snmp_agent.config"
+            "../../../../test/config/snmp_agent.config"
     end.
 
 manager_conf_path() ->
@@ -434,9 +434,9 @@ manager_conf_path() ->
     CompatList = ["R15B01", "R15B02", "R15B03", "R16B", "R16B01", "R16B02"],
     case lists:member(OtpVersion, CompatList) of
         true ->
-            "../../test/config/snmp_manager-compat-r15.config";
+            "../../../../test/config/snmp_manager-compat-r15.config";
         false ->
-            "../../test/config/snmp_manager.config"
+            "../../../../test/config/snmp_manager.config"
     end.
 
 gethostname() ->
@@ -450,7 +450,7 @@ gethostname() ->
     list_to_atom(Hostname).
 
 deps_code_flags() ->
-    DepsDir = "../../deps",
+    DepsDir = "../../../../_build/default/lib",
     {ok, Deps0} = file:list_dir(DepsDir),
     Deps1 = ["-pz " ++ filename:join([DepsDir, Dep, "ebin"]) || Dep <- Deps0],
     string:join(Deps1, " ").
@@ -464,9 +464,9 @@ start_manager(Config) ->
              [
               {exo_test_user, start, []}
              ]},
-            {env, [{"ERL_LIBS", "../../deps"}]},
+            {env, [{"ERL_LIBS", "../../../../_build/default/lib"}]},
             {erl_flags, deps_code_flags() ++
-                        " -pz ../../examples/snmp_manager" ++
+                        " -pz ../../../../examples/snmp_manager" ++
                         " -s lager -config " ++
                         ?config(manager_conf_path, Config)}],
     {ok, Manager} = ct_slave:start(Host, Node, Opts),
