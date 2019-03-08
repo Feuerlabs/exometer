@@ -13,3 +13,4 @@ logs/
 erl_crash.dump
 .rebar
 variables-ct@*
+_build
